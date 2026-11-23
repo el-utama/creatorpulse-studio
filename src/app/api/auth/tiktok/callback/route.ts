@@ -56,29 +56,48 @@ export async function GET(request: Request) {
 
     const tokens = await tokenRes.json();
 
+    if (!tokens.access_token) {
+      console.error("No access_token in TikTok response:", tokens);
+      return NextResponse.redirect(
+        new URL(
+          "/?error=no_access_token",
+          process.env.APP_URL || "http://localhost:3000"
+        )
+      );
+    }
+
     const maxAge = tokens.expires_in || 3600;
     const refreshMaxAge = 7 * 24 * 60 * 60;
-
     const isProduction = process.env.NODE_ENV === "production";
-    const secureFlag = isProduction ? "Secure" : "";
 
     const response = NextResponse.redirect(
       new URL("/dashboard", process.env.APP_URL || "http://localhost:3000")
     );
 
-    // Set cookies via Set-Cookie header directly for reliability
-    response.headers.set(
-      "Set-Cookie",
-      `${APP_CONFIG.cookieNames.accessToken}=${tokens.access_token}; Path=/; HttpOnly; ${secureFlag}; SameSite=Lax; Max-Age=${maxAge}`
-    );
-    response.headers.append(
-      "Set-Cookie",
-      `${APP_CONFIG.cookieNames.refreshToken}=${tokens.refresh_token}; Path=/; HttpOnly; ${secureFlag}; SameSite=Lax; Max-Age=${refreshMaxAge}`
-    );
-    response.headers.append(
-      "Set-Cookie",
-      `${APP_CONFIG.cookieNames.oauthState}=; Path=/; HttpOnly; ${secureFlag}; SameSite=Lax; Max-Age=0`
-    );
+    // Set cookies via NextResponse.cookies() for reliability
+    response.cookies.set(APP_CONFIG.cookieNames.accessToken, tokens.access_token, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: "lax",
+      path: "/",
+      maxAge,
+    });
+
+    response.cookies.set(APP_CONFIG.cookieNames.refreshToken, tokens.refresh_token, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: "lax",
+      path: "/",
+      maxAge: refreshMaxAge,
+    });
+
+    response.cookies.set(APP_CONFIG.cookieNames.oauthState, "", {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
 
     return response;
   } catch (error) {
