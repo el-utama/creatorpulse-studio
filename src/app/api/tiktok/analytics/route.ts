@@ -11,11 +11,13 @@ export async function GET() {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
+  const token = accessToken;
+
   async function fetchWithRefresh<T>(
     fn: (token: string) => Promise<T>
   ): Promise<T> {
     try {
-      return await fn(accessToken);
+      return await fn(token);
     } catch (err: any) {
       if (refreshToken && err.message.includes("401")) {
         const res = await fetch(
