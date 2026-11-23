@@ -8,6 +8,7 @@ const cookieOptions = {
   secure: isProduction,
   sameSite: "lax" as const,
   path: "/",
+  ...(process.env.COOKIE_DOMAIN ? { domain: process.env.COOKIE_DOMAIN } : {}),
 };
 
 export async function setCookie(
