@@ -16,7 +16,7 @@ export async function GET(request: Request) {
 
   if (!code || !state) {
     return NextResponse.redirect(
-      new URL("/?error=missing_params", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000")
+      new URL("/?error=missing_params", process.env.APP_URL || "http://localhost:3000")
     );
   }
 
@@ -31,7 +31,7 @@ export async function GET(request: Request) {
 
   if (!stateCookie || stateCookie !== state) {
     return NextResponse.redirect(
-      new URL("/?error=invalid_state", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000")
+      new URL("/?error=invalid_state", process.env.APP_URL || "http://localhost:3000")
     );
   }
 
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
     const refreshMaxAge = 7 * 24 * 60 * 60; // 7 hari untuk refresh token
 
     const response = NextResponse.redirect(
-      new URL("/dashboard", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000")
+      new URL("/dashboard", process.env.APP_URL || "http://localhost:3000")
     );
 
     // Simpan access_token di cookie HTTP-only
@@ -67,7 +67,7 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error("OAuth callback error:", error);
     return NextResponse.redirect(
-      new URL("/?error=token_exchange_failed", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000")
+      new URL("/?error=token_exchange_failed", process.env.APP_URL || "http://localhost:3000")
     );
   }
 }

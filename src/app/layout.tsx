@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 export const metadata: Metadata = {
   title: "CreatorPulse Studio",
   description: "TikTok Login, Content Posting, and Display Analytics for creators.",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
+  metadataBase: new URL(process.env.APP_URL || "http://localhost:3000"),
 };
 
 export default function RootLayout({
