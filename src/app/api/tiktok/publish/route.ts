@@ -21,6 +21,10 @@ export async function POST(request: Request) {
     const disableComment = formData.get("disableComment") === "true";
     const disableDuet = formData.get("disableDuet") === "true";
     const disableStitch = formData.get("disableStitch") === "true";
+    const brandOrganic = formData.get("brandOrganic") === "true";
+    const brandContent = formData.get("brandContent") === "true";
+    const isAigc = formData.get("isAigc") === "true";
+    const duration = Number(formData.get("duration"));
     const consent = formData.get("consent") === "true";
     const file = formData.get("file") as File | null;
 
@@ -36,6 +40,8 @@ export async function POST(request: Request) {
     if (mode === "profile" && !["PUBLIC_TO_EVERYONE", "FOLLOWER_OF_CREATOR", "MUTUAL_FOLLOW_FRIENDS", "SELF_ONLY"].includes(privacy)) return NextResponse.json({ error: "Pilih visibilitas video." }, { status: 400 });
     if (mode === "profile") {
       const capabilities = await getCreatorCapabilities(accessToken);
+      if (!Number.isFinite(duration) || duration <= 0 || duration > capabilities.max_video_post_duration_sec) return NextResponse.json({error:"Durasi video tidak sesuai batas akun."},{status:400});
+      if (brandContent && !["PUBLIC_TO_EVERYONE","MUTUAL_FOLLOW_FRIENDS"].includes(privacy)) return NextResponse.json({error:"Konten kemitraan berbayar memerlukan visibilitas publik atau teman."},{status:400});
       if (!capabilities.privacy_level_options.includes(privacy) || (capabilities.comment_disabled && !disableComment) || (capabilities.duet_disabled && !disableDuet) || (capabilities.stitch_disabled && !disableStitch)) return NextResponse.json({error:"Pengaturan akun berubah. Muat ulang dan tinjau kembali publikasi."},{status:400});
     }
     let sourceType: string;
@@ -67,7 +73,7 @@ export async function POST(request: Request) {
 
     const initBody: Record<string, unknown> = {
       source_info: {
-        source_type: sourceType,
+        source: sourceType,
       },
       ...(mode === "profile" ? { post_info: {
         title: caption,
@@ -75,6 +81,9 @@ export async function POST(request: Request) {
         disable_comment: disableComment,
         disable_duet: disableDuet,
         disable_stitch: disableStitch,
+        brand_organic_toggle: brandOrganic,
+        brand_content_toggle: brandContent,
+        is_aigc: isAigc,
       } } : {}),
     };
 
