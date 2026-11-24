@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { publish_ids } = body;
 
-    if (!publish_ids || !Array.isArray(publish_ids)) {
+    if (!publish_ids || !Array.isArray(publish_ids) || publish_ids.length !== 1 || typeof publish_ids[0] !== "string" || !publish_ids[0]) {
       return NextResponse.json(
         { error: "publish_ids array is required" },
         { status: 400 }
