@@ -126,7 +126,7 @@ export default function DashboardPage() {
       if (!data.publish_id) throw new Error("TikTok belum memberikan ID publikasi.");
       setPublishWarning(typeof data.warning === "string" ? data.warning : null);
       setPublishId(data.publish_id);
-      const nextHistory = [{ id: data.publish_id as string, createdAt: new Date().toISOString() }, ...history].slice(0, 50);
+      const nextHistory = [{ id: data.publish_id as string, createdAt: new Date().toISOString() }, ...history.filter(record => record.id !== data.publish_id)].slice(0, 50);
       setHistory(nextHistory);
       try { if (accountId) localStorage.setItem(`creatorpulse:publications:${accountId}`, JSON.stringify(nextHistory)); } catch { /* Keep in-memory history. */ }
       setFormVersion(v => v + 1);

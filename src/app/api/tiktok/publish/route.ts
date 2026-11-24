@@ -54,7 +54,7 @@ export async function POST(request: Request) {
 
     if (typeof videoUrl === "string" && videoUrl.trim() && !file) {
       let valid = false;
-      try { valid = new URL(videoUrl).protocol === "https:"; } catch {}
+      try { const url = new URL(videoUrl); valid = url.protocol === "https:" && !url.username && !url.password; } catch {}
       if (!valid) {
         return NextResponse.json(
           { error: "Gunakan tautan video HTTPS yang valid." },

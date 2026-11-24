@@ -115,7 +115,7 @@ export default function TermsPage() {
           <h2 className="text-xl font-semibold mt-8 mb-3">9. Contact Us</h2>
           <p className="mb-4">
             If you have questions about these Terms of Service, contact us at
-            hello@example.com.
+            {process.env.NEXT_PUBLIC_CONTACT_EMAIL ? <a className="underline" href={`mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL}`}>{process.env.NEXT_PUBLIC_CONTACT_EMAIL}</a> : "a support contact that has not yet been configured."}
           </p>
         </article>
       </main>

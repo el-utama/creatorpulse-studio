@@ -232,5 +232,6 @@ export async function getCreatorCapabilities(token: string): Promise<CreatorCapa
   const res = await fetch("https://open.tiktokapis.com/v2/post/publish/creator_info/query/", {method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},cache:"no-store",body:"{}"});
   const result = await res.json();
   if (!res.ok || result.error?.code !== "ok" || !Array.isArray(result.data?.privacy_level_options)) throw new Error("Creator capabilities unavailable");
-  return result.data;
+  const options = result.data.privacy_level_options.filter((value: unknown) => typeof value === "string");
+  return { ...result.data, privacy_level_options: process.env.TIKTOK_DIRECT_POST_AUDITED === "true" ? options : options.filter((value: string) => value === "SELF_ONLY") };
 }

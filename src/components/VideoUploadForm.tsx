@@ -105,7 +105,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
   }, [previewUrl]);
 
   const hasFile = !!file && !!previewUrl;
-  const validUrl = (() => { try { return new URL(videoUrl ?? "").protocol === "https:"; } catch { return false; } })();
+  const validUrl = (() => { try { const url = new URL(videoUrl ?? ""); return url.protocol === "https:" && !url.username && !url.password; } catch { return false; } })();
   const validDuration = duration !== null && Number.isFinite(duration) && duration > 0 && duration <= (capabilities?.max_video_post_duration_sec ?? 0);
   const ready = (source === "file" ? hasFile : validUrl) && (mode === "inbox" || (!!privacy && !!capabilities?.privacy_level_options.includes(privacy) && validDuration && (!commercial || brandOrganic || brandContent) && (!commercial || !brandContent || ["PUBLIC_TO_EVERYONE","MUTUAL_FOLLOW_FRIENDS"].includes(privacy))));
   const canPublish = !publishing && consent && review && ready;
@@ -134,6 +134,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
           >
             <button
               onClick={() => { setMode("inbox"); setConsent(false); setReview(false); }}
+              disabled={publishing}
               aria-pressed={mode === "inbox"}
               className={`flex-1 h-11 py-2 text-xs font-medium rounded-md transition-all ${
                 mode === "inbox"
@@ -168,6 +169,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
               placeholder="https://contoh.com/video.mp4"
               value={videoUrl ?? ""}
               type="url"
+              disabled={publishing}
               onChange={(e) => { setVideoUrl(e.target.value); setDuration(null); setConsent(false); setReview(false); }}
             />
             {mode === "profile" && validUrl && <video key={videoUrl} aria-label="Pratinjau video" src={videoUrl ?? undefined} controls preload="metadata" className="w-full max-h-[360px] bg-black rounded-lg" onLoadedMetadata={e=>setDuration(e.currentTarget.duration)} onError={()=>setDuration(null)}/>}
@@ -184,6 +186,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
                 id="video-file"
                 ref={fileInputRef}
                 type="file"
+                disabled={publishing}
                 accept=".mp4,.mov,video/mp4,video/quicktime"
                 className="sr-only"
                 onChange={handleFileChange}
@@ -209,6 +212,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
                   controls
                 />
                 <button
+                  disabled={publishing}
                   onClick={handleRemoveFile}
                   className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 hover:bg-destructive/90 transition-colors"
                   aria-label="Hapus file"
@@ -247,8 +251,9 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
             Visibilitas video
           </Label>
           {!capabilities && <p role="status" className="text-sm">{capabilityError ? "Pengaturan akun gagal dimuat. Pilih Inbox lalu kembali ke Direct Post untuk mencoba lagi." : "Memuat pengaturan akun…"}</p>}
+          {capabilities && capabilities.privacy_level_options.length === 0 && <p role="alert" className="text-sm text-destructive">Akun ini belum memiliki pilihan visibilitas yang diizinkan. Gunakan Inbox atau coba kembali setelah izin tersedia.</p>}
           <Select
-            disabled={!capabilities || publishing}
+            disabled={!capabilities || publishing || capabilities.privacy_level_options.length === 0}
             value={privacy}
             onValueChange={(v) => { setPrivacy(v); setConsent(false); setReview(false); }}
           >
@@ -302,7 +307,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
         </div>
 
         <p className="text-sm text-muted-foreground">{validDuration ? `Durasi video: ${Math.round(duration ?? 0)} detik` : "Video harus dapat dipratinjau dan durasinya sesuai batas akun sebelum dipublikasikan."}</p>
-        <fieldset className="space-y-3 rounded-lg border p-3"><legend className="px-1 text-sm font-medium">Pengungkapan konten</legend><label className="flex items-center gap-2 text-sm"><Checkbox checked={commercial} onCheckedChange={v=>{setCommercial(v===true);setBrandOrganic(false);setBrandContent(false);setConsent(false);setReview(false);}}/> Konten promosi atau komersial</label>{commercial && <><label className="flex items-center gap-2 text-sm"><Checkbox checked={brandOrganic} onCheckedChange={v=>{setBrandOrganic(v===true);setConsent(false);setReview(false);}}/> Merek atau bisnis sendiri</label><label className="flex items-center gap-2 text-sm"><Checkbox checked={brandContent} disabled={privacy==="SELF_ONLY" || privacy==="FOLLOWER_OF_CREATOR"} onCheckedChange={v=>{setBrandContent(v===true);setConsent(false);setReview(false);}}/> Kemitraan berbayar dengan pihak ketiga</label><p className="text-xs text-muted-foreground">{brandContent?"Label: kemitraan berbayar. Pilih visibilitas publik atau teman.":brandOrganic?"Label: konten promosi.":"Pilih minimal satu kategori. Kemitraan berbayar tidak dapat bersifat privat."}</p></>}<label className="flex items-center gap-2 text-sm"><Checkbox checked={isAigc} onCheckedChange={v=>{setIsAigc(v===true);setConsent(false);setReview(false);}}/> Konten dihasilkan AI</label></fieldset>
+        <fieldset className="space-y-3 rounded-lg border p-3"><legend className="px-1 text-sm font-medium">Pengungkapan konten</legend><label className="flex items-center gap-2 text-sm"><Checkbox disabled={publishing} checked={commercial} onCheckedChange={v=>{setCommercial(v===true);setBrandOrganic(false);setBrandContent(false);setConsent(false);setReview(false);}}/> Konten promosi atau komersial</label>{commercial && <><label className="flex items-center gap-2 text-sm"><Checkbox disabled={publishing} checked={brandOrganic} onCheckedChange={v=>{setBrandOrganic(v===true);setConsent(false);setReview(false);}}/> Merek atau bisnis sendiri</label><label className="flex items-center gap-2 text-sm"><Checkbox checked={brandContent} disabled={publishing || privacy==="SELF_ONLY" || privacy==="FOLLOWER_OF_CREATOR"} onCheckedChange={v=>{setBrandContent(v===true);setConsent(false);setReview(false);}}/> Kemitraan berbayar dengan pihak ketiga</label><p className="text-xs text-muted-foreground">{brandContent?"Label: kemitraan berbayar. Pilih visibilitas publik atau teman.":brandOrganic?"Label: konten promosi.":"Pilih minimal satu kategori. Kemitraan berbayar tidak dapat bersifat privat."}</p></>}<label className="flex items-center gap-2 text-sm"><Checkbox disabled={publishing} checked={isAigc} onCheckedChange={v=>{setIsAigc(v===true);setConsent(false);setReview(false);}}/> Konten dihasilkan AI</label></fieldset>
         </>}
         {!review && <Button type="button" variant="outline" disabled={!ready || publishing} onClick={() => setReview(true)}>Tinjau publikasi</Button>}
         {review && <section className="space-y-3 rounded-lg border p-4" aria-label="Tinjauan publikasi"><h3 className="font-semibold">Konfirmasi publikasi</h3><p className="text-sm">Akun: {accountName}</p><p className="text-sm break-all">Video: {source === "url" ? videoUrl : file?.name}</p><p className="text-sm">{mode === "inbox" ? "Dikirim ke inbox; selesaikan posting di TikTok." : `Visibilitas: ${({PUBLIC_TO_EVERYONE:"Semua orang",FOLLOWER_OF_CREATOR:"Pengikut",MUTUAL_FOLLOW_FRIENDS:"Teman",SELF_ONLY:"Hanya saya"} as Record<string,string>)[privacy] ?? privacy}`}</p>
@@ -312,6 +317,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
         <div className="flex items-start gap-2 pt-2 border-t border-border">
           <Checkbox
             id="publication-consent"
+            disabled={publishing}
             checked={consent}
             onCheckedChange={(v) => setConsent(v === true)}
             aria-required="true"
