@@ -40,6 +40,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
   const [disableComment, setDisableComment] = useState(false);
   const [disableDuet, setDisableDuet] = useState(false);
   const [disableStitch, setDisableStitch] = useState(false);
+  const [review, setReview] = useState(false);
   const [consent, setConsent] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -53,7 +54,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
 
     setFile(null);
     setPreviewUrl(null);
-    setConsent(false);
+    setConsent(false); setReview(false);
     const validTypes = ["video/mp4", "video/quicktime"];
     if (!validTypes.includes(selectedFile.type)) {
       setFileError("Hanya file .mp4 atau .mov yang didukung.");
@@ -61,7 +62,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
     }
 
     const maxBytes = 4 * 1024 * 1024;
-    if (selectedFile.size > maxBytes) {
+    if (selectedFile.size === 0 || selectedFile.size > maxBytes) {
       setFileError("File terlalu besar untuk upload langsung (maks 4 MB). Gunakan opsi PULL_FROM_URL.");
       return;
     }
@@ -76,13 +77,14 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setFile(null);
     setPreviewUrl(null);
-    setConsent(false);
+    setConsent(false); setReview(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, [previewUrl]);
 
   const isDirectUpload = mode === "profile" && !!file && previewUrl;
   const validUrl = (() => { try { return new URL(videoUrl ?? "").protocol === "https:"; } catch { return false; } })();
-  const canPublish = !publishing && consent && (mode === "profile" ? !!isDirectUpload && !!privacy : validUrl);
+  const ready = mode === "profile" ? !!isDirectUpload && !!privacy : validUrl;
+  const canPublish = !publishing && consent && review && ready;
 
   return (
     <Card className="overflow-hidden">
@@ -107,7 +109,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
             className="flex items-center gap-2 border border-input rounded-md p-1"
           >
             <button
-              onClick={() => { setMode("inbox"); setConsent(false); }}
+              onClick={() => { setMode("inbox"); setConsent(false); setReview(false); }}
               aria-pressed={mode === "inbox"}
               className={`flex-1 h-11 py-2 text-xs font-medium rounded-md transition-all ${
                 mode === "inbox"
@@ -118,7 +120,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
               Draft / Inbox
             </button>
             <button
-              onClick={() => { setMode("profile"); setConsent(false); }}
+              onClick={() => { setMode("profile"); setConsent(false); setReview(false); }}
               aria-pressed={mode === "profile"}
               className={`flex-1 h-11 py-2 text-xs font-medium rounded-md transition-all ${
                 mode === "profile"
@@ -142,7 +144,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
               placeholder="https://contoh.com/video.mp4"
               value={videoUrl ?? ""}
               type="url"
-              onChange={(e) => { setVideoUrl(e.target.value); setConsent(false); }}
+              onChange={(e) => { setVideoUrl(e.target.value); setConsent(false); setReview(false); }}
             />
             <p className="text-xs text-muted-foreground">
               Gunakan URL dari domain atau awalan URL yang telah diverifikasi untuk aplikasi TikTok.
@@ -191,6 +193,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
           </div>
         )}
 
+        {mode === "profile" && <>
         {/* Caption */}
         <div className="space-y-1.5">
           <Label htmlFor="caption" className="text-xs font-medium">
@@ -201,7 +204,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
             rows={2}
             placeholder="Tulis caption video di sini..."
             value={caption}
-            onChange={(e) => { setCaption(e.target.value); setConsent(false); }}
+            onChange={(e) => { setCaption(e.target.value); setConsent(false); setReview(false); }}
           />
         </div>
 
@@ -212,7 +215,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
           </Label>
           <Select
             value={privacy}
-            onValueChange={(v) => { setPrivacy(v); setConsent(false); }}
+            onValueChange={(v) => { setPrivacy(v); setConsent(false); setReview(false); }}
           >
             <SelectTrigger id="privacy" className="h-11">
               <SelectValue placeholder="Pilih privacy" />
@@ -231,7 +234,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
           <label className="flex items-center gap-2 cursor-pointer text-sm leading-none">
             <Checkbox
               checked={disableComment}
-              onCheckedChange={(v) => { setDisableComment(v === true); setConsent(false); }}
+              onCheckedChange={(v) => { setDisableComment(v === true); setConsent(false); setReview(false); }}
               className="h-11 w-11"
               aria-label="Nonaktifkan komentar"
             />
@@ -242,7 +245,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
           <label className="flex items-center gap-2 cursor-pointer text-sm leading-none">
             <Checkbox
               checked={disableDuet}
-              onCheckedChange={(v) => { setDisableDuet(v === true); setConsent(false); }}
+              onCheckedChange={(v) => { setDisableDuet(v === true); setConsent(false); setReview(false); }}
               className="h-11 w-11"
               aria-label="Nonaktifkan duet"
             />
@@ -253,7 +256,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
           <label className="flex items-center gap-2 cursor-pointer text-sm leading-none">
             <Checkbox
               checked={disableStitch}
-              onCheckedChange={(v) => { setDisableStitch(v === true); setConsent(false); }}
+              onCheckedChange={(v) => { setDisableStitch(v === true); setConsent(false); setReview(false); }}
               className="h-11 w-11"
               aria-label="Nonaktifkan stitch"
             />
@@ -263,6 +266,9 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
           </label>
         </div>
 
+        </>}
+        {!review && <Button type="button" variant="outline" disabled={!ready || publishing} onClick={() => setReview(true)}>Tinjau publikasi</Button>}
+        {review && <section className="space-y-3 rounded-lg border p-4" aria-label="Tinjauan publikasi"><h3 className="font-semibold">Konfirmasi publikasi</h3><p className="text-sm">Akun: {accountName}</p><p className="text-sm break-all">Video: {mode === "inbox" ? videoUrl : file?.name}</p><p className="text-sm">{mode === "inbox" ? "Dikirim ke inbox; selesaikan posting di TikTok." : `Visibilitas: ${({PUBLIC_TO_EVERYONE:"Semua orang",FOLLOWER_OF_CREATOR:"Pengikut",MUTUAL_FOLLOW_FRIENDS:"Teman",SELF_ONLY:"Hanya saya"} as Record<string,string>)[privacy] ?? privacy}`}</p>
         {/* Consent */}
         <div className="flex items-start gap-2 pt-2 border-t border-border">
           <Checkbox
@@ -277,7 +283,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
           <label htmlFor="publication-consent" id="consent-hint" className="text-sm leading-relaxed">
             Saya menyetujui ketentuan dan mengizinkan CreatorPulse Studio memposting video ini ke akun TikTok saya.
           </label>
-        </div>
+        </div></section>}
       </CardContent>
       <CardFooter className="flex-col items-stretch gap-2">
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
@@ -285,7 +291,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
           onClick={() => {
             onPublish({
               mode,
-              file,
+              file: mode === "profile" ? file : null,
               videoUrl: mode === "inbox" ? videoUrl : null,
               caption,
               privacy,
@@ -301,7 +307,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
         >
           {publishing ? "Mengirim video…" : mode === "inbox" ? "Kirim ke inbox TikTok" : "Publikasikan ke TikTok"}
         </Button>
-        {!consent && (
+        {review && !consent && (
           <p className="text-xs text-muted-foreground mt-2">
             Persetujuan eksplisit diperlukan sebelum tombol publish diaktifkan.
           </p>
