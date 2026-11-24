@@ -199,7 +199,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
             value={privacy}
             onValueChange={setPrivacy}
           >
-            <SelectTrigger id="privacy" className="h-8">
+            <SelectTrigger id="privacy" className="h-10">
               <SelectValue placeholder="Pilih privacy" />
             </SelectTrigger>
             <SelectContent>
@@ -243,8 +243,9 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
             onCheckedChange={(v) => setConsent(v === true)}
             aria-invalid={!consent}
             aria-describedby="consent-hint"
+            aria-label="Saya menyetujui ketentuan dan mengizinkan CreatorPulse Studio memposting video ini ke akun TikTok saya."
           />
-          <label className="text-xs leading-relaxed">
+          <label id="consent-hint" className="text-xs leading-relaxed">
             Saya menyetujui ketentuan dan mengizinkan CreatorPulse Studio memposting video ini ke akun TikTok saya.
           </label>
         </div>

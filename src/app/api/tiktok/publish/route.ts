@@ -12,18 +12,16 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = await request.json();
-    const {
-      mode,
-      file,
-      videoUrl,
-      caption,
-      privacy,
-      disableComment,
-      disableDuet,
-      disableStitch,
-      consent,
-    } = body;
+    const formData = await request.formData();
+    const mode = formData.get("mode") as string;
+    const videoUrl = formData.get("videoUrl") as string;
+    const caption = formData.get("caption") as string;
+    const privacy = formData.get("privacy") as string;
+    const disableComment = formData.get("disableComment") === "true";
+    const disableDuet = formData.get("disableDuet") === "true";
+    const disableStitch = formData.get("disableStitch") === "true";
+    const consent = formData.get("consent") === "true";
+    const file = formData.get("file") as File | null;
 
     if (!consent) {
       return NextResponse.json(
@@ -46,14 +44,15 @@ export async function POST(request: Request) {
       sourceType = "PULL_FROM_URL";
       posterUrl = videoUrl;
     } else {
-      if (!file || !file.data) {
+      if (!file) {
         return NextResponse.json(
           { error: "Video file is required for profile mode" },
           { status: 400 }
         );
       }
       sourceType = "FILE_UPLOAD";
-      videoBuffer = Uint8Array.from(file.data);
+      const arrayBuffer = await file.arrayBuffer();
+      videoBuffer = new Uint8Array(arrayBuffer);
     }
 
     const initBody: Record<string, unknown> = {

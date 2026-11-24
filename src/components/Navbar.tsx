@@ -60,7 +60,14 @@ export function Navbar() {
             <Button
               variant="destructive"
               size="sm"
-              onClick={() => fetch("/api/auth/logout", { method: "POST" }).then(() => (window.location.href = "/"))}
+              onClick={async () => {
+                try {
+                  await fetch("/api/auth/logout", { method: "POST" });
+                } catch (err) {
+                  console.error("Logout error:", err);
+                }
+                window.location.href = "/";
+              }}
               className="px-3 py-2 text-sm"
             >
               <LogOut className="h-4 w-4 mr-2" />
@@ -130,9 +137,14 @@ export function Navbar() {
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={() => {
+                  onClick={async () => {
                     setMobileMenuOpen(false);
-                    fetch("/api/auth/logout", { method: "POST" }).then(() => (window.location.href = "/"));
+                    try {
+                      await fetch("/api/auth/logout", { method: "POST" });
+                    } catch (err) {
+                      console.error("Logout error:", err);
+                    }
+                    window.location.href = "/";
                   }}
                   className="w-full"
                 >

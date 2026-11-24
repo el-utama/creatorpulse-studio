@@ -69,10 +69,39 @@ export default function DashboardPage() {
     fetchAnalytics();
   }, [fetchAnalytics]);
 
-  const handlePublish = (payload: any) => {
-    setPublishId(`publish_${Date.now()}`);
-    setPublishStatus("pending");
-    setActiveTab("status");
+  const handlePublish = async (payload: any) => {
+    try {
+      const formData = new FormData();
+      formData.append("mode", payload.mode);
+      formData.append("videoUrl", payload.videoUrl ?? "");
+      formData.append("caption", payload.caption);
+      formData.append("privacy", payload.privacy);
+      formData.append("disableComment", String(payload.disableComment));
+      formData.append("disableDuet", String(payload.disableDuet));
+      formData.append("disableStitch", String(payload.disableStitch));
+      formData.append("consent", String(payload.consent));
+      if (payload.file) {
+        formData.append("file", payload.file);
+      }
+
+      const res = await fetch("/api/tiktok/publish", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Gagal memulai publikasi");
+      }
+
+      const data = await res.json();
+      setPublishId(data.publish_id);
+      setPublishStatus("pending");
+      setActiveTab("status");
+    } catch (err) {
+      console.error("Publish error:", err);
+      alert(err instanceof Error ? err.message : "Gagal memulai publikasi");
+    }
   };
 
   return (

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { APP_CONFIG } from "@/config/app";
 
 export async function GET(request: Request) {
@@ -13,13 +14,8 @@ export async function GET(request: Request) {
   }
 
   // Validasi state dari cookie
-  const cookieHeader = request.headers.get("cookie") || "";
-  const stateCookie = cookieHeader
-    .split("; ")
-    .find((c) => c.startsWith(`${APP_CONFIG.cookieNames.oauthState}=`))
-    ?.split("=")
-    .slice(1)
-    .join("");
+  const cookieStore = await cookies();
+  const stateCookie = cookieStore.get(APP_CONFIG.cookieNames.oauthState)?.value;
 
   if (!stateCookie || stateCookie !== state) {
     return NextResponse.redirect(
