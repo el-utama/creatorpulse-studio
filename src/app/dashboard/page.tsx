@@ -44,6 +44,7 @@ export default function DashboardPage() {
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
   const [publishId, setPublishId] = useState<string | null>(null);
+  const [formVersion, setFormVersion] = useState(0);
   const [history, setHistory] = useState<{ id: string; createdAt: string }[]>([]);
   const accountId = profile?.open_id;
   useEffect(() => {
@@ -70,6 +71,7 @@ export default function DashboardPage() {
       const data = await res.json();
       setProfile(data.user_info ?? null);
       setVideos(data.videos?.data ?? []);
+      if (data.video_error) setAnalyticsError(data.video_error);
       setLastUpdated(new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }));
     } catch (err) {
       setAnalyticsError(err instanceof Error ? err.message : "Unknown error");
@@ -120,6 +122,7 @@ export default function DashboardPage() {
       const nextHistory = [{ id: data.publish_id as string, createdAt: new Date().toISOString() }, ...history].slice(0, 50);
       setHistory(nextHistory);
       try { if (accountId) localStorage.setItem(`creatorpulse:publications:${accountId}`, JSON.stringify(nextHistory)); } catch { /* Keep in-memory history. */ }
+      setFormVersion(v => v + 1);
       setActiveTab("status");
     } catch (err) {
       console.error("Publish error:", err);
@@ -298,7 +301,7 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-4">
                   <div className="order-2 lg:order-1">
                     <VideoUploadForm
-                      key={profile.open_id}
+                      key={`${profile.open_id}:${formVersion}`}
                       accountName={profile.display_name}
                       avatarUrl={profile.avatar_url}
                       onPublish={handlePublish}
