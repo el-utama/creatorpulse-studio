@@ -1,6 +1,6 @@
-export function cn(...classes: (string | undefined | null | false)[]): string {
-  return classes.filter(Boolean).join(" ");
-}
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+export function cn(...classes: ClassValue[]): string { return twMerge(clsx(classes)); }
 
 export function formatNumber(num: number): string {
   if (!Number.isFinite(num)) return "—";
