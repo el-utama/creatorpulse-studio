@@ -151,9 +151,10 @@ export async function getVideoList(
 
 export async function initPublish(
   accessToken: string,
-  body: Record<string, unknown>
+  body: Record<string, unknown>,
+  mode: "inbox" | "profile"
 ): Promise<TikTokPublishInitResponse> {
-  const res = await fetch(APP_CONFIG.tiktokPublishInitProfile, {
+  const res = await fetch(mode === "inbox" ? APP_CONFIG.tiktokPublishInitInbox : APP_CONFIG.tiktokPublishInitProfile, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -169,7 +170,9 @@ export async function initPublish(
     );
   }
 
-  return res.json();
+  const result = await res.json();
+  if (result.error?.code !== "ok" || !result.data?.publish_id) throw new Error("TikTok rejected publication initialization");
+  return result.data;
 }
 
 export async function fetchPublishStatus(
@@ -183,7 +186,7 @@ export async function fetchPublishStatus(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      publish_ids: [publishId],
+      publish_id: publishId,
     }),
   });
 
@@ -194,7 +197,9 @@ export async function fetchPublishStatus(
     );
   }
 
-  return res.json();
+  const result = await res.json();
+  if (result.error?.code !== "ok" || !result.data?.status) throw new Error("TikTok rejected status request");
+  return result.data;
 }
 
 export async function uploadVideoChunk(
@@ -202,12 +207,15 @@ export async function uploadVideoChunk(
   fileBuffer: Uint8Array,
   contentType: string
 ): Promise<Response> {
-  return fetch(uploadUrl, {
-    method: "POST",
+  const response = await fetch(uploadUrl, {
+    method: "PUT",
     headers: {
       "Content-Type": contentType,
       "Content-Length": fileBuffer.length.toString(),
+      "Content-Range": `bytes 0-${fileBuffer.length - 1}/${fileBuffer.length}`,
     },
     body: fileBuffer as unknown as BodyInit,
   });
+  if (!response.ok) throw new Error(`Video transfer failed: ${response.status}`);
+  return response;
 }
