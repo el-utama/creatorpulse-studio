@@ -80,40 +80,44 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
           <Video className="h-5 w-5 text-tiktok-primary" />
           Upload & Posting Video
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-xs">
           Posting ke akun <strong>{accountName}</strong>. Pilih mode dan atur opsi sebelum menerbitkan.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="flex items-center gap-4 text-sm">
-          <span className="font-medium text-muted-foreground">Mode Posting:</span>
-          <div className="flex items-center gap-2 border rounded-md p-1">
+      <CardContent className="space-y-4">
+        {/* Mode Posting */}
+        <div className="space-y-2">
+          <Label htmlFor="mode" className="text-xs font-medium text-muted-foreground">
+            Mode Posting
+          </Label>
+          <div className="flex items-center gap-2 border border-input rounded-md p-1">
             <button
               onClick={() => setMode("inbox")}
-              className={`px-3 py-1.5 text-xs rounded-md transition-all ${
+              className={`flex-1 py-2 text-[10px] font-medium rounded-md transition-all ${
                 mode === "inbox"
-                  ? "bg-background text-foreground shadow-sm"
+                  ? "bg-background text-foreground shadow-sm border border-border"
                   : "text-muted-foreground hover:bg-muted"
               }`}
             >
-              Send to TikTok Draft / Inbox
+              Draft / Inbox
             </button>
             <button
               onClick={() => setMode("profile")}
-              className={`px-3 py-1.5 text-xs rounded-md transition-all ${
+              className={`flex-1 py-2 text-[10px] font-medium rounded-md transition-all ${
                 mode === "profile"
-                  ? "bg-background text-foreground shadow-sm"
+                  ? "bg-background text-foreground shadow-sm border border-border"
                   : "text-muted-foreground hover:bg-muted"
               }`}
             >
-              Direct Post to Profile
+              Direct Post
             </button>
           </div>
         </div>
 
+        {/* Input Source */}
         {mode === "inbox" ? (
           <div className="space-y-2">
-            <Label htmlFor="video-url" className="text-sm font-medium">
+            <Label htmlFor="video-url" className="text-xs font-medium">
               URL Video (PULL_FROM_URL)
             </Label>
             <Input
@@ -122,14 +126,14 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
               value={videoUrl ?? ""}
               onChange={(e) => setVideoUrl(e.target.value)}
             />
-            <p className="text-xs text-muted-foreground">
-              Untuk file lebih besar dari 4.5 MB, unggah video ke penyimpanan publik dan berikan URL di sini.
+            <p className="text-[10px] text-muted-foreground">
+              Untuk file lebih besar dari 4.5 MB, unggah ke penyimpanan publik.
             </p>
           </div>
         ) : (
           <div className="space-y-2">
-            <Label htmlFor="video-file" className="flex items-center gap-2 cursor-pointer border border-dashed rounded-lg px-4 py-6 text-center text-sm text-muted-foreground hover:border-tiktok-primary/50 transition-colors">
-              <Upload className="h-5 w-5 text-tiktok-primary" />
+            <Label htmlFor="video-file" className="flex items-center gap-2 cursor-pointer border border-dashed rounded-lg px-3 py-4 text-center text-sm text-muted-foreground hover:border-tiktok-primary/50 transition-colors">
+              <Upload className="h-4 w-4 text-tiktok-primary" />
               <span>Pilih file video (.mp4 / .mov)</span>
               <input
                 id="video-file"
@@ -144,7 +148,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
               <div className="relative group">
                 <video
                   src={previewUrl}
-                  className="w-full h-48 object-cover rounded-lg border border-border"
+                  className="w-full h-40 object-cover rounded-lg border border-border"
                   controls
                 />
                 <button
@@ -156,34 +160,36 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
                 </button>
               </div>
             )}
-            <p className="text-xs text-muted-foreground">
-              Batas upload langsung lewat serverless: ~4.5 MB. File lebih besar gunakan PULL_FROM_URL.
+            <p className="text-[10px] text-muted-foreground">
+              Batas upload langsung lewat serverless:~4.5 MB.
             </p>
           </div>
         )}
 
-        <div className="space-y-2">
-          <Label htmlFor="caption" className="text-sm font-medium">
+        {/* Caption */}
+        <div className="space-y-1.5">
+          <Label htmlFor="caption" className="text-xs font-medium">
             Caption / Title
           </Label>
           <Textarea
             id="caption"
-            rows={3}
+            rows={2}
             placeholder="Tulis caption video di sini..."
             value={caption}
             onChange={(e) => setCaption(e.target.value)}
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="privacy" className="text-sm font-medium">
+        {/* Privacy */}
+        <div className="space-y-1.5">
+          <Label htmlFor="privacy" className="text-xs font-medium">
             Privacy Level
           </Label>
           <Select
             value={privacy}
             onValueChange={setPrivacy}
           >
-            <SelectTrigger id="privacy">
+            <SelectTrigger id="privacy" className="h-8">
               <SelectValue placeholder="Pilih privacy" />
             </SelectTrigger>
             <SelectContent>
@@ -195,22 +201,23 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
           </Select>
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
-          <label className="flex items-center gap-2 cursor-pointer text-sm">
+        {/* Interaction checkboxes - stack on mobile */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <label className="flex items-center gap-2 cursor-pointer text-[10px] leading-none">
             <Checkbox
               checked={disableComment}
               onCheckedChange={(v) => setDisableComment(v === true)}
             />
             Disable Comment
           </label>
-          <label className="flex items-center gap-2 cursor-pointer text-sm">
+          <label className="flex items-center gap-2 cursor-pointer text-[10px] leading-none">
             <Checkbox
               checked={disableDuet}
               onCheckedChange={(v) => setDisableDuet(v === true)}
             />
             Disable Duet
           </label>
-          <label className="flex items-center gap-2 cursor-pointer text-sm">
+          <label className="flex items-center gap-2 cursor-pointer text-[10px] leading-none">
             <Checkbox
               checked={disableStitch}
               onCheckedChange={(v) => setDisableStitch(v === true)}
@@ -219,12 +226,13 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
           </label>
         </div>
 
-        <div className="flex items-center gap-3 pt-2">
+        {/* Consent */}
+        <div className="flex items-start gap-2 pt-2 border-t border-border">
           <Checkbox
             checked={consent}
             onCheckedChange={(v) => setConsent(v === true)}
           />
-          <label className="text-sm leading-none">
+          <label className="text-xs leading-relaxed">
             Saya menyetujui ketentuan dan mengizinkan CreatorPulse Studio memposting video ini ke akun TikTok saya.
           </label>
         </div>
@@ -245,12 +253,12 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
             });
           }}
           disabled={!canPublish}
-          className="w-full bg-tiktok-primary text-white hover:bg-tiktok-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full bg-tiktok-primary text-white py-2.5 hover:bg-tiktok-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {canPublish ? "Publish to TikTok" : "Centang persetujuan dan lengkai input"}
+          {canPublish ? "Publish to TikTok" : "Centang persetujuan dan lengkapi input"}
         </Button>
         {!consent && (
-          <p className="text-xs text-muted-foreground mt-2">
+          <p className="text-[10px] text-muted-foreground mt-2">
             Persetujuan eksplisit diperlukan sebelum tombol publish diaktifkan.
           </p>
         )}

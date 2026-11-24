@@ -55,22 +55,22 @@ export function PublishStatusChecker({ publishId, onStatusChange }: PublishStatu
 
   return (
     <Card className="border-l-4 border-l-tiktok-primary">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">Status Publikasi</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+        <CardTitle className="text-xs font-medium">Status Publikasi</CardTitle>
         {loading ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <Loader2 className="h-3 w-3 animate-spin" />
         ) : status === "PUBLISH_COMPLETE" || status === "SUCCESS" ? (
-          <CheckCircle className="h-4 w-4 text-green-500" />
+          <CheckCircle className="h-3 w-3 text-green-500" />
         ) : status === "FAILED" || status === "ERROR" ? (
-          <XCircle className="h-4 w-4 text-red-500" />
+          <XCircle className="h-3 w-3 text-red-500" />
         ) : null}
       </CardHeader>
       <CardContent className="pt-0">
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-1 text-[10px]">
           <span className="font-medium">Publish ID:</span>
-          <span className="text-muted-foreground truncate">{publishId}</span>
+          <span className="text-muted-foreground truncate text-[10px]">{publishId}</span>
         </div>
-        <div className="mt-2 flex items-center gap-2 text-sm">
+        <div className="mt-1 flex items-center gap-1 text-[10px]">
           <span className="font-medium">Status:</span>
           <span
             className={`font-semibold capitalize ${
@@ -85,7 +85,7 @@ export function PublishStatusChecker({ publishId, onStatusChange }: PublishStatu
           </span>
         </div>
         {error && (
-          <div className="mt-2 text-xs text-red-500">{error}</div>
+          <div className="mt-1 text-[9px] text-red-500">{error}</div>
         )}
       </CardContent>
     </Card>
