@@ -1,0 +1,284 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-24T09:00:00Z",
+  "title": "Design System: CreatorPulse Studio",
+  "extensions": {
+    "colorMeta": {
+      "slate-deep": {
+        "role": "primary",
+        "displayName": "Slate Deep",
+        "canonical": "hsl(222.2 47.4% 11.2%)",
+        "tonalRamp": [
+          "oklch(13% 0.02 260)",
+          "oklch(18% 0.025 258)",
+          "oklch(24% 0.03 256)",
+          "oklch(32% 0.035 254)",
+          "oklch(45% 0.03 252)",
+          "oklch(60% 0.025 250)",
+          "oklch(78% 0.02 248)",
+          "oklch(92% 0.015 246)"
+        ]
+      },
+      "slate-ink": {
+        "role": "neutral",
+        "displayName": "Slate Ink",
+        "canonical": "hsl(222.2 84% 4.9%)",
+        "tonalRamp": [
+          "oklch(6% 0.03 270)",
+          "oklch(11% 0.035 265)",
+          "oklch(18% 0.04 260)",
+          "oklch(28% 0.045 255)",
+          "oklch(42% 0.04 250)",
+          "oklch(58% 0.035 245)",
+          "oklch(75% 0.03 240)",
+          "oklch(90% 0.025 235)"
+        ]
+      },
+      "slate-paper": {
+        "role": "neutral",
+        "displayName": "Slate Paper",
+        "canonical": "hsl(0 0% 100%)",
+        "tonalRamp": [
+          "oklch(94% 0 0)",
+          "oklch(96% 0 0)",
+          "oklch(97% 0 0)",
+          "oklch(98% 0 0)",
+          "oklch(99% 0 0)",
+          "oklch(99.5% 0 0)",
+          "oklch(100% 0 0)",
+          "oklch(100% 0 0)"
+        ]
+      },
+      "slate-mist": {
+        "role": "secondary",
+        "displayName": "Slate Mist",
+        "canonical": "hsl(210 40% 96.1%)",
+        "tonalRamp": [
+          "oklch(80% 0.015 250)",
+          "oklch(85% 0.015 250)",
+          "oklch(90% 0.015 250)",
+          "oklch(93% 0.015 250)",
+          "oklch(95% 0.012 250)",
+          "oklch(97% 0.01 250)",
+          "oklch(98.5% 0.008 250)",
+          "oklch(99.5% 0.005 250)"
+        ]
+      },
+      "slate-border": {
+        "role": "neutral",
+        "displayName": "Slate Border",
+        "canonical": "hsl(214.3 31.8% 91.4%)",
+        "tonalRamp": [
+          "oklch(78% 0.02 245)",
+          "oklch(82% 0.02 245)",
+          "oklch(86% 0.018 245)",
+          "oklch(89% 0.016 245)",
+          "oklch(91% 0.014 245)",
+          "oklch(93% 0.012 245)",
+          "oklch(95% 0.01 245)",
+          "oklch(97% 0.008 245)"
+        ]
+      },
+      "slate-ring": {
+        "role": "neutral",
+        "displayName": "Slate Ring",
+        "canonical": "hsl(222.2 84% 4.9%)",
+        "tonalRamp": [
+          "oklch(6% 0.03 270)",
+          "oklch(11% 0.035 265)",
+          "oklch(18% 0.04 260)",
+          "oklch(28% 0.045 255)",
+          "oklch(42% 0.04 250)",
+          "oklch(58% 0.035 245)",
+          "oklch(75% 0.03 240)",
+          "oklch(90% 0.025 235)"
+        ]
+      },
+      "signal-red": {
+        "role": "neutral",
+        "displayName": "Signal Red",
+        "canonical": "hsl(0 84.2% 60.2%)",
+        "tonalRamp": [
+          "oklch(45% 0.18 20)",
+          "oklch(50% 0.19 20)",
+          "oklch(56% 0.195 20)",
+          "oklch(63% 0.19 20)",
+          "oklch(72% 0.17 19)",
+          "oklch(82% 0.14 18)",
+          "oklch(90% 0.1 17)",
+          "oklch(96% 0.06 16)"
+        ]
+      },
+      "tiktok-red": {
+        "role": "neutral",
+        "displayName": "TikTok Red",
+        "canonical": "#fe2c55",
+        "tonalRamp": [
+          "oklch(42% 0.22 22)",
+          "oklch(50% 0.23 22)",
+          "oklch(58% 0.235 22)",
+          "oklch(66% 0.23 22)",
+          "oklch(74% 0.21 21)",
+          "oklch(83% 0.18 20)",
+          "oklch(91% 0.13 19)",
+          "oklch(97% 0.07 18)"
+        ]
+      },
+      "tiktok-cyan": {
+        "role": "neutral",
+        "displayName": "TikTok Cyan",
+        "canonical": "#25f4ee",
+        "tonalRamp": [
+          "oklch(48% 0.16 180)",
+          "oklch(58% 0.17 182)",
+          "oklch(68% 0.17 184)",
+          "oklch(78% 0.16 186)",
+          "oklch(85% 0.14 188)",
+          "oklch(90% 0.11 190)",
+          "oklch(94% 0.08 192)",
+          "oklch(98% 0.04 194)"
+        ]
+      },
+      "tiktok-dark": {
+        "role": "neutral",
+        "displayName": "TikTok Dark",
+        "canonical": "#000000",
+        "tonalRamp": [
+          "oklch(0% 0 0)",
+          "oklch(5% 0 0)",
+          "oklch(10% 0 0)",
+          "oklch(15% 0 0)",
+          "oklch(20% 0 0)",
+          "oklch(30% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(65% 0 0)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Hero headlines only." },
+      "headline": { "displayName": "Headline", "purpose": "Section headings (h2)." },
+      "title": { "displayName": "Title", "purpose": "Card titles and policy headings." },
+      "body": { "displayName": "Body", "purpose": "Paragraph and helper copy." },
+      "label": { "displayName": "Label", "purpose": "Field labels and button text." }
+    },
+    "shadows": [
+      { "name": "card-base", "value": "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)", "purpose": "Container depth for cards and dashboard panels at rest." },
+      { "name": "popover-selected", "value": "0 1px 2px 0 rgb(0 0 0 / 0.05)", "purpose": "Light lift for select dropdowns and the active tab state." },
+      { "name": "focus-ring", "value": "0 0 0 2px hsl(var(--ring))", "purpose": "Visible keyboard focus on interactive controls." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Default easing for state transitions." },
+      { "name": "duration-fast", "value": "0.2s", "purpose": "Button hover and focus transitions." },
+      { "name": "accordion", "value": "0.2s ease-out", "purpose": "Accordion open/close (Radix primitives)." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" },
+      { "name": "2xl", "value": "1400px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-default",
+      "description": "Primary action. Slate-deep background, slate-paper text, label type. Hover deepens opacity; focus shows a slate-ring.",
+      "html": "<button class=\"ds-btn-primary\">Save changes</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; border-radius: calc(var(--radius) - 2px); border: none; background: var(--primary); color: var(--primary-foreground); font-size: 0.875rem; font-weight: 500; line-height: 1; padding: 8px 16px; height: 40px; min-width: 40px; transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; outline: none; } .ds-btn-primary:hover { background: hsl(222.2 47.4% 11.2% / 0.9); } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ring); outline-offset: 2px; } .ds-btn-primary:disabled { pointer-events: none; opacity: 0.5; }"
+    },
+    {
+      "name": "Destructive Button",
+      "kind": "button",
+      "refersTo": "button-destructive",
+      "description": "Destructive action. Signal-red background, slate-paper text. For actions that cannot be undone.",
+      "html": "<button class=\"ds-btn-destructive\">Delete</button>",
+      "css": ".ds-btn-destructive { display: inline-flex; align-items: center; justify-content: center; border-radius: calc(var(--radius) - 2px); border: none; background: var(--destructive); color: var(--destructive-foreground); font-size: 0.875rem; font-weight: 500; line-height: 1; padding: 8px 16px; height: 40px; min-width: 40px; transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; outline: none; } .ds-btn-destructive:hover { background: hsl(0 84.2% 60.2% / 0.9); } .ds-btn-destructive:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ring); outline-offset: 2px; } .ds-btn-destructive:disabled { pointer-events: none; opacity: 0.5; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Secondary action. Slate-paper background, slate-ink text, slate-border border. Hover tints to accent.",
+      "html": "<button class=\"ds-btn-outline\">Cancel</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; border-radius: calc(var(--radius) - 2px); border: 1px solid var(--input); background: var(--background); color: var(--foreground); font-size: 0.875rem; font-weight: 500; line-height: 1; padding: 8px 16px; height: 40px; min-width: 40px; transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; outline: none; } .ds-btn-outline:hover { background: var(--accent); color: var(--accent-foreground); } .ds-btn-outline:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ring); outline-offset: 2px; } .ds-btn-outline:disabled { pointer-events: none; opacity: 0.5; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input-default",
+      "description": "Single-line text field. Slate-border stroke, slate-paper background, body type, 40px height.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Enter URL\"/>",
+      "css": ".ds-input { display: flex; height: 40px; width: 100%; border-radius: calc(var(--radius) - 2px); border: 1px solid var(--input); background: var(--background); padding: 8px 12px; font-size: 0.875rem; font-weight: 400; line-height: 1.5; color: var(--foreground); outline: none; transition: border-color 0.2s, box-shadow 0.2s; } .ds-input::placeholder { color: var(--muted-foreground); } .ds-input:focus-visible { outline: none; border-color: var(--ring); box-shadow: 0 0 0 2px var(--ring); outline-offset: 2px; } .ds-input:disabled { cursor: not-allowed; opacity: 0.5; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Container surface. Slate-paper background, slate-ink text, lg rounding, one-pixel slate-border, subtle base shadow.",
+      "html": "<div class=\"ds-card\"><h3 class=\"ds-card-title\">Card title</h3><p class=\"ds-card-description\">Card description</p><div class=\"ds-card-content\">Content</div></div>",
+      "css": ".ds-card { border-radius: var(--radius); border: 1px solid var(--border); background: var(--card); color: var(--card-foreground); box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1); padding: 24px; } .ds-card-title { font-size: 1.25rem; font-weight: 600; line-height: 1; letter-spacing: -0.025em; margin: 0 0 8px 0; } .ds-card-description { font-size: 0.875rem; color: var(--muted-foreground); margin: 0 0 16px 0; } .ds-card-content { padding: 24px 0 0 0; }"
+    },
+    {
+      "name": "Tabs Trigger",
+      "kind": "nav",
+      "refersTo": "tabs-trigger",
+      "description": "Tab trigger in a mist list. Selected state is slate-paper with slate-ink text and light shadow; unselected is muted-foreground.",
+      "html": "<div class=\"ds-tabs-list\"><button class=\"ds-tabs-trigger ds-selected\">Overview</button><button class=\"ds-tabs-trigger\">Analytics</button></div>",
+      "css": ".ds-tabs-list { display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius); background: var(--muted); padding: 4px; color: var(--muted-foreground); } .ds-tabs-trigger { border-radius: calc(var(--radius) - 2px); padding: 4px 12px; font-size: 0.875rem; font-weight: 500; line-height: 1; color: inherit; background: transparent; border: none; cursor: pointer; outline: none; transition: background 0.2s, color 0.2s; } .ds-tabs-trigger:hover { background: var(--accent); color: var(--accent-foreground); } .ds-tabs-trigger.ds-selected { background: var(--background); color: var(--foreground); box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); } .ds-tabs-trigger:focus-visible { outline: none; box-shadow: 0 0 0 1px var(--ring); }"
+    },
+    {
+      "name": "Select Trigger",
+      "kind": "input",
+      "refersTo": "select-trigger",
+      "description": "Select field trigger. Matches input styling with a chevron indicator; open state shows a popover with shadow-md.",
+      "html": "<div class=\"ds-select\"><select class=\"ds-select-trigger\"><option>Choose account</option></select><svg class=\"ds-select-chevron\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" viewBox=\"0 0 24 24\"><polyline points=\"6 9 12 15 18 9\"/></svg></div>",
+      "css": ".ds-select { position: relative; display: flex; align-items: center; width: 100%; } .ds-select-trigger { display: flex; height: 40px; align-items: center; justify-content: between; border-radius: calc(var(--radius) - 2px); border: 1px solid var(--input); background: var(--background); padding: 8px 12px; font-size: 0.875rem; color: var(--foreground); outline: none; appearance: none; width: 100; transition: border-color 0.2s, box-shadow 0.2s; } .ds-select-trigger:focus { outline: none; box-shadow: 0 0 0 2px var(--ring); outline-offset: 2px; } .ds-select-trigger:disabled { cursor: not-allowed; opacity: 0.5; } .ds-select-chevron { width: 16px; height: 16px; opacity: 0.5; margin-left: 8px; fill: currentColor; } .ds-select-popover { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50; max-height: 384px; min-width: 200px; overflow: hidden; border-radius: calc(var(--radius) - 2px); border: 1px solid var(--input); background: var(--popover); color: var(--popover-foreground); box-shadow: 0 4px 24px rgba(0,0,0,0.12); }"
+    },
+    {
+      "name": "Checkbox",
+      "kind": "input",
+      "refersTo": "checkbox",
+      "description": "Checkbox control. Rounded-sm border in slate-input, slate-ring focus ring, check drawn in currentColor.",
+      "html": "<label class=\"ds-checkbox\"><input type=\"checkbox\" class=\"ds-checkbox-input\"/><span class=\"ds-checkbox-indicator\"></span>I agree</label>",
+      "css": ".ds-checkbox { display: inline-flex; align-items: center; cursor: pointer; outline: none; } .ds-checkbox-input { width: 100%; height: 100%; margin: 0; opacity: 0; position: absolute; cursor: pointer; } .ds-checkbox-indicator { display: flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: calc(var(--radius) - 4px); border: 1px solid var(--input); background: var(--background); margin-right: 8px; transition: border-color 0.2s, background 0.2s; } .ds-checkbox-indicator::after { content: \"\"; width: 12px; height: 12px; background: currentColor; clip-path: polygon(14% 44%, 0 60%, 45% 100%, 55% 90%, 78% 58%, 100% 22%, 100% 22%); opacity: 0; transition: opacity 0.2s; } .ds-checkbox:has(.ds-checkbox-input:checked) .ds-checkbox-indicator { background: var(--primary); border-color: var(--primary); } .ds-checkbox:has(.ds-checkbox-input:checked) .ds-checkbox-indicator::after { opacity: 1; color: var(--primary-foreground); } .ds-checkbox-input:focus-visible ~ .ds-checkbox-indicator { outline: none; box-shadow: 0 0 0 2px var(--ring); outline-offset: 2px; } .ds-checkbox-input:disabled { cursor: not-allowed; } .ds-checkbox-input:disabled ~ .ds-checkbox-indicator { opacity: 0.5; }"
+    },
+    {
+      "name": "Field Label",
+      "kind": "input",
+      "refersTo": "label",
+      "description": "Field label. Label type (500, 0.875rem), no leading, medium weight.",
+      "html": "<label class=\"ds-label\">Video URL</label>",
+      "css": ".ds-label { font-size: 0.875rem; font-weight: 500; line-height: 1; color: var(--foreground); display: inline-block; margin-bottom: 4px; } .ds-label:has(+ :disabled), .ds-label:has(> :disabled) { opacity: 0.7; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Content Control Room",
+    "overview": "A dashboard-grade control room for digital agencies managing many TikTok creators and accounts from one place. The system is precise and confident, built on clean utility: plenty of white space, weight and size carrying hierarchy, and color held in reserve so that when it does appear it means something. Surfaces are white or near-white slate, text is deep slate ink, and interactive states lift subtly. TikTok's brand red and cyan appear only at brand touchpoints — never as decoration.",
+    "keyCharacteristics": [
+      "Industrial and efficient components: clear states, distinct borders, visible focus rings, built for speed.",
+      "Slate & Signal palette: deep slate depth, paper-white surfaces, mist backgrounds, signal red for destructive actions.",
+      "Flat-by-default depth: subtle shadows on cards, selects, and popovers only; no zero-blur block shadows.",
+      "The One Brand-Touchpoint Rule. TikTok red (#fe2c55) and cyan (#25f4ee) are reserved for TikTok brand moments (connect, auth, publishing status). They are never used as decorative accents on agency UI."
+    ],
+    "rules": [
+      { "name": "The One Voice Rule", "body": "One typeface, one scale. Display weight steps are obvious (800 → 700 → 600 → 500 → 400); do not introduce intermediate weights or a second family for emphasis.", "section": "typography" },
+      { "name": "The One Brand-Touchpoint Rule", "body": "TikTok red (#fe2c55) and cyan (#25f4ee) are reserved for TikTok brand moments (connect, auth, publishing status). They are never used as decorative accents on agency UI.", "section": "colors" },
+      { "name": "The Flat-By-Default Rule", "body": "Surfaces are flat at rest. Shadows appear only as a response to state (hover, elevation, focus) or container role (card, popover). Never as decoration.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use Slate Deep (primary ink) on ≤10% of any given screen; its rarity is the point.",
+      "Do keep focus rings visible: 2px slate-ring with 2px offset on every interactive control.",
+      "Do carry heading hierarchy by weight and size only (800 → 700 → 600 → 500 → 400); never add a second typeface.",
+      "Do reserve TikTok red (#fe2c55) and cyan (#25f4ee) for TikTok brand touchpoints only."
+    ],
+    "donts": [
+      "Don't use gradient text, glass/blur as decoration, or zero-blur block shadows (4px 4px 0) — this world is flat-by-default.",
+      "Don't add eyebrows/kickers above headings or section numbers (01/02/03); the heading carries its own weight.",
+      "Don't nest cards; cards are the container, never nested inside one another.",
+      "Don't apply TikTok brand colors as decorative accents on agency UI."
+    ]
+  }
+}
