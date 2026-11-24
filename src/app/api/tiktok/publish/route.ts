@@ -30,12 +30,16 @@ export async function POST(request: Request) {
       );
     }
 
+    if (mode !== "inbox" && mode !== "profile") return NextResponse.json({ error: "Mode publikasi tidak valid." }, { status: 400 });
+    if (mode === "profile" && !["PUBLIC_TO_EVERYONE", "FOLLOWER_OF_CREATOR", "MUTUAL_FOLLOW_FRIENDS", "SELF_ONLY"].includes(privacy)) return NextResponse.json({ error: "Pilih visibilitas video." }, { status: 400 });
     let sourceType: string;
     let posterUrl: string | undefined;
     let videoBuffer: Uint8Array | undefined;
 
     if (mode === "inbox") {
-      if (!videoUrl) {
+      let valid = false;
+      try { valid = new URL(videoUrl).protocol === "https:"; } catch {}
+      if (!valid) {
         return NextResponse.json(
           { error: "Video URL is required for inbox mode" },
           { status: 400 }
@@ -44,9 +48,9 @@ export async function POST(request: Request) {
       sourceType = "PULL_FROM_URL";
       posterUrl = videoUrl;
     } else {
-      if (!file) {
+      if (!(file instanceof File) || !["video/mp4", "video/quicktime"].includes(file.type) || file.size === 0 || file.size > 4 * 1024 * 1024) {
         return NextResponse.json(
-          { error: "Video file is required for profile mode" },
+          { error: "Pilih video MP4 atau MOV maksimal 4 MB." },
           { status: 400 }
         );
       }
@@ -59,38 +63,39 @@ export async function POST(request: Request) {
       source_info: {
         source_type: sourceType,
       },
-      video_metadata: {
+      ...(mode === "profile" ? { post_info: {
         title: caption,
         privacy_level: privacy,
         disable_comment: disableComment,
         disable_duet: disableDuet,
         disable_stitch: disableStitch,
-      },
+      } } : {}),
     };
 
     if (posterUrl) {
       (initBody.source_info as Record<string, unknown>)[
-        "poster_url"
+        "video_url"
       ] = posterUrl;
     }
 
-    const initResult = await initPublish(accessToken, initBody);
+    if (videoBuffer) Object.assign(initBody.source_info as Record<string, unknown>, { video_size: videoBuffer.length, chunk_size: videoBuffer.length, total_chunk_count: 1 });
+    const initResult = await initPublish(accessToken, initBody, mode);
     const { publish_id, upload_url } = initResult;
 
-    if (sourceType === "FILE_UPLOAD" && upload_url && videoBuffer) {
-      await uploadVideoChunk(upload_url, videoBuffer, "video/mp4");
+    if (sourceType === "FILE_UPLOAD") {
+      if (!upload_url || !videoBuffer || !file) throw new Error("Missing upload information");
+      await uploadVideoChunk(upload_url, videoBuffer, file.type);
     }
 
     return NextResponse.json({
       success: true,
       publish_id,
-      upload_url,
       message: "Upload initiated successfully",
     });
   } catch (error) {
     console.error("Publish error:", error);
     return NextResponse.json(
-      { error: "Failed to initiate publish" },
+      { error: "Publikasi belum dapat dikonfirmasi. Periksa akun TikTok sebelum mencoba ulang." },
       { status: 500 }
     );
   }
