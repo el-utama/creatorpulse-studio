@@ -40,6 +40,10 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("analytics");
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [videos, setVideos] = useState<import("@/types/tiktok").TikTokVideo[]>([]);
+  const [cursor,setCursor]=useState<number|null>(null);
+  const [moreLoading,setMoreLoading]=useState(false);
+  const [moreError,setMoreError]=useState<string|null>(null);
+  const moreLock=useRef(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
@@ -60,6 +64,7 @@ export default function DashboardPage() {
   const fetchAnalytics = useCallback(async () => {
     setAnalyticsLoading(true);
     setAnalyticsError(null);
+    setMoreError(null);
     try {
       const res = await fetch("/api/tiktok/analytics", {
         method: "GET",
@@ -71,10 +76,11 @@ export default function DashboardPage() {
       const data = await res.json();
       setProfile(data.user_info ?? null);
       setVideos(data.videos?.data ?? []);
+      setCursor(data.videos?.has_more && Number.isSafeInteger(data.videos.cursor) ? data.videos.cursor : null);
       if (data.video_error) setAnalyticsError(data.video_error);
       setLastUpdated(new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }));
     } catch (err) {
-      setAnalyticsError(err instanceof Error ? err.message : "Unknown error");
+      setAnalyticsError(err instanceof Error ? err.message : "Terjadi kesalahan");
     } finally {
       setAnalyticsLoading(false);
     }
@@ -84,6 +90,20 @@ export default function DashboardPage() {
     fetchAnalytics();
   }, [fetchAnalytics]);
 
+  const loadMore=async()=>{
+    if(cursor===null||moreLock.current||analyticsLoading) return;
+    moreLock.current=true;setMoreLoading(true);setMoreError(null);
+    try {
+      const res=await fetch("/api/tiktok/analytics?cursor="+cursor,{cache:"no-store"});
+      const data=await res.json();
+      if(!res.ok) throw new Error(data.error||"Gagal memuat video berikutnya.");
+      const next=data.videos;
+      if(!Array.isArray(next?.data)) throw new Error("Daftar video tidak valid.");
+      setVideos(old=>Array.from(new Map([...old,...next.data].map(v=>[v.id,v])).values()));
+      setCursor(next.has_more && Number.isSafeInteger(next.cursor) && next.cursor!==cursor ? next.cursor:null);
+    } catch(error) {setMoreError(error instanceof Error?error.message:"Gagal memuat video berikutnya.");}
+    finally {moreLock.current=false;setMoreLoading(false);}
+  };
   const publishLock = useRef(false);
   const [publishing, setPublishing] = useState(false);
   const [publishWarning, setPublishWarning] = useState<string | null>(null);
@@ -163,7 +183,7 @@ export default function DashboardPage() {
                 variant="outline"
                 size="sm"
                 onClick={fetchAnalytics}
-                disabled={analyticsLoading || publishing}
+                disabled={analyticsLoading || publishing || moreLoading}
                 className="flex items-center gap-1.5 w-full sm:w-auto"
               >
                 <RefreshCw className="h-4 w-4" />
@@ -296,7 +316,10 @@ export default function DashboardPage() {
                       <p className="text-muted-foreground text-sm">Memuat daftar video...</p>
                     </div>
                   ) : (
-                    <VideoList videos={videos} />
+                    <><VideoList videos={videos} />
+                    {moreError && <p role="alert" className="mt-3 text-sm text-destructive">{moreError}</p>}
+                    {cursor!==null && <Button type="button" variant="outline" className="mt-4 w-full" onClick={loadMore} disabled={moreLoading}>{moreLoading?"Memuat video…":"Muat video lainnya"}</Button>}
+                    <p className="mt-2 text-xs text-muted-foreground" aria-live="polite">{videos.length} video dimuat. Pencarian dan urutan berlaku untuk video yang sudah dimuat.</p></>
                   )}
                 </CardContent>
               </Card>
@@ -414,10 +437,10 @@ export default function DashboardPage() {
           <p>© {new Date().getFullYear()} CreatorPulse Studio. All rights reserved.</p>
           <div className="flex sm:gap-6 gap-3">
             <a href="/privacy" className="hover:text-foreground transition-colors">
-              Privacy Policy
+              Kebijakan Privasi
             </a>
             <a href="/terms" className="hover:text-foreground transition-colors">
-              Terms of Service
+              Ketentuan Layanan
             </a>
           </div>
         </div>

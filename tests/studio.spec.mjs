@@ -105,3 +105,35 @@ test('keyboard navigation, narrow layout and logout', async ({page,context}) => 
   await page.goto('/dashboard');
   await expect(page).toHaveURL(/\/$/);
 });
+
+test('pagination, refresh and actionable errors',async ({request})=>{
+ const headers={Cookie:'creatorpulse_access_token=mock-only'};
+ const first=await request.get('/api/tiktok/analytics',{headers});
+ expect(first.status()).toBe(200);
+ const data=await first.json();
+ expect(data.videos.has_more).toBe(true);
+ const next=await request.get('/api/tiktok/analytics?cursor='+data.videos.cursor,{headers});
+ expect((await next.json()).videos.data[0].id).toBe('v2');
+ expect((await request.get('/api/tiktok/analytics?cursor=-1',{headers})).status()).toBe(400);
+ const creator=await request.get('/api/tiktok/creator',{headers:{Cookie:'creatorpulse_access_token=expired; creatorpulse_refresh_token=refresh-test'}});
+ expect(creator.status()).toBe(200);
+ expect(creator.headers()['set-cookie']).toContain('renewed');
+ const rejected=await request.post('/api/tiktok/publish',{headers,multipart:{requestId:crypto.randomUUID(),mode:'inbox',videoUrl:'https://unverified.example/video.mp4',consent:'true'}});
+ expect(rejected.status()).toBe(400);
+ expect((await rejected.json()).error).toContain('url_ownership_unverified');
+ const failure=await request.post('/api/tiktok/publish/status',{headers,data:{publish_ids:['failed-test']}});
+ expect((await failure.json()).failure_reason).toContain('video_pull_failed');
+});
+test('content loads another page and searches loaded descriptions',async ({page,context})=>{
+ await context.addCookies([{name:'creatorpulse_access_token',value:'mock-only',url:'http://localhost:3000'}]);
+ const video=(id,title,description)=>({id,title,video_description:description,cover_image_url:'',create_time:1,share_url:'https://www.tiktok.com/',view_count:3,like_count:1,comment_count:0,share_count:0});
+ await page.route('**/api/tiktok/analytics**',route=>route.fulfill({json:route.request().url().includes('cursor=123')?{videos:{data:[video('v2','Video lama','musik unik')],has_more:false}}:{user_info:{open_id:'pagination-account',display_name:'Test Creator',avatar_url:'',follower_count:0,following_count:0,likes_count:0,video_count:2},videos:{data:[video('v1','Video baru','test')],has_more:true,cursor:123}}}));
+ await page.goto('/dashboard');
+ await page.getByRole('tab',{name:'Konten'}).click();
+ await expect(page.getByText('Video baru',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Muat video lainnya'}).click();
+ await expect(page.getByText('Video lama',{exact:true})).toBeVisible();
+ await page.getByLabel('Cari video').fill('musik unik');
+ await expect(page.getByText('Video baru',{exact:true})).toHaveCount(0);
+ await expect(page.getByText('Video lama',{exact:true})).toBeVisible();
+});
