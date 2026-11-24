@@ -86,6 +86,7 @@ export default function DashboardPage() {
 
   const publishLock = useRef(false);
   const [publishing, setPublishing] = useState(false);
+  const [publishWarning, setPublishWarning] = useState<string | null>(null);
   const [publishError, setPublishError] = useState<string | null>(null);
   const handlePublish = async (payload: PublishPayload) => {
     if (publishLock.current) return;
@@ -118,6 +119,7 @@ export default function DashboardPage() {
 
       const data = await res.json();
       if (!data.publish_id) throw new Error("TikTok belum memberikan ID publikasi.");
+      setPublishWarning(typeof data.warning === "string" ? data.warning : null);
       setPublishId(data.publish_id);
       const nextHistory = [{ id: data.publish_id as string, createdAt: new Date().toISOString() }, ...history].slice(0, 50);
       setHistory(nextHistory);
@@ -380,6 +382,7 @@ export default function DashboardPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
+                  {publishWarning && <p role="alert" className="mb-3 rounded-md border border-amber-500 p-3 text-sm">{publishWarning}</p>}
                   {history.length > 0 && <div className="mb-4 divide-y rounded-lg border">{history.map((record) => <button type="button" key={record.id} onClick={() => setPublishId(record.id)} aria-pressed={publishId === record.id} className="flex w-full min-w-0 items-center justify-between gap-3 p-3 text-left hover:bg-muted aria-pressed:bg-muted"><span className="min-w-0 truncate text-sm">{record.id}</span><span className="shrink-0 text-xs text-muted-foreground">{new Date(record.createdAt).toLocaleString("id-ID")}</span></button>)}</div>}
                   {publishId ? (
                     <PublishStatusChecker
