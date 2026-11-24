@@ -47,9 +47,9 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
   const [privacy, setPrivacy] = useState("");
-  const [disableComment, setDisableComment] = useState(false);
-  const [disableDuet, setDisableDuet] = useState(false);
-  const [disableStitch, setDisableStitch] = useState(false);
+  const [disableComment, setDisableComment] = useState(true);
+  const [disableDuet, setDisableDuet] = useState(true);
+  const [disableStitch, setDisableStitch] = useState(true);
   const [capabilities, setCapabilities] = useState<import("@/lib/tiktok").CreatorCapabilities | null>(null);
   const [capabilityError, setCapabilityError] = useState(false);
   useEffect(() => {
@@ -154,7 +154,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
           </div>
         </div>
 
-        <div className="space-y-2"><h3 className="text-sm font-medium">Sumber video</h3><div role="group" aria-label="Sumber video" className="flex gap-2"><Button type="button" variant={source === "url" ? "default" : "outline"} aria-pressed={source === "url"} disabled={publishing} onClick={() => {setSource("url");setDuration(null);setConsent(false);setReview(false);}}>Tautan HTTPS</Button><Button type="button" variant={source === "file" ? "default" : "outline"} aria-pressed={source === "file"} disabled={publishing} onClick={() => {setSource("file");setDuration(null);setConsent(false);setReview(false);}}>File perangkat</Button></div></div>
+        <div className="space-y-2"><h3 className="text-sm font-medium">Sumber video</h3><div role="group" aria-label="Sumber video" className="flex gap-2"><Button type="button" variant={source === "url" ? "default" : "outline"} aria-pressed={source === "url"} disabled={publishing} onClick={() => {if (source === "url") return;setSource("url");setDuration(null);setConsent(false);setReview(false);}}>Tautan HTTPS</Button><Button type="button" variant={source === "file" ? "default" : "outline"} aria-pressed={source === "file"} disabled={publishing} onClick={() => {if (source === "file") return;setSource("file");setDuration(null);setConsent(false);setReview(false);}}>File perangkat</Button></div></div>
         {source === "url" ? (
           <div className="space-y-2">
             <Label htmlFor="video-url" className="text-xs font-medium">
@@ -304,7 +304,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
         {!review && <Button type="button" variant="outline" disabled={!ready || publishing} onClick={() => setReview(true)}>Tinjau publikasi</Button>}
         {review && <section className="space-y-3 rounded-lg border p-4" aria-label="Tinjauan publikasi"><h3 className="font-semibold">Konfirmasi publikasi</h3><p className="text-sm">Akun: {accountName}</p><p className="text-sm break-all">Video: {source === "url" ? videoUrl : file?.name}</p><p className="text-sm">{mode === "inbox" ? "Dikirim ke inbox; selesaikan posting di TikTok." : `Visibilitas: ${({PUBLIC_TO_EVERYONE:"Semua orang",FOLLOWER_OF_CREATOR:"Pengikut",MUTUAL_FOLLOW_FRIENDS:"Teman",SELF_ONLY:"Hanya saya"} as Record<string,string>)[privacy] ?? privacy}`}</p>
         {mode === "profile" && <p className="text-sm whitespace-pre-wrap break-words">Caption: {caption || "(tanpa caption)"}</p>}
-        {mode === "profile" && <p className="text-sm">Dengan memposting, Anda menyetujui ketentuan penggunaan musik TikTok{commercial && brandContent ? " dan kebijakan konten bermerek" : ""}. Konten mungkin memerlukan beberapa menit untuk diproses.</p>}
+        {mode === "profile" && <p className="text-sm">Dengan memposting, Anda menyetujui <a className="underline" href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noreferrer">ketentuan penggunaan musik TikTok</a>{commercial && brandContent && <> dan <a className="underline" href="https://www.tiktok.com/legal/page/global/bc-policy/en" target="_blank" rel="noreferrer">kebijakan konten bermerek</a></>}. Konten mungkin memerlukan beberapa menit untuk diproses.</p>}
         {/* Consent */}
         <div className="flex items-start gap-2 pt-2 border-t border-border">
           <Checkbox
