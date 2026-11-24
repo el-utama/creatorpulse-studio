@@ -1,6 +1,6 @@
 import {test,expect} from '@playwright/test';
 const enabled=process.env.GATEWAY_TEST==='1';
-test.skip(!enabled,'Requires isolated mock Redis and gateway credentials');
+test.skip(!enabled,'Requires isolated SQLite Local Bridge and mock TikTok');
 const operator={Authorization:'Bearer '+ 'o'.repeat(40)};
 const agent={Authorization:'Bearer '+ 'a'.repeat(40)};
 test('enroll and monitor without browser, separate credentials and sourced trend data',async ({context,request})=>{
@@ -107,8 +107,12 @@ test('old browser binding cannot regain access after disconnect and reenroll',as
  try{
  const enroll=async ctx=>{const start=await ctx.request.get('/api/auth/tiktok',{maxRedirects:0});const state=new URL(start.headers().location).searchParams.get('state');await ctx.request.get('/api/auth/tiktok/callback?code=account-a&state='+state,{maxRedirects:0});const r=await ctx.request.post('/api/gateway/v1/enroll',{headers:operator});expect(r.ok()).toBe(true);return (await r.json()).id;};
  const id=await enroll(one);expect((await one.request.get('/api/tiktok/analytics')).status()).toBe(200);
+ const base='/api/gateway/v1/posts',data={requestId:crypto.randomUUID(),accountId:id,videoUrl:'https://example.com/reconnect.mp4',caption:'Before disconnect',mode:'inbox'};
+ const draft=await (await request.post(base,{headers:agent,data})).json();
+ expect((await request.post(base+'/'+draft.id+'/approve',{headers:operator,data:{...data,confirm:true}})).ok()).toBe(true);
  expect((await request.post('/api/gateway/v1/accounts/'+id+'/disconnect',{headers:operator})).ok()).toBe(true);
  expect(await enroll(two)).toBe(id);expect((await two.request.get('/api/tiktok/analytics')).status()).toBe(200);
  expect((await one.request.get('/api/tiktok/analytics')).status()).toBe(401);
+ expect((await request.post(base+'/'+draft.id+'/execute',{headers:agent})).status()).toBe(409);
  }finally{await one.close();await two.close();}
 });

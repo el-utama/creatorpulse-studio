@@ -6,7 +6,7 @@ import {explainTikTok,explainFailure} from "@/lib/tiktok-errors";
 const hash="creatorpulse:v3:posts";
 const uuid=(id:unknown):id is string=>typeof id==="string"&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id);
 type State="draft"|"approved"|"sending"|"submitted"|"uncertain"|"cancelled";
-type Post={id:string;accountId:string;accountName:string;videoUrl:string;caption:string;mode:"inbox"|"profile";duration?:number;direct?:DirectSettings;approvedCaption?:string;state:State;createdAt:string;updatedAt:string;approvedUntil?:number;publishId?:string;status?:string;error?:string;events:{action:string;at:string;actor:string}[]};
+type Post={id:string;accountId:string;accountName:string;videoUrl:string;caption:string;mode:"inbox"|"profile";duration?:number;direct?:DirectSettings;approvedCaption?:string;state:State;createdAt:string;updatedAt:string;approvedUntil?:number;approvedEpoch?:string;publishId?:string;status?:string;error?:string;events:{action:string;at:string;actor:string}[]};
 async function load(id:string){
  if(!uuid(id))throw new GatewayError(400,"ID publikasi tidak valid.");
  const active=await redis<string|null>(["HGET",hash,id]);
@@ -45,14 +45,14 @@ export async function approve(id:string,input:unknown){
  const {post,raw}=await load(id);
  if(post.state!=="draft"&&!(post.state==="approved"&&(post.approvedUntil||0)<Date.now()))throw new GatewayError(409,"Rencana tidak dapat disetujui.");
  if(!x||x.confirm!==true||x.accountId!==post.accountId||x.videoUrl!==post.videoUrl||x.caption!==post.caption||x.mode!==post.mode)throw new GatewayError(400,"Konfirmasi harus sesuai dengan rencana yang ditinjau.");
- await loadAccount(post.accountId);
+ const {account}=await loadAccount(post.accountId);
  let settings:DirectSettings|undefined,approvedCaption:string|undefined;
  if(post.mode==="profile"){
   if(x.duration!==post.duration||typeof x.approvedCaption!=="string"||x.approvedCaption.length>2200)throw new GatewayError(400,"Tinjau durasi dan caption akhir.");
   settings=directSettings(x.direct);approvedCaption=x.approvedCaption;
   verifyDirect(settings,post.duration,await readAccount(post.accountId,getCreatorCapabilities));
  }
- return change(post,raw,{state:"approved",approvedUntil:Date.now()+15*60000,direct:settings,approvedCaption},"approved","operator");
+ return change(post,raw,{state:"approved",approvedUntil:Date.now()+15*60000,approvedEpoch:account.epoch,direct:settings,approvedCaption},"approved","operator");
 }
 export async function cancel(id:string){
  const {post,raw}=await load(id);
@@ -71,6 +71,7 @@ export async function execute(id:string){
  if((post.approvedUntil||0)<=Date.now())throw new GatewayError(409,"Persetujuan kedaluwarsa.");
  return withSlotLock(post.accountId,async()=>{
  const latest=await loadAccount(post.accountId);
+ if(latest.account.epoch!==post.approvedEpoch)throw new GatewayError(409,"Otorisasi akun berubah setelah persetujuan. Batalkan rencana dan buat rencana baru.");
  if(latest.account.access!==token)throw new GatewayError(409,"Sesi akun berubah; periksa kembali sebelum mengirim.");
  if((post.approvedUntil||0)<=Date.now())throw new GatewayError(409,"Persetujuan kedaluwarsa.");
  const sending=await change(post,raw,{state:"sending"},"execution_claimed","agent");

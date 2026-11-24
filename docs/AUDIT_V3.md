@@ -26,3 +26,8 @@ CI latest must pass. Do not mark production-ready until real setup and read-only
 https://developers.tiktok.com/docs/en/content-sharing-guidelines
 https://developers.tiktok.com/docs/en/content-posting-api-reference-direct-post
 https://developers.tiktok.com/docs/en/content-posting-api-reference-query-creator-info
+
+## V3.6 follow-up
+- Browser binding now includes a random enrollment epoch signed with the vault key; persisted epoch checked before token access, including refresh and reconnect. Disconnect and reenroll invalidates prior browser bindings and approved agent drafts. Existing pre-V3.6 development sessions must reconnect; production V2 cookie sessions are unaffected. Tests cover reenrollment with two separate browser contexts.
+- Authenticated agent limit: shared persistent 60 gateway calls per fixed minute across Vercel instances; operator bypasses it. Adds one SQLite request per authorized agent call. This bounds downstream work, **not** incoming Vercel invocations, public health/MCP discovery, unauthorized traffic or manual UI traffic. Edge/firewall limits and actual usage measurement remain necessary. Local MCP discovery stays offline.
+- Both approval screens remind the owner to use an immutable media URL. This is an operator attestation, not cryptographic verification of remote media. No server-side remote video download is added. Verified media hosting/immutable URLs still required. TikTok fetches the URL after approval, so TOCTOU risk remains for mutable hosting.
