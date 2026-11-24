@@ -30,6 +30,7 @@ export interface PublishPayload {
   disableStitch: boolean;
   consent: boolean;
   duration: number | null;
+  requestId: string;
   brandOrganic: boolean;
   brandContent: boolean;
   isAigc: boolean;
@@ -60,6 +61,8 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
     return () => controller.abort();
   }, [mode]);
   const [review, setReview] = useState(false);
+  const requestId = useRef<string | null>(null);
+  useEffect(() => { if (!review) requestId.current = null; }, [review]);
   const [consent, setConsent] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -325,6 +328,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <Button
           onClick={() => {
+            requestId.current ??= crypto.randomUUID();
             onPublish({
               mode,
               file: source === "file" ? file : null,
@@ -336,6 +340,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
               disableStitch,
               consent,
               duration,
+              requestId: requestId.current,
               brandOrganic: commercial && brandOrganic,
               brandContent: commercial && brandContent,
               isAigc,

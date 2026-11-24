@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { APP_CONFIG } from "@/config/app";
+import { publicationKey, reservePublication, finishPublication } from "@/lib/publication-idempotency";
 import { sessionToken } from "@/lib/session";
 import { initPublish, uploadVideoChunk, getCreatorCapabilities } from "@/lib/tiktok";
 
@@ -12,8 +13,11 @@ export async function POST(request: Request) {
   }
 
   let acceptedId: string | null = null;
+  let reservationKey: string | null = null;
   try {
     const formData = await request.formData();
+    const requestId = formData.get("requestId");
+    if (typeof requestId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) return NextResponse.json({error:"ID permintaan tidak valid."},{status:400});
     const mode = formData.get("mode") as string;
     const videoUrl = formData.get("videoUrl") as string;
     const caption = formData.get("caption") as string;
@@ -94,6 +98,11 @@ export async function POST(request: Request) {
     }
 
     if (videoBuffer) Object.assign(initBody.source_info as Record<string, unknown>, { video_size: videoBuffer.length, chunk_size: videoBuffer.length, total_chunk_count: 1 });
+    const key = await publicationKey(accessToken, requestId);
+    const previous = await reservePublication(key);
+    if (previous?.state === "complete") return NextResponse.json(previous.body,{status:previous.status});
+    if (previous) return NextResponse.json({error:"Permintaan sebelumnya sedang diproses atau hasilnya belum pasti. Periksa aktivitas TikTok; jangan kirim ulang konten."},{status:409});
+    reservationKey = key;
     const initResult = await initPublish(accessToken, initBody, mode);
     const { publish_id, upload_url } = initResult;
     acceptedId = publish_id;
@@ -103,14 +112,16 @@ export async function POST(request: Request) {
       await uploadVideoChunk(upload_url, videoBuffer, file.type);
     }
 
-    return NextResponse.json({
-      success: true,
-      publish_id,
-      message: "Upload initiated successfully",
-    });
+    const reply = {success:true,publish_id,message:"Upload initiated successfully"};
+    try { await finishPublication(reservationKey,reply); } catch { /* Preserve the accepted ID even if storage fails. */ }
+    return NextResponse.json(reply);
   } catch (error) {
     console.error("Publication request failed");
-    if (acceptedId) return NextResponse.json({ publish_id: acceptedId, warning: "TikTok menerima inisialisasi, tetapi transfer belum terkonfirmasi. Periksa status sebelum mencoba ulang." }, {status:202});
+    if (acceptedId) {
+      const reply = {publish_id:acceptedId,warning:"TikTok menerima inisialisasi, tetapi transfer belum terkonfirmasi. Periksa status sebelum mencoba ulang."};
+      if (reservationKey) try { await finishPublication(reservationKey,reply,202); } catch { /* Preserve the accepted ID. */ }
+      return NextResponse.json(reply,{status:202});
+    }
     return NextResponse.json(
       { error: "Publikasi belum dapat dikonfirmasi. Periksa akun TikTok sebelum mencoba ulang." },
       { status: 500 }

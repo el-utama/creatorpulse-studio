@@ -60,7 +60,7 @@ test('direct post requires account capabilities and explicit privacy', async ({p
 
 test('server publication contracts and validation', async ({request}) => {
   const headers = {Cookie:'creatorpulse_access_token=mock-only'};
-  const base = {mode:'inbox',videoUrl:'https://example.com/video.mp4',consent:'true'};
+  const base = {requestId:crypto.randomUUID(),mode:'inbox',videoUrl:'https://example.com/video.mp4',consent:'true'};
   const denied = await request.post('/api/tiktok/publish',{multipart:base});
   expect(denied.status()).toBe(401);
   const invalid = await request.post('/api/tiktok/publish',{headers,multipart:{...base,consent:'false'}});
@@ -68,9 +68,12 @@ test('server publication contracts and validation', async ({request}) => {
   const inbox = await request.post('/api/tiktok/publish',{headers,multipart:base});
   expect(inbox.status()).toBe(200);
   expect((await inbox.json()).publish_id).toBe('server-inbox');
-  const upload = await request.post('/api/tiktok/publish',{headers,multipart:{mode:'inbox',consent:'true',file:{name:'test.mp4',mimeType:'video/mp4',buffer:Buffer.from([1,2,3,4])}}});
+  const replay = await request.post('/api/tiktok/publish',{headers,multipart:base});
+  expect(replay.status()).toBe(200);
+  expect((await replay.json()).publish_id).toBe('server-inbox');
+  const upload = await request.post('/api/tiktok/publish',{headers,multipart:{requestId:crypto.randomUUID(),mode:'inbox',consent:'true',file:{name:'test.mp4',mimeType:'video/mp4',buffer:Buffer.from([1,2,3,4])}}});
   expect(upload.status()).toBe(200);
-  const direct = {...base,mode:'profile',caption:'test',privacy:'SELF_ONLY',duration:'10',disableComment:'true',disableDuet:'true',disableStitch:'true'};
+  const direct = {...base,requestId:crypto.randomUUID(),mode:'profile',caption:'test',privacy:'SELF_ONLY',duration:'10',disableComment:'true',disableDuet:'true',disableStitch:'true'};
   const rejected = await request.post('/api/tiktok/publish',{headers,multipart:{...direct,brandContent:'true'}});
   expect(rejected.status()).toBe(400);
   const posted = await request.post('/api/tiktok/publish',{headers,multipart:direct});

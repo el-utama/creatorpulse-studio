@@ -5,6 +5,7 @@ globalThis.fetch = async (input, options) => {
   const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
   if (url.hostname === 'open.tiktokapis.com') {
     const body = options?.body ? JSON.parse(options.body) : {};
+    if (url.pathname.endsWith('/user/info/')) return reply({user:{open_id:'mock-stable-account'}});
     if (url.pathname.endsWith('/creator_info/query/')) return reply({creator_nickname:'Test Creator',creator_username:'test',privacy_level_options:['SELF_ONLY'],comment_disabled:true,duet_disabled:true,stitch_disabled:true,max_video_post_duration_sec:60});
     if (url.pathname.endsWith('/video/init/')) {
       const source = body.source_info;

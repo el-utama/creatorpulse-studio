@@ -102,6 +102,7 @@ export default function DashboardPage() {
       formData.append("disableComment", String(payload.disableComment));
       formData.append("disableDuet", String(payload.disableDuet));
       formData.append("disableStitch", String(payload.disableStitch));
+      formData.append("requestId", payload.requestId);
       formData.append("duration", String(payload.duration ?? 0));
       formData.append("brandOrganic", String(payload.brandOrganic));
       formData.append("brandContent", String(payload.brandContent));
