@@ -9,7 +9,7 @@ export async function middleware(request: NextRequest) {
 
   // Protect dashboard routes
   if (pathname.startsWith("/dashboard")) {
-    if (!accessToken) {
+    if (!accessToken && !request.cookies.get(APP_CONFIG.cookieNames.refreshToken)?.value) {
       return NextResponse.redirect(new URL("/", request.url));
     }
   }
