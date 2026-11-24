@@ -47,24 +47,15 @@ export default function DashboardPage() {
     setAnalyticsLoading(true);
     setAnalyticsError(null);
     try {
-      const [userRes, videoRes] = await Promise.all([
-        fetch("/api/tiktok/analytics", {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        }),
-        fetch("/api/tiktok/analytics", {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        }),
-      ]);
+      const res = await fetch("/api/tiktok/analytics", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
 
-      if (!userRes.ok) throw new Error("Gagal memuat profil");
-      const userData = await userRes.json();
-      setProfile(userData.user_info ?? null);
-
-      if (!videoRes.ok) throw new Error("Gagal memuat daftar video");
-      const videoData = await videoRes.json();
-      setVideos(videoData.videos?.data ?? []);
+      if (!res.ok) throw new Error("Gagal memuat analitik");
+      const data = await res.json();
+      setProfile(data.user_info ?? null);
+      setVideos(data.videos?.data ?? []);
     } catch (err) {
       setAnalyticsError(err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -86,7 +77,7 @@ export default function DashboardPage() {
     <div className="min-h-screen flex flex-col">
       <Navbar />
 
-      <main className="flex-1 px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
+      <main className="flex-1 px-3 sm:px-4 lg:px-6 py-4 sm:py-6" id="main-content">
         <div className="max-w-xl sm:max-w-2xl lg:max-w-4xl mx-auto">
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
@@ -126,7 +117,11 @@ export default function DashboardPage() {
           </div>
 
           {analyticsError && (
-            <Card className="border-destructive bg-destructive/50">
+            <Card
+              className="border-destructive bg-destructive/50"
+              role="alert"
+              aria-live="polite"
+            >
               <CardHeader className="flex flex-row items-center gap-2">
                 <ShieldAlert className="h-4 w-4 text-destructive" />
                 <CardTitle className="text-sm">Gagal memuat analitik</CardTitle>
@@ -184,14 +179,14 @@ export default function DashboardPage() {
                         <div className="space-y-1.5">
                           <div className="flex justify-between text-xs">
                             <span className="text-muted-foreground">Open ID</span>
-                            <span className="text-foreground font-mono text-[10px] truncate">
+                            <span className="text-foreground font-mono text-xs truncate">
                               {profile.open_id}
                             </span>
                           </div>
                           {profile.union_id && (
                             <div className="flex justify-between text-xs">
                               <span className="text-muted-foreground">Union ID</span>
-                              <span className="text-foreground font-mono text-[10px] truncate">
+                              <span className="text-foreground font-mono text-xs truncate">
                                 {profile.union_id}
                               </span>
                             </div>
@@ -222,7 +217,7 @@ export default function DashboardPage() {
                       <RefreshCw className="h-4 w-4 mr-2" />
                       Coba Lagi
                     </Button>
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       Pastikan scope <code className="bg-muted px-1 py-0 rounded">user.info.profile</code> telah diizinkan di portal TikTok for Developers.
                     </p>
                   </CardContent>
@@ -235,7 +230,7 @@ export default function DashboardPage() {
                   <CardTitle className="text-sm font-semibold">
                     Daftar Video Terbaru
                   </CardTitle>
-                  <CardDescription className="text-[10px]">
+                  <CardDescription className="text-xs">
                     Data dari TikTok Display API (video.list). Klik Refresh untuk memuat ulang.
                   </CardDescription>
                 </CardHeader>
@@ -280,7 +275,7 @@ export default function DashboardPage() {
                             <p className="text-sm font-medium text-foreground">
                               {profile.display_name}
                             </p>
-                            <p className="text-[10px] text-muted-foreground">
+                            <p className="text-xs text-muted-foreground">
                               Akun TikTok yang terhubung
                             </p>
                           </div>
@@ -294,7 +289,7 @@ export default function DashboardPage() {
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="pt-3">
-                        <ul className="text-[10px] text-muted-foreground space-y-1.5 list-disc pl-4">
+                        <ul className="text-xs text-muted-foreground space-y-1.5 list-disc pl-4">
                           <li>
                             Batas upload langsung lewat serverless Vercel:~4.5 MB.
                           </li>
@@ -328,7 +323,7 @@ export default function DashboardPage() {
                   <CardTitle className="text-sm font-semibold">
                     Riwayat Publikasi
                   </CardTitle>
-                  <CardDescription className="text-[10px]">
+                  <CardDescription className="text-xs">
                     Periksa status publikasi video yang baru saja Anda unggah.
                   </CardDescription>
                 </CardHeader>

@@ -127,6 +127,7 @@ Dark mode is handled by the `.dark` class, which inverts surface and foreground 
 - **Headline** (700, 1.875rem, leading 1.25): section headings (h2).
 - **Title** (600, 1.25rem, leading 1, tracking -0.025em): card titles and policy page headings.
 - **Body** (400, 0.875rem, leading 1.5): paragraph text, descriptions, helper copy. Max line length ~65–75ch where prose runs long.
+- **Caption / Meta** (400, 0.75rem, leading 1.25): dense data UI, metadata, IDs, timestamps, helper hints. The smallest documented step; do not go below this.
 - **Label** (500, 0.875rem, leading 1): field labels and button text.
 
 **The One Voice Rule.** One typeface, one scale. Display weight steps are obvious (800 → 700 → 600 → 500 → 400); do not introduce intermediate weights or a second family for emphasis.

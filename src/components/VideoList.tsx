@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate, formatNumber } from "@/lib/utils";
 
@@ -30,10 +31,12 @@ export function VideoList({ videos }: { videos: VideoItem[] }) {
       {videos.map((video) => (
         <Card key={video.id} className="cursor-pointer hover:border-tiktok-primary/50 transition-colors">
           <div className="relative aspect-video w-full bg-muted overflow-hidden">
-            <img
+            <Image
               src={video.cover_image_url}
               alt={video.title}
-              className="absolute inset-0 w-full h-full object-cover"
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 50vw"
               loading="lazy"
             />
             <div className="absolute bottom-1 right-1 bg-black/60 text-white text-xs px-1 py-0.5 rounded">

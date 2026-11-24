@@ -40,6 +40,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
   const [disableStitch, setDisableStitch] = useState(false);
   const [consent, setConsent] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -49,15 +50,17 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
 
     const validTypes = ["video/mp4", "video/quicktime", "video/x-msvideo"];
     if (!validTypes.includes(selectedFile.type)) {
-      alert("Hanya file .mp4 atau .mov yang didukung.");
+      setFileError("Hanya file .mp4 atau .mov yang didukung.");
       return;
     }
 
     const maxBytes = 4.5 * 1024 * 1024;
     if (selectedFile.size > maxBytes) {
-      alert("File terlalu besar untuk upload langsung (maks 4.5 MB). Gunakan opsi PULL_FROM_URL.");
+      setFileError("File terlalu besar untuk upload langsung (maks 4.5 MB). Gunakan opsi PULL_FROM_URL.");
       return;
     }
+
+    setFileError(null);
 
     setFile(selectedFile);
     setPreviewUrl(URL.createObjectURL(selectedFile));
@@ -93,7 +96,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
           <div className="flex items-center gap-2 border border-input rounded-md p-1">
             <button
               onClick={() => setMode("inbox")}
-              className={`flex-1 py-2 text-[10px] font-medium rounded-md transition-all ${
+              className={`flex-1 py-2 text-xs font-medium rounded-md transition-all ${
                 mode === "inbox"
                   ? "bg-background text-foreground shadow-sm border border-border"
                   : "text-muted-foreground hover:bg-muted"
@@ -103,7 +106,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
             </button>
             <button
               onClick={() => setMode("profile")}
-              className={`flex-1 py-2 text-[10px] font-medium rounded-md transition-all ${
+              className={`flex-1 py-2 text-xs font-medium rounded-md transition-all ${
                 mode === "profile"
                   ? "bg-background text-foreground shadow-sm border border-border"
                   : "text-muted-foreground hover:bg-muted"
@@ -126,7 +129,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
               value={videoUrl ?? ""}
               onChange={(e) => setVideoUrl(e.target.value)}
             />
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Untuk file lebih besar dari 4.5 MB, unggah ke penyimpanan publik.
             </p>
           </div>
@@ -142,7 +145,14 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
                 accept=".mp4,.mov,video/mp4,video/quicktime"
                 className="sr-only"
                 onChange={handleFileChange}
+                aria-invalid={fileError ? true : undefined}
+                aria-describedby={fileError ? "video-file-error" : undefined}
               />
+              {fileError && (
+                <p id="video-file-error" className="text-xs text-destructive mt-1">
+                  {fileError}
+                </p>
+              )}
             </Label>
             {file && previewUrl && (
               <div className="relative group">
@@ -153,14 +163,14 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
                 />
                 <button
                   onClick={handleRemoveFile}
-                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                  className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 hover:bg-destructive/90 transition-colors"
                   aria-label="Hapus file"
                 >
                   ×
                 </button>
               </div>
             )}
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Batas upload langsung lewat serverless:~4.5 MB.
             </p>
           </div>
@@ -203,21 +213,21 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
 
         {/* Interaction checkboxes - stack on mobile */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <label className="flex items-center gap-2 cursor-pointer text-[10px] leading-none">
+          <label className="flex items-center gap-2 cursor-pointer text-xs leading-none">
             <Checkbox
               checked={disableComment}
               onCheckedChange={(v) => setDisableComment(v === true)}
             />
             Disable Comment
           </label>
-          <label className="flex items-center gap-2 cursor-pointer text-[10px] leading-none">
+          <label className="flex items-center gap-2 cursor-pointer text-xs leading-none">
             <Checkbox
               checked={disableDuet}
               onCheckedChange={(v) => setDisableDuet(v === true)}
             />
             Disable Duet
           </label>
-          <label className="flex items-center gap-2 cursor-pointer text-[10px] leading-none">
+          <label className="flex items-center gap-2 cursor-pointer text-xs leading-none">
             <Checkbox
               checked={disableStitch}
               onCheckedChange={(v) => setDisableStitch(v === true)}
@@ -231,6 +241,8 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
           <Checkbox
             checked={consent}
             onCheckedChange={(v) => setConsent(v === true)}
+            aria-invalid={!consent}
+            aria-describedby="consent-hint"
           />
           <label className="text-xs leading-relaxed">
             Saya menyetujui ketentuan dan mengizinkan CreatorPulse Studio memposting video ini ke akun TikTok saya.
@@ -258,7 +270,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
           {canPublish ? "Publish to TikTok" : "Centang persetujuan dan lengkapi input"}
         </Button>
         {!consent && (
-          <p className="text-[10px] text-muted-foreground mt-2">
+          <p id="consent-hint" className="text-xs text-muted-foreground mt-2">
             Persetujuan eksplisit diperlukan sebelum tombol publish diaktifkan.
           </p>
         )}

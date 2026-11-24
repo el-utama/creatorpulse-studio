@@ -8,7 +8,7 @@ export default function HomePage() {
     <div className="min-h-screen flex flex-col">
       <Navbar />
 
-      <main className="flex-1">
+      <main className="flex-1" id="main-content">
         {/* Hero */}
         <section className="relative px-4 py-12 sm:px-6 lg:px-8">
           <div className="max-w-5xl mx-auto text-center">
@@ -39,13 +39,13 @@ export default function HomePage() {
               />
               <FeatureCard
                 icon={Upload}
-                iconColor="bg-blue-500/10 text-blue-600"
+                iconColor="bg-secondary text-secondary-foreground"
                 title="Content Posting & Draft Uploader"
                 description="Unggah video lokal atau lewat URL, atur privacy, dan publikasi langsung ke profil atau draft TikTok."
               />
               <FeatureCard
                 icon={BarChart}
-                iconColor="bg-emerald-500/10 text-emerald-600"
+                iconColor="bg-accent text-accent-foreground"
                 title="Video Performance Analytics"
                 description="Pantau followers, likes, views, dan daftar video terbaru dengan analitik dari Display API."
               />

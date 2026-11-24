@@ -17,28 +17,43 @@ export function PublishStatusChecker({ publishId, onStatusChange }: PublishStatu
   useEffect(() => {
     if (!publishId) return;
 
-    let cancelled = false;
+    const abortController = new AbortController();
     let interval: NodeJS.Timeout;
 
     const checkStatus = async () => {
       setLoading(true);
+      let isTerminal = false;
       try {
         const res = await fetch("/api/tiktok/publish/status", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ publish_id: publishId }),
+          signal: abortController.signal,
         });
         if (!res.ok) throw new Error("Gagal memeriksa status");
         const data = await res.json();
         const videoStatus = data.data?.[0]?.status ?? data.status ?? "unknown";
-        if (!cancelled) {
+
+        // Stop polling once a terminal status is reached
+        isTerminal =
+          videoStatus === "PUBLISH_COMPLETE" ||
+          videoStatus === "SUCCESS" ||
+          videoStatus === "FAILED" ||
+          videoStatus === "ERROR";
+
+        if (!abortController.signal.aborted) {
           setStatus(videoStatus);
           onStatusChange?.(videoStatus);
+          if (isTerminal) {
+            setLoading(false);
+            clearInterval(interval);
+          }
         }
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Unknown error");
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        if (!abortController.signal.aborted) setError(err instanceof Error ? err.message : "Unknown error");
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!abortController.signal.aborted && !isTerminal) setLoading(false);
       }
     };
 
@@ -46,7 +61,7 @@ export function PublishStatusChecker({ publishId, onStatusChange }: PublishStatu
     interval = setInterval(checkStatus, 5000);
 
     return () => {
-      cancelled = true;
+      abortController.abort();
       clearInterval(interval);
     };
   }, [publishId, onStatusChange]);
@@ -60,24 +75,24 @@ export function PublishStatusChecker({ publishId, onStatusChange }: PublishStatu
         {loading ? (
           <Loader2 className="h-3 w-3 animate-spin" />
         ) : status === "PUBLISH_COMPLETE" || status === "SUCCESS" ? (
-          <CheckCircle className="h-3 w-3 text-green-500" />
+          <CheckCircle className="h-3 w-3 text-primary" />
         ) : status === "FAILED" || status === "ERROR" ? (
-          <XCircle className="h-3 w-3 text-red-500" />
+          <XCircle className="h-3 w-3 text-destructive" />
         ) : null}
       </CardHeader>
       <CardContent className="pt-0">
-        <div className="flex items-center gap-1 text-[10px]">
+        <div className="flex items-center gap-1 text-xs">
           <span className="font-medium">Publish ID:</span>
-          <span className="text-muted-foreground truncate text-[10px]">{publishId}</span>
+          <span className="text-muted-foreground truncate text-xs">{publishId}</span>
         </div>
-        <div className="mt-1 flex items-center gap-1 text-[10px]">
+        <div className="mt-1 flex items-center gap-1 text-xs">
           <span className="font-medium">Status:</span>
           <span
             className={`font-semibold capitalize ${
               status === "PUBLISH_COMPLETE" || status === "SUCCESS"
-                ? "text-green-600"
+                ? "text-primary"
                 : status === "FAILED" || status === "ERROR"
-                ? "text-red-600"
+                ? "text-destructive"
                 : "text-muted-foreground"
             }`}
           >
@@ -85,7 +100,7 @@ export function PublishStatusChecker({ publishId, onStatusChange }: PublishStatu
           </span>
         </div>
         {error && (
-          <div className="mt-1 text-[9px] text-red-500">{error}</div>
+          <div className="mt-1 text-xs text-destructive">{error}</div>
         )}
       </CardContent>
     </Card>
