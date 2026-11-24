@@ -24,7 +24,7 @@ export default function PrivacyPage() {
           <h2 className="text-xl font-semibold mt-8 mb-3">1. Introduction</h2>
           <p className="mb-4">
             CreatorPulse Studio ("we," "us," or "our") operates the web
-            application at https://creatorpulse-studio.vercel.app (the
+            application at https://creatorpulse-studio-six.vercel.app (the
             "Service"). This Privacy Policy explains how we collect, use,
             disclose, and protect your information when you use our Service in
             connection with TikTok for Developers APIs.
@@ -81,9 +81,7 @@ export default function PrivacyPage() {
 
           <h2 className="text-xl font-semibold mt-8 mb-3">4. Video Uploads</h2>
           <p className="mb-4">
-            When you choose to upload a video, the video file is streamed
-            directly from your browser (or from a public URL you provide) to
-            TikTok's upload endpoint. <strong>We do not store your video
+            When you upload a local video, our server temporarily processes the file and transfers it to TikTok. For a public URL, TikTok retrieves the media from the provided URL. <strong>We do not store your video
             permanently on our servers.</strong> The file is not retained
             after the upload request to TikTok completes or fails.
           </p>
@@ -102,8 +100,7 @@ export default function PrivacyPage() {
               SameSite=Lax cookies. They are not accessible via JavaScript.
             </li>
             <li>
-              We do not use an external database. Session data lives only in
-              cookies.
+              Account sessions are kept in this browser's HTTP-only cookies, with up to three separately authorized accounts. Publication IDs, timestamps and unresolved request markers are stored in browser local storage per account. If optional shared idempotency storage is enabled, hashed request keys and publication results are retained for up to 24 hours.
             </li>
             <li>
               All communication with TikTok APIs is conducted over HTTPS.
@@ -112,8 +109,7 @@ export default function PrivacyPage() {
 
           <h2 className="text-xl font-semibold mt-8 mb-3">7. Your Rights</h2>
           <p className="mb-4">
-            You may revoke access or delete your session at any time by
-            clicking "Logout," which clears all session cookies. You may also
+            You may remove an account from this browser through the account manager or click "Logout" to clear all session cookies. This does not revoke TikTok authorization or clear browser-local publication history; clear site data to remove that history. You may also
             revoke TikTok's authorization for this app in your TikTok account
             settings.
           </p>

@@ -5,11 +5,16 @@ const reply = data => Response.json({data,error:{code:'ok'}});
 globalThis.fetch = async (input, options) => {
   const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
   if (url.hostname === 'open.tiktokapis.com') {
-    if (url.pathname.endsWith('/oauth/token/')) return Response.json({access_token:'renewed',refresh_token:'renewed-refresh',expires_in:3600});
+    if (url.pathname.endsWith('/oauth/token/')) {
+      const params=new URLSearchParams(options.body);
+      const code=params.get('code');
+      if(code==='account-a'||code==='account-b')return Response.json({open_id:code,access_token:code,refresh_token:code+'-refresh',expires_in:3600,refresh_expires_in:604800});
+      return Response.json({access_token:'renewed',refresh_token:'renewed-refresh',expires_in:3600});
+    }
     const auth = new Headers(options?.headers).get('Authorization');
     if(auth==='Bearer expired') return Response.json({error:{code:'access_token_invalid'}},{status:401});
     const body = options?.body ? JSON.parse(options.body) : {};
-    if (url.pathname.endsWith('/user/info/')) return reply({user:{open_id:'mock-stable-account'}});
+    if (url.pathname.endsWith('/user/info/')) return reply({user:{open_id:auth==='Bearer account-a'?'account-a':auth==='Bearer account-b'?'account-b':'mock-stable-account',display_name:auth==='Bearer account-a'?'Account A':auth==='Bearer account-b'?'Account B':'Mock Creator'}});
     if (url.pathname.endsWith('/video/list/')) return reply({videos:[{id:body.cursor?'v2':'v1',title:body.cursor?'Video lama':'Video terbaru',cover_image_url:'',create_time:1,share_url:'https://www.tiktok.com/',view_count:3,like_count:1,comment_count:0,share_count:0}],cursor:body.cursor?0:123,has_more:!body.cursor});
     if (url.pathname.endsWith('/creator_info/query/')) return reply({creator_nickname:'Test Creator',creator_username:'test',privacy_level_options:['SELF_ONLY','PUBLIC_TO_EVERYONE'],comment_disabled:true,duet_disabled:true,stitch_disabled:true,max_video_post_duration_sec:60});
     if (url.pathname.endsWith('/video/init/')) {

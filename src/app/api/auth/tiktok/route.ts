@@ -10,7 +10,8 @@ const COOKIE_OPTIONS = {
   maxAge: 600, // 10 menit
 };
 
-export async function GET() {
+export async function GET(request:Request) {
+  const adding=new URL(request.url).searchParams.get("add")==="1";
   const state = generateState();
 
   const response = NextResponse.redirect(
@@ -20,10 +21,12 @@ export async function GET() {
       response_type: "code",
       scope: APP_CONFIG.scopes.join(","),
       state,
+      ...(adding?{disable_auto_auth:"1"}:{}),
     }).toString()}`
   );
 
   response.cookies.set(APP_CONFIG.cookieNames.oauthState, state, COOKIE_OPTIONS);
 
+  response.cookies.set("creatorpulse_add_account",adding?"1":"0",COOKIE_OPTIONS);
   return response;
 }

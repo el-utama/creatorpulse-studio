@@ -18,6 +18,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { AccountManager } from "@/components/AccountManager";
 import { StudioOverview } from "@/components/StudioOverview";
 import { VideoList } from "@/components/VideoList";
 import { VideoUploadForm, type PublishPayload } from "@/components/VideoUploadForm";
@@ -199,6 +200,7 @@ export default function DashboardPage() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <div className="w-full sm:w-56"><AccountManager name={profile?.display_name} disabled={publishing}/></div>
               {lastUpdated && <span className="text-xs text-muted-foreground">Diperbarui {lastUpdated}</span>}
               <Button onClick={() => setActiveTab("publish")} disabled={!profile || publishing}><PlusSquare className="mr-2 h-4 w-4" aria-hidden="true"/> Buat postingan</Button>
               <Button
@@ -237,7 +239,7 @@ export default function DashboardPage() {
               <TabsTrigger value="content" className="studio-tab flex min-h-12 flex-col gap-1 px-1 text-[11px] sm:text-sm lg:flex-row lg:justify-start lg:px-3"><Film className="h-4 w-4" aria-hidden="true"/> Konten</TabsTrigger>
               <TabsTrigger value="publish" className="studio-tab flex min-h-12 flex-col gap-1 px-1 text-[11px] sm:text-sm lg:flex-row lg:justify-start lg:px-3"><PlusSquare className="h-4 w-4" aria-hidden="true"/> Buat post</TabsTrigger>
               <TabsTrigger value="status" className="studio-tab flex min-h-12 flex-col gap-1 px-1 text-[11px] sm:text-sm lg:flex-row lg:justify-start lg:px-3"><ListChecks className="h-4 w-4" aria-hidden="true"/> Aktivitas</TabsTrigger>
-            </TabsList><div className="hidden lg:block mt-5 border-t pt-4 px-3 text-xs text-slate-500 leading-relaxed">Satu akun aktif<br/>Data langsung dari TikTok</div></aside>
+            </TabsList><div className="hidden lg:block mt-5 border-t pt-4 px-3 text-xs text-slate-500 leading-relaxed">Kelola beberapa akun<br/>Satu akun aktif per browser</div></aside>
             <div className="min-w-0">
 
             {/* Tab: Analytics */}

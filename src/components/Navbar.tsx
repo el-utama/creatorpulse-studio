@@ -16,6 +16,7 @@ export function Navbar() {
     try {
       const response = await fetch("/api/auth/logout", { method: "POST" });
       if (!response.ok) throw new Error();
+      try {localStorage.setItem("creatorpulse:account-change",crypto.randomUUID());} catch {}
       window.location.assign("/");
     } catch { setLogoutError(true); setLoggingOut(false); }
   }
