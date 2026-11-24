@@ -13,12 +13,14 @@ export function PublishStatusChecker({ publishId, onStatusChange }: PublishStatu
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!publishId) return;
     setError(null);
     setStatus(null);
+    setFailure(null);
 
     const abortController = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
@@ -35,8 +37,8 @@ export function PublishStatusChecker({ publishId, onStatusChange }: PublishStatu
           signal: abortController.signal,
         });
         if (res.status === 401) { isTerminal = true; setLoading(false); throw new Error("Sesi berakhir. Hubungkan kembali akun TikTok."); }
-        if (!res.ok) throw new Error("Gagal memeriksa status");
         const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Gagal memeriksa status");
         const videoStatus = data.data?.status ?? data.data?.[0]?.status ?? data.status ?? "unknown";
 
         // Stop polling once a terminal status is reached
@@ -50,6 +52,7 @@ export function PublishStatusChecker({ publishId, onStatusChange }: PublishStatu
         if (!abortController.signal.aborted) {
           setError(null);
           setStatus(videoStatus);
+          setFailure(typeof data.failure_reason === "string" ? data.failure_reason : null);
           onStatusChange?.(videoStatus);
           if (isTerminal) {
             setLoading(false);
@@ -63,7 +66,7 @@ export function PublishStatusChecker({ publishId, onStatusChange }: PublishStatu
         if (!abortController.signal.aborted && !isTerminal) {
           setLoading(false);
           if (Date.now() < deadline) timer = setTimeout(checkStatus, 5000);
-          else setError("Pemeriksaan otomatis berhenti. Buka kembali publikasi ini untuk memeriksa status.");
+          else setError("Pemeriksaan otomatis berhenti. Tekan Periksa ulang untuk melanjutkan.");
         }
       }
     };
@@ -110,6 +113,7 @@ export function PublishStatusChecker({ publishId, onStatusChange }: PublishStatu
             {({ PUBLISH_COMPLETE: "Terpublikasi", SUCCESS: "Terpublikasi", SEND_TO_USER_INBOX: "Dikirim ke inbox TikTok", PROCESSING_UPLOAD: "Mengunggah video", PROCESSING_DOWNLOAD: "Mengambil video", FAILED: "Gagal", ERROR: "Gagal" } as Record<string,string>)[status ?? ""] ?? (status ? "Sedang diproses" : "Memeriksa…")}
           </span>
         </div>
+        {failure && <p role="alert" className="mt-2 text-sm text-destructive">{failure}</p>}
         {error && (
           <div role="alert" className="mt-1 text-sm text-destructive">{error}</div>
         )}

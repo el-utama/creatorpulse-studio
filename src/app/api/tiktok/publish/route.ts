@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { APP_CONFIG } from "@/config/app";
 import { publicationKey, reservePublication, finishPublication } from "@/lib/publication-idempotency";
+import { explainTikTok, isAuthError, TikTokApiError } from "@/lib/tiktok-errors";
 import { sessionToken } from "@/lib/session";
 import { initPublish, uploadVideoChunk, getCreatorCapabilities } from "@/lib/tiktok";
 
 export async function POST(request: Request) {
-  const accessToken = await sessionToken();
+  let accessToken = await sessionToken();
 
   if (!accessToken) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
@@ -43,7 +44,13 @@ export async function POST(request: Request) {
     if (mode === "profile" && (typeof caption !== "string" || caption.length > 2200)) return NextResponse.json({error:"Caption maksimal 2200 karakter."},{status:400});
     if (mode === "profile" && !["PUBLIC_TO_EVERYONE", "FOLLOWER_OF_CREATOR", "MUTUAL_FOLLOW_FRIENDS", "SELF_ONLY"].includes(privacy)) return NextResponse.json({ error: "Pilih visibilitas video." }, { status: 400 });
     if (mode === "profile") {
-      const capabilities = await getCreatorCapabilities(accessToken);
+      let capabilities;
+      try {capabilities=await getCreatorCapabilities(accessToken);} catch(error) {
+        if(!isAuthError(error)) throw error;
+        accessToken=await sessionToken(true);
+        if(!accessToken) throw new TikTokApiError("access_token_invalid",401);
+        capabilities=await getCreatorCapabilities(accessToken);
+      }
       if (!Number.isFinite(duration) || duration <= 0 || duration > capabilities.max_video_post_duration_sec) return NextResponse.json({error:"Durasi video tidak sesuai batas akun."},{status:400});
       if (brandContent && !["PUBLIC_TO_EVERYONE","MUTUAL_FOLLOW_FRIENDS"].includes(privacy)) return NextResponse.json({error:"Konten kemitraan berbayar memerlukan visibilitas publik atau teman."},{status:400});
       if (!capabilities.privacy_level_options.includes(privacy) || (capabilities.comment_disabled && !disableComment) || (capabilities.duet_disabled && !disableDuet) || (capabilities.stitch_disabled && !disableStitch)) return NextResponse.json({error:"Pengaturan akun berubah. Muat ulang dan tinjau kembali publikasi."},{status:400});
@@ -116,15 +123,15 @@ export async function POST(request: Request) {
     try { await finishPublication(reservationKey,reply); } catch { /* Preserve the accepted ID even if storage fails. */ }
     return NextResponse.json(reply);
   } catch (error) {
-    console.error("Publication request failed");
+    console.error("Publication request failed", error instanceof TikTokApiError ? error.code : "unknown");
     if (acceptedId) {
       const reply = {publish_id:acceptedId,warning:"TikTok menerima inisialisasi, tetapi transfer belum terkonfirmasi. Periksa status sebelum mencoba ulang."};
       if (reservationKey) try { await finishPublication(reservationKey,reply,202); } catch { /* Preserve the accepted ID. */ }
       return NextResponse.json(reply,{status:202});
     }
     return NextResponse.json(
-      { error: "Publikasi belum dapat dikonfirmasi. Periksa akun TikTok sebelum mencoba ulang." },
-      { status: 500 }
+      { error: explainTikTok(error,"Publikasi belum dapat dikonfirmasi. Periksa akun TikTok sebelum mencoba ulang.") },
+      { status: isAuthError(error) ? 401 : error instanceof TikTokApiError && error.status===400 ? 400 : 502 }
     );
   }
 }

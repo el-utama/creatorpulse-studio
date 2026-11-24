@@ -40,6 +40,7 @@ export interface TikTokPublishInitResponse {
 export interface TikTokPublishStatusResponse {
   publish_id: string;
   status: string;
+  fail_reason?: string;
   error_code?: number;
   error_message?: string;
 }

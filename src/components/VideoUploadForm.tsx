@@ -52,12 +52,12 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
   const [disableDuet, setDisableDuet] = useState(true);
   const [disableStitch, setDisableStitch] = useState(true);
   const [capabilities, setCapabilities] = useState<import("@/lib/tiktok").CreatorCapabilities | null>(null);
-  const [capabilityError, setCapabilityError] = useState(false);
+  const [capabilityError, setCapabilityError] = useState<string | null>(null);
   useEffect(() => {
     if (mode !== "profile") return;
     const controller = new AbortController();
-    setCapabilities(null); setCapabilityError(false); setPrivacy(""); setConsent(false); setReview(false);
-    fetch("/api/tiktok/creator", {signal:controller.signal}).then(async res => { if (!res.ok) throw new Error(); return res.json(); }).then(data => { if (controller.signal.aborted) return; setCapabilities(data); setDisableComment(true); setDisableDuet(true); setDisableStitch(true); }).catch(() => { if (!controller.signal.aborted) setCapabilityError(true); });
+    setCapabilities(null); setCapabilityError(null); setPrivacy(""); setConsent(false); setReview(false);
+    fetch("/api/tiktok/creator", {signal:controller.signal}).then(async res => { const data=await res.json(); if (!res.ok) throw new Error(data.error || "Pengaturan akun gagal dimuat."); return data; }).then(data => { if (controller.signal.aborted) return; setCapabilities(data); setDisableComment(true); setDisableDuet(true); setDisableStitch(true); }).catch((error) => { if (!controller.signal.aborted) setCapabilityError(error instanceof Error ? error.message : "Pengaturan akun gagal dimuat."); });
     return () => controller.abort();
   }, [mode]);
   const [review, setReview] = useState(false);
@@ -115,14 +115,14 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Video className="h-5 w-5 text-tiktok-primary" aria-hidden="true" />
-          Upload & Posting Video
+          Unggah & Publikasikan Video
         </CardTitle>
         <CardDescription className="text-sm">
-          Posting ke akun <strong>{accountName}</strong>. Pilih mode dan atur opsi sebelum menerbitkan.
+          Publikasi ke akun <strong>{accountName}</strong>. Pilih mode dan atur opsi sebelum menerbitkan.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Mode Posting */}
+        {/* Tujuan publikasi */}
         <div className="space-y-2">
           <Label htmlFor="mode" className="text-xs font-medium text-muted-foreground">
             Mode Posting
@@ -145,6 +145,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
               Draft / Inbox
             </button>
             <button
+              disabled={publishing}
               onClick={() => { setMode("profile"); setConsent(false); setReview(false); }}
               aria-pressed={mode === "profile"}
               className={`flex-1 h-11 py-2 text-xs font-medium rounded-md transition-all ${
@@ -231,14 +232,14 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
         {/* Caption */}
         <div className="space-y-1.5">
           <Label htmlFor="caption" className="text-xs font-medium">
-            Caption video
+            Keterangan video
           </Label>
           <Textarea
             id="caption"
             rows={3}
             maxLength={2200}
             disabled={publishing}
-            placeholder="Tulis caption video di sini..."
+            placeholder="Tulis keterangan video di sini..."
             value={caption}
             onChange={(e) => { setCaption(e.target.value); setConsent(false); setReview(false); }}
           />
@@ -250,7 +251,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
           <Label htmlFor="privacy" className="text-xs font-medium">
             Visibilitas video
           </Label>
-          {!capabilities && <p role="status" className="text-sm">{capabilityError ? "Pengaturan akun gagal dimuat. Pilih Inbox lalu kembali ke Direct Post untuk mencoba lagi." : "Memuat pengaturan akun…"}</p>}
+          {!capabilities && <p role="status" className="text-sm">{capabilityError ? capabilityError + " Pilih Inbox lalu kembali ke Direct Post untuk mencoba lagi." : "Memuat pengaturan akun…"}</p>}
           {capabilities && capabilities.privacy_level_options.length === 0 && <p role="alert" className="text-sm text-destructive">Akun ini belum memiliki pilihan visibilitas yang diizinkan. Gunakan Inbox atau coba kembali setelah izin tersedia.</p>}
           <Select
             disabled={!capabilities || publishing || capabilities.privacy_level_options.length === 0}
@@ -258,7 +259,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
             onValueChange={(v) => { setPrivacy(v); setConsent(false); setReview(false); }}
           >
             <SelectTrigger id="privacy" className="h-11">
-              <SelectValue placeholder="Pilih privacy" />
+              <SelectValue placeholder="Pilih visibilitas" />
             </SelectTrigger>
             <SelectContent>
               {capabilities?.privacy_level_options.map(value => <SelectItem key={value} value={value}>{({PUBLIC_TO_EVERYONE:"Semua orang",FOLLOWER_OF_CREATOR:"Pengikut",MUTUAL_FOLLOW_FRIENDS:"Teman yang saling mengikuti",SELF_ONLY:"Hanya saya"} as Record<string,string>)[value] ?? value}</SelectItem>)}
@@ -311,7 +312,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
         </>}
         {!review && <Button type="button" variant="outline" disabled={!ready || publishing} onClick={() => setReview(true)}>Tinjau publikasi</Button>}
         {review && <section className="space-y-3 rounded-lg border p-4" aria-label="Tinjauan publikasi"><h3 className="font-semibold">Konfirmasi publikasi</h3><p className="text-sm">Akun: {accountName}</p><p className="text-sm break-all">Video: {source === "url" ? videoUrl : file?.name}</p><p className="text-sm">{mode === "inbox" ? "Dikirim ke inbox; selesaikan posting di TikTok." : `Visibilitas: ${({PUBLIC_TO_EVERYONE:"Semua orang",FOLLOWER_OF_CREATOR:"Pengikut",MUTUAL_FOLLOW_FRIENDS:"Teman",SELF_ONLY:"Hanya saya"} as Record<string,string>)[privacy] ?? privacy}`}</p>
-        {mode === "profile" && <p className="text-sm whitespace-pre-wrap break-words">Caption: {caption || "(tanpa caption)"}</p>}
+        {mode === "profile" && <p className="text-sm whitespace-pre-wrap break-words">Keterangan: {caption || "(tanpa caption)"}</p>}
         {mode === "profile" && <p className="text-sm">Dengan memposting, Anda menyetujui <a className="underline" href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noreferrer">ketentuan penggunaan musik TikTok</a>{commercial && brandContent && <> dan <a className="underline" href="https://www.tiktok.com/legal/page/global/bc-policy/en" target="_blank" rel="noreferrer">kebijakan konten bermerek</a></>}. Konten mungkin memerlukan beberapa menit untuk diproses.</p>}
         {/* Consent */}
         <div className="flex items-start gap-2 pt-2 border-t border-border">
@@ -360,7 +361,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
         </Button>
         {review && !consent && (
           <p className="text-xs text-muted-foreground mt-2">
-            Persetujuan eksplisit diperlukan sebelum tombol publish diaktifkan.
+            Persetujuan eksplisit diperlukan sebelum tombol publikasi diaktifkan.
           </p>
         )}
       </CardFooter>

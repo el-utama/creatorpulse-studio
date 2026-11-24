@@ -1,3 +1,4 @@
+import { readTikTok } from "@/lib/tiktok-errors";
 import { APP_CONFIG } from "@/config/app";
 import type {
   TikTokTokenResponse,
@@ -163,16 +164,9 @@ export async function initPublish(
     body: JSON.stringify(body),
   });
 
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(
-      `TikTok publish init failed: ${res.status} ${errorText}`
-    );
-  }
-
-  const result = await res.json();
-  if (result.error?.code !== "ok" || !result.data?.publish_id) throw new Error("TikTok rejected publication initialization");
-  return result.data;
+  const result = await readTikTok<TikTokPublishInitResponse>(res);
+  if (!result.publish_id) throw new Error("Missing publication ID");
+  return result;
 }
 
 export async function fetchPublishStatus(
@@ -190,16 +184,9 @@ export async function fetchPublishStatus(
     }),
   });
 
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(
-      `TikTok publish status fetch failed: ${res.status} ${errorText}`
-    );
-  }
-
-  const result = await res.json();
-  if (result.error?.code !== "ok" || !result.data?.status) throw new Error("TikTok rejected status request");
-  return result.data;
+  const result = await readTikTok<TikTokPublishStatusResponse>(res);
+  if (!result.status) throw new Error("Missing publication status");
+  return result;
 }
 
 export async function uploadVideoChunk(
@@ -230,8 +217,8 @@ export interface CreatorCapabilities {
 }
 export async function getCreatorCapabilities(token: string): Promise<CreatorCapabilities> {
   const res = await fetch("https://open.tiktokapis.com/v2/post/publish/creator_info/query/", {method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},cache:"no-store",body:"{}"});
-  const result = await res.json();
-  if (!res.ok || result.error?.code !== "ok" || !Array.isArray(result.data?.privacy_level_options)) throw new Error("Creator capabilities unavailable");
-  const options = result.data.privacy_level_options.filter((value: unknown) => typeof value === "string");
-  return { ...result.data, privacy_level_options: process.env.TIKTOK_DIRECT_POST_AUDITED === "true" ? options : options.filter((value: string) => value === "SELF_ONLY") };
+  const data = await readTikTok<CreatorCapabilities>(res);
+  if (!Array.isArray(data.privacy_level_options)) throw new Error("Creator capabilities unavailable");
+  const options = data.privacy_level_options.filter((value: unknown) => typeof value === "string");
+  return { ...data, privacy_level_options: process.env.TIKTOK_DIRECT_POST_AUDITED === "true" ? options : options.filter((value: string) => value === "SELF_ONLY") };
 }

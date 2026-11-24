@@ -17,3 +17,16 @@ export async function sessionToken(forceRefresh = false): Promise<string | null>
     return tokens.access_token;
   } catch { return null; }
 }
+
+// Retry read-only operations once; never replay publication initialization.
+export async function sessionRead<T>(fn: (token:string)=>Promise<T>): Promise<T> {
+  const {isAuthError,TikTokApiError} = await import("@/lib/tiktok-errors");
+  const token=await sessionToken();
+  if(!token) throw new TikTokApiError("access_token_invalid",401);
+  try {return await fn(token);} catch(error) {
+    if(!isAuthError(error)) throw error;
+    const renewed=await sessionToken(true);
+    if(!renewed) throw new TikTokApiError("access_token_invalid",401);
+    return fn(renewed);
+  }
+}

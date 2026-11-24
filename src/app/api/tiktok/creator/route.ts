@@ -1,13 +1,8 @@
 import { NextResponse } from "next/server";
-import { sessionToken } from "@/lib/session";
+import { sessionRead } from "@/lib/session";
 import { getCreatorCapabilities } from "@/lib/tiktok";
-
+import { explainTikTok,isAuthError } from "@/lib/tiktok-errors";
 export async function GET() {
-  const token = await sessionToken();
-  if (!token) return NextResponse.json({error:"Hubungkan kembali akun TikTok."},{status:401});
-  try {
-    return NextResponse.json(await getCreatorCapabilities(token), {headers:{"Cache-Control":"no-store"}});
-  } catch {
-    return NextResponse.json({error:"Pengaturan publikasi akun belum tersedia."},{status:502});
-  }
+  try {return NextResponse.json(await sessionRead(getCreatorCapabilities),{headers:{"Cache-Control":"no-store"}});}
+  catch(error) {return NextResponse.json({error:explainTikTok(error,"Pengaturan publikasi akun belum tersedia.")},{status:isAuthError(error)?401:502});}
 }
