@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Play } from "lucide.react";
+import { Play } from "lucide-react";
 
 export function TikTokConnectButton() {
   return (
