@@ -17,3 +17,6 @@ SQLite WAL, atomic CAS, persistent leases and idempotency. Bridge binds 127.0.0.
 - Local-first SQLite storage: 8dc6f11; tests include real local HTTP bridge and persistence.
 ## Remaining gates
 CI for latest revision, real HTTPS tunnel and environment installation, enrollment of real TikTok accounts, live Hermes MCP/chat and research tests. Trend data is sourced by agent, not automatically collected by CreatorPulse. No actual chat approval adapter for Hermes yet. No paid service or TikTok Developer settings changed. Existing production must not be represented as V3 until deployment verified. 
+
+## Hermes onboarding and Hobby optimization
+Added deterministic bootstrap, local stdio MCP adapter, a copyable instruction in the dashboard, and explicit tests for preserving the existing model and messaging settings. Local discovery/ping uses no remote invocation. Batched SQLite reads reduce account/queue fan-out to one request each. No new cron, LLM, video production, messaging webhook, or database on Vercel. Actual production usage not yet measured; gateway remains opt-in. See [onboarding](../integrations/hermes/ONBOARDING.md). Keep owner secrets isolated from agent process; do not authorize live posting during setup.

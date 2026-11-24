@@ -35,7 +35,8 @@ def install(home, apply=False, agent_env=None):
     config=home/"config.yaml"
     if not config.is_file(): raise ValueError("Existing Hermes config.yaml not found; no new profile will be created.")
     original=config.read_text(encoding="utf-8")
-    data=yaml.safe_load(original)
+    try: data=yaml.safe_load(original)
+    except yaml.YAMLError: raise ValueError("Hermes YAML cannot be parsed safely; no changes made.") from None
     if not isinstance(data,dict): raise ValueError("Invalid Hermes config.")
     servers=data.get("mcp_servers",{})
     if not isinstance(servers,dict): raise ValueError("Invalid mcp_servers mapping.")
@@ -80,6 +81,6 @@ def main():
     p.add_argument("--agent-env",help="Path to agent-only credential file; never an operator/bridge secret file.")
     p.add_argument("--apply",action="store_true",help="Without this, only show plan.")
     a=p.parse_args()
-    try: result=install(profile_home(a.hermes_home),a.apply,a.agent_env);print(json.dumps(result,ensure_ascii=False));return 0
+    try: result=install(profile_home(a.hermes_home),a.apply,a.agent_env);print(json.dumps(result,ensure_ascii=False));return 0 if not a.apply or result.get("connection",{}).get("gateway")=="connected" and result.get("connection",{}).get("accounts",0)>0 else 2
     except (ValueError,OSError,subprocess.TimeoutExpired) as e: print(json.dumps({"status":"blocked","reason":str(e)}));return 1
 if __name__=="__main__": raise SystemExit(main())

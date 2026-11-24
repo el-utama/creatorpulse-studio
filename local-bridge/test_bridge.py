@@ -17,6 +17,7 @@ class BridgeTests(unittest.TestCase):
             self.assertEqual(self.s.run(["EVAL",ENROLL,1,VAULT,str(i)*32,"sealed"]),1)
         self.assertEqual(self.s.run(["EVAL",ENROLL,1,VAULT,"3"*32,"sealed"]),0)
         self.assertEqual(Store(self.path).run(["HGET",VAULT,"0"*32]),"sealed")
+        self.assertEqual(len(Store(self.path).run(["HGETALL",VAULT])),6)
     def test_atomic_post_claim(self):
         id = "00000000-0000-4000-8000-000000000001"
         self.assertEqual(self.s.run(["EVAL",CREATE,1,POSTS,id,"draft"]),1)

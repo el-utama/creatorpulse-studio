@@ -1,4 +1,6 @@
 # Hermes without n8n
+
+**Preferred setup:** [copy-paste onboarding and deterministic bootstrap](ONBOARDING.md). The local stdio MCP adapter avoids Vercel requests for tool discovery and keepalive. The remote MCP example below is a fallback only.
 Hermes handles conversation, messaging, native cron, research and tool orchestration. CreatorPulse handles the TikTok token vault, account monitoring, draft state, approvals and inbox publishing. n8n is optional.
 
 ## Prerequisites

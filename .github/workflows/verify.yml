@@ -16,6 +16,9 @@ jobs:
           node-version: '22'
           cache: npm
       - run: python3 -m unittest discover -s local-bridge -p 'test_*.py'
+      - run: python3 -m venv /tmp/creatorpulse-onboarding-venv
+      - run: /tmp/creatorpulse-onboarding-venv/bin/pip install PyYAML==6.0.2
+      - run: /tmp/creatorpulse-onboarding-venv/bin/python -m unittest discover -s integrations/hermes -p 'test_*.py'
       - run: npm ci
       - run: npx tsc --noEmit
       - run: npm run build
