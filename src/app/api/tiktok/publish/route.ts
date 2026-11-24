@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { APP_CONFIG } from "@/config/app";
-import { initPublish, uploadVideoChunk } from "@/lib/tiktok";
+import { sessionToken } from "@/lib/session";
+import { initPublish, uploadVideoChunk, getCreatorCapabilities } from "@/lib/tiktok";
 
 export async function POST(request: Request) {
-  const cookieStore = await cookies();
-  const accessToken = cookieStore.get(APP_CONFIG.cookieNames.accessToken)?.value;
+  const accessToken = await sessionToken();
 
   if (!accessToken) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
@@ -32,6 +32,10 @@ export async function POST(request: Request) {
 
     if (mode !== "inbox" && mode !== "profile") return NextResponse.json({ error: "Mode publikasi tidak valid." }, { status: 400 });
     if (mode === "profile" && !["PUBLIC_TO_EVERYONE", "FOLLOWER_OF_CREATOR", "MUTUAL_FOLLOW_FRIENDS", "SELF_ONLY"].includes(privacy)) return NextResponse.json({ error: "Pilih visibilitas video." }, { status: 400 });
+    if (mode === "profile") {
+      const capabilities = await getCreatorCapabilities(accessToken);
+      if (!capabilities.privacy_level_options.includes(privacy) || (capabilities.comment_disabled && !disableComment) || (capabilities.duet_disabled && !disableDuet) || (capabilities.stitch_disabled && !disableStitch)) return NextResponse.json({error:"Pengaturan akun berubah. Muat ulang dan tinjau kembali publikasi."},{status:400});
+    }
     let sourceType: string;
     let posterUrl: string | undefined;
     let videoBuffer: Uint8Array | undefined;
