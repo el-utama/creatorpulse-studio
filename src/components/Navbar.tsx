@@ -1,17 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Play, Menu, X, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function Navbar() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const [logoutError, setLogoutError] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  async function logout() {
+    if (loggingOut) return;
+    setLoggingOut(true); setLogoutError(false);
+    try {
+      const response = await fetch("/api/auth/logout", { method: "POST" });
+      if (!response.ok) throw new Error();
+      window.location.assign("/");
+    } catch { setLogoutError(true); setLoggingOut(false); }
+  }
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const isActive = (href: string) => pathname === href;
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
@@ -54,24 +63,17 @@ export function Navbar() {
           {pathname !== "/dashboard" ? (
             <a href="/api/auth/tiktok" className="inline-flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors">
               <Play className="h-4 w-4" aria-hidden="true" />
-              Connect
+              Hubungkan TikTok
             </a>
           ) : (
             <Button
               variant="outline"
               size="sm"
-              onClick={async () => {
-                try {
-                  await fetch("/api/auth/logout", { method: "POST" });
-                } catch (err) {
-                  console.error("Logout error:", err);
-                }
-                window.location.href = "/";
-              }}
+              onClick={logout} disabled={loggingOut}
               className="px-3 py-2 text-sm"
             >
               <LogOut className="h-4 w-4 mr-2" aria-hidden="true" />
-              Keluar
+              {loggingOut ? "Keluar…" : "Keluar"}
             </Button>
           )}
         </div>
@@ -100,7 +102,7 @@ export function Navbar() {
               href="/"
               onClick={() => setMobileMenuOpen(false)}
               className={`block px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                pathname === "/" ? "bg-tiktok-primary/10 text-tiktok-primary" : "text-muted-foreground hover:bg-muted"
+                pathname === "/" ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted"
               }`}
             >
               Beranda
@@ -109,7 +111,7 @@ export function Navbar() {
               href="/dashboard"
               onClick={() => setMobileMenuOpen(false)}
               className={`block px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                pathname === "/dashboard" ? "bg-tiktok-primary/10 text-tiktok-primary" : "text-muted-foreground hover:bg-muted"
+                pathname === "/dashboard" ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted"
               }`}
             >
               Dasbor
@@ -140,15 +142,7 @@ export function Navbar() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={async () => {
-                    setMobileMenuOpen(false);
-                    try {
-                      await fetch("/api/auth/logout", { method: "POST" });
-                    } catch (err) {
-                      console.error("Logout error:", err);
-                    }
-                    window.location.href = "/";
-                  }}
+                  onClick={logout} disabled={loggingOut}
                   className="w-full"
                 >
                   Keluar
@@ -158,6 +152,7 @@ export function Navbar() {
           </div>
         </div>
       )}
+      {logoutError && <p role="alert" className="px-4 pb-2 text-sm text-destructive">Gagal keluar. Coba lagi.</p>}
     </nav>
   );
 }
