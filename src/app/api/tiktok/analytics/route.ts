@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { sessionToken } from "@/lib/session";
 import { APP_CONFIG } from "@/config/app";
 
 export async function GET() {
   const cookieStore = await cookies();
-  const accessToken = cookieStore.get(APP_CONFIG.cookieNames.accessToken)?.value;
+  const accessToken = await sessionToken();
   const refreshToken = cookieStore.get(APP_CONFIG.cookieNames.refreshToken)?.value;
 
   if (!accessToken) {
@@ -45,7 +46,7 @@ export async function GET() {
   }
 
   try {
-    const [userInfo, videos] = await Promise.all([
+    const [userResult, videoResult] = await Promise.allSettled([
       fetchWithRefresh((token) =>
         fetch(
           `${APP_CONFIG.tiktokUserInfoUrl}?fields=open_id,union_id,avatar_url,display_name,bio_description,follower_count,following_count,likes_count,video_count`,
@@ -85,11 +86,15 @@ export async function GET() {
       ),
     ]);
 
+    if (userResult.status === "rejected") throw userResult.reason;
+    const userInfo = userResult.value;
+    const videos = videoResult.status === "fulfilled" ? videoResult.value : null;
     return NextResponse.json({
+      video_error: videoResult.status === "rejected" || videos?.error?.code !== "ok" ? "Daftar video belum dapat dimuat." : null,
       user_info: userInfo.data?.user_info ?? userInfo.data?.user ?? userInfo.user_info ?? userInfo.user ?? null,
       videos: {
-        data: videos.data?.videos ?? [],
-        total: videos.data?.videos?.length ?? 0,
+        data: videos?.data?.videos ?? [],
+        total: videos?.data?.videos?.length ?? 0,
       },
     });
   } catch (error) {
