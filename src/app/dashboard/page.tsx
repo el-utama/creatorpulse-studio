@@ -65,6 +65,7 @@ export default function DashboardPage() {
         headers: { "Content-Type": "application/json" },
       });
 
+      if (res.status === 401) { setProfile(null); setVideos([]); throw new Error("Sesi berakhir. Hubungkan kembali akun TikTok."); }
       if (!res.ok) throw new Error("Gagal memuat analitik");
       const data = await res.json();
       setProfile(data.user_info ?? null);
@@ -152,7 +153,7 @@ export default function DashboardPage() {
                 variant="outline"
                 size="sm"
                 onClick={fetchAnalytics}
-                disabled={analyticsLoading}
+                disabled={analyticsLoading || publishing}
                 className="flex items-center gap-1.5 w-full sm:w-auto"
               >
                 <RefreshCw className="h-4 w-4" />
@@ -178,14 +179,14 @@ export default function DashboardPage() {
           )}
 
           {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList aria-label="Navigasi studio" className="sticky top-12 z-20 grid h-auto w-full grid-cols-4 gap-1 bg-background p-1 shadow-sm lg:sticky lg:top-16 lg:float-left lg:w-52 lg:grid-cols-1 lg:justify-start lg:p-2">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-8 lg:items-start">
+            <TabsList aria-label="Navigasi studio" className="sticky top-12 z-20 grid h-auto w-full grid-cols-4 gap-1 bg-background p-1 shadow-sm lg:sticky lg:top-16 lg:w-52 lg:grid-cols-1 lg:justify-start lg:p-2">
               <TabsTrigger value="analytics" className="flex min-h-12 flex-col gap-1 px-1 text-[11px] sm:text-sm lg:flex-row lg:justify-start lg:px-3"><LayoutDashboard className="h-4 w-4" aria-hidden="true"/> Ringkasan</TabsTrigger>
               <TabsTrigger value="content" className="flex min-h-12 flex-col gap-1 px-1 text-[11px] sm:text-sm lg:flex-row lg:justify-start lg:px-3"><Film className="h-4 w-4" aria-hidden="true"/> Konten</TabsTrigger>
               <TabsTrigger value="publish" className="flex min-h-12 flex-col gap-1 px-1 text-[11px] sm:text-sm lg:flex-row lg:justify-start lg:px-3"><PlusSquare className="h-4 w-4" aria-hidden="true"/> Buat post</TabsTrigger>
               <TabsTrigger value="status" className="flex min-h-12 flex-col gap-1 px-1 text-[11px] sm:text-sm lg:flex-row lg:justify-start lg:px-3"><ListChecks className="h-4 w-4" aria-hidden="true"/> Aktivitas</TabsTrigger>
             </TabsList>
-            <div className="min-w-0 lg:ml-60">
+            <div className="min-w-0">
 
             {/* Tab: Analytics */}
             <TabsContent value="analytics" className="mt-4 space-y-4 lg:mt-0">
@@ -297,6 +298,7 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-4">
                   <div className="order-2 lg:order-1">
                     <VideoUploadForm
+                      key={profile.open_id}
                       accountName={profile.display_name}
                       avatarUrl={profile.avatar_url}
                       onPublish={handlePublish}
