@@ -10,7 +10,7 @@ interface VideoItem {
   title: string;
   video_description?: string;
   cover_image_url: string;
-  create_time: string;
+  create_time: number | string;
   share_url: string;
   view_count: number;
   like_count: number;
@@ -21,7 +21,7 @@ interface VideoItem {
 export function VideoList({ videos }: { videos: VideoItem[] }) {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("recent");
-  const filtered = [...videos].filter(v => (v.title ?? v.video_description ?? "").toLowerCase().includes(query.toLowerCase())).sort((a,b) => sort === "views" ? b.view_count-a.view_count : sort === "likes" ? b.like_count-a.like_count : Number(b.create_time)-Number(a.create_time));
+  const filtered = [...videos].filter(v => (v.title ?? v.video_description ?? "").toLowerCase().includes(query.toLowerCase())).sort((a,b) => sort === "views" ? b.view_count-a.view_count : sort === "likes" ? b.like_count-a.like_count : (typeof b.create_time === "number" ? b.create_time * 1000 : Number(b.create_time) ? Number(b.create_time) * 1000 : Date.parse(b.create_time)) - (typeof a.create_time === "number" ? a.create_time * 1000 : Number(a.create_time) ? Number(a.create_time) * 1000 : Date.parse(a.create_time)));
   if (!videos || videos.length === 0) {
     return (
       <div className="text-center py-12">
