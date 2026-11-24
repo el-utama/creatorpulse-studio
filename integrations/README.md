@@ -6,3 +6,6 @@ OpenAPI: /agent-openapi.json. Import telegram-approval.json into a dedicated **n
 Human sends /review UUID, inspects actual media and target, then /approve UUID to authorize and submit to inbox. /status UUID checks progress; /cancel UUID cancels an unsubmitted draft. Direct public posting is not supported by the gateway. Caption is only a suggestion. If a call times out, use /status and inspect TikTok; do not resend uncertain requests. 
 ## Trend research
 Agent obtains evidence from its authorized web research tools or a properly authorized Discovery API provider. Submit observations using record_trend/POST trends. The gateway is not a Discovery API client. Suggested daily schedule via n8n: collect sourced observations, compare with account analytics, send a digest to an allowed chat. No invented metrics. WhatsApp Business Cloud adapter, live bot, scheduled research, verified media hosting and real TikTok approval/authorization still need setup. 
+
+## Preferred path: Hermes only
+See [Hermes setup](hermes/README.md), [MCP config](hermes/config.example.yaml) and [CreatorPulse skill](hermes/skills/creatorpulse/SKILL.md). n8n is optional. Operator dashboard remains the independent approval boundary.
