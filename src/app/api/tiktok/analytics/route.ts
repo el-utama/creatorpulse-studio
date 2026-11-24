@@ -62,19 +62,20 @@ export async function GET() {
         })
       ),
       fetchWithRefresh((token) =>
-        fetch(APP_CONFIG.tiktokVideoListUrl, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            fields:
-              "id,title,video_description,cover_image_url,create_time,share_url,view_count,like_count,comment_count,share_count",
-            max_count: 20,
-          }),
-          cache: "no-store",
-        }).then(async (r) => {
+        fetch(
+          `${APP_CONFIG.tiktokVideoListUrl}?fields=id,title,video_description,cover_image_url,create_time,share_url,view_count,like_count,comment_count,share_count`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              max_count: 20,
+            }),
+            cache: "no-store",
+          }
+        ).then(async (r) => {
           if (!r.ok) {
             const t = await r.text();
             throw new Error(`Video list failed: ${r.status} ${t}`);
