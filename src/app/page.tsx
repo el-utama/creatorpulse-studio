@@ -64,7 +64,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             </p>
             <Link
               href="/api/auth/tiktok"
-              className="inline-flex items-center justify-center gap-2 bg-tiktok-primary text-white px-6 py-3 sm:px-8 sm:py-4 rounded-lg font-medium hover:bg-tiktok-primary/90 transition-colors w-full sm:w-auto"
+              className="inline-flex items-center justify-center gap-2 bg-slate-900 text-white px-6 py-3 sm:px-8 sm:py-4 rounded-lg font-medium hover:bg-slate-800 transition-colors w-full sm:w-auto"
             >
               <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
               Hubungkan TikTok
