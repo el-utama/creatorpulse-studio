@@ -101,7 +101,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
             <button
               onClick={() => setMode("inbox")}
               aria-pressed={mode === "inbox"}
-              className={`flex-1 py-2 text-xs font-medium rounded-md transition-all ${
+              className={`flex-1 h-11 py-2 text-xs font-medium rounded-md transition-all ${
                 mode === "inbox"
                   ? "bg-background text-foreground shadow-sm border border-border"
                   : "text-muted-foreground hover:bg-muted"
@@ -112,7 +112,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
             <button
               onClick={() => setMode("profile")}
               aria-pressed={mode === "profile"}
-              className={`flex-1 py-2 text-xs font-medium rounded-md transition-all ${
+              className={`flex-1 h-11 py-2 text-xs font-medium rounded-md transition-all ${
                 mode === "profile"
                   ? "bg-background text-foreground shadow-sm border border-border"
                   : "text-muted-foreground hover:bg-muted"
