@@ -31,6 +31,7 @@ export async function POST(request: Request) {
     }
 
     if (mode !== "inbox" && mode !== "profile") return NextResponse.json({ error: "Mode publikasi tidak valid." }, { status: 400 });
+    if (mode === "profile" && (typeof caption !== "string" || caption.length > 2200)) return NextResponse.json({error:"Caption maksimal 2200 karakter."},{status:400});
     if (mode === "profile" && !["PUBLIC_TO_EVERYONE", "FOLLOWER_OF_CREATOR", "MUTUAL_FOLLOW_FRIENDS", "SELF_ONLY"].includes(privacy)) return NextResponse.json({ error: "Pilih visibilitas video." }, { status: 400 });
     if (mode === "profile") {
       const capabilities = await getCreatorCapabilities(accessToken);
@@ -40,19 +41,19 @@ export async function POST(request: Request) {
     let posterUrl: string | undefined;
     let videoBuffer: Uint8Array | undefined;
 
-    if (mode === "inbox") {
+    if (typeof videoUrl === "string" && videoUrl.trim() && !file) {
       let valid = false;
       try { valid = new URL(videoUrl).protocol === "https:"; } catch {}
       if (!valid) {
         return NextResponse.json(
-          { error: "Video URL is required for inbox mode" },
+          { error: "Gunakan tautan video HTTPS yang valid." },
           { status: 400 }
         );
       }
       sourceType = "PULL_FROM_URL";
       posterUrl = videoUrl;
     } else {
-      if (!(file instanceof File) || !["video/mp4", "video/quicktime"].includes(file.type) || file.size === 0 || file.size > 4 * 1024 * 1024) {
+      if (videoUrl || !(file instanceof File) || !["video/mp4", "video/quicktime"].includes(file.type) || file.size === 0 || file.size > 4 * 1024 * 1024) {
         return NextResponse.json(
           { error: "Pilih video MP4 atau MOV maksimal 4 MB." },
           { status: 400 }
