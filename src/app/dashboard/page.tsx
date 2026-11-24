@@ -146,15 +146,15 @@ export default function DashboardPage() {
             <TabsContent value="analytics" className="mt-6 space-y-6">
               {/* Profile + Metrics */}
               {profile ? (
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                  <div className="md:col-span-4">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  <div className="lg:col-span-4">
                     <Card>
                       <CardHeader>
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-col lg:flex-row items-center gap-3 lg:gap-3 text-center lg:text-left">
                           <img
                             src={profile.avatar_url}
                             alt={profile.display_name}
-                            className="w-16 h-16 rounded-full border border-border"
+                            className="w-16 h-16 rounded-full border border-border mx-auto lg:mx-0"
                           />
                           <div>
                             <CardTitle className="text-lg">{profile.display_name}</CardTitle>
@@ -181,7 +181,7 @@ export default function DashboardPage() {
                       </CardContent>
                     </Card>
                   </div>
-                  <div className="md:col-span-8">
+                  <div className="lg:col-span-8">
                     <AnalyticsCards
                       followers={profile.follower_count}
                       following={profile.following_count}

@@ -26,7 +26,7 @@ export function VideoList({ videos }: { videos: VideoItem[] }) {
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
       {videos.map((video) => (
         <Card key={video.id} className="cursor-pointer hover:border-tiktok-primary/50 transition-colors">
           <div className="relative aspect-video w-full bg-muted overflow-hidden">
