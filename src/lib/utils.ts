@@ -14,7 +14,7 @@ export function formatNumber(num: number): string {
 }
 
 export function formatDate(isoString: string | number): string {
-  return new Date(typeof isoString === "number" ? isoString * 1000 : isoString).toLocaleDateString("id-ID", {
+  return new Date(typeof isoString === "number" || /^\d+$/.test(isoString) ? Number(isoString) * 1000 : isoString).toLocaleDateString("id-ID", {
     day: "numeric",
     month: "short",
     year: "numeric",
