@@ -3,6 +3,7 @@ export function cn(...classes: (string | undefined | null | false)[]): string {
 }
 
 export function formatNumber(num: number): string {
+  if (!Number.isFinite(num)) return "—";
   if (num >= 1_000_000) {
     return (num / 1_000_000).toFixed(1) + "M";
   }
@@ -12,8 +13,8 @@ export function formatNumber(num: number): string {
   return num.toString();
 }
 
-export function formatDate(isoString: string): string {
-  return new Date(isoString).toLocaleDateString("id-ID", {
+export function formatDate(isoString: string | number): string {
+  return new Date(typeof isoString === "number" ? isoString * 1000 : isoString).toLocaleDateString("id-ID", {
     day: "numeric",
     month: "short",
     year: "numeric",
