@@ -8,7 +8,7 @@ UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN (persistent Redis), CREATORP
 ## API v1
 - GET /api/gateway/v1/health: configuration status, no secrets.
 - GET /api/gateway/v1/accounts: list gateway-enabled accounts (opaque IDs).
-- POST /api/gateway/v1/enroll: operator bearer + active dashboard session, moves active account from cookies to vault. Existing legacy session must reconnect to obtain a slot.
+- POST /api/gateway/v1/enroll: operator bearer + active dashboard session, moves active account from cookies to vault. The dashboard Integration AI Agent panel exposes this operation when configured. Operator credential is not persisted in the browser. Existing legacy session must reconnect to obtain a slot.
 - POST /api/gateway/v1/accounts/{id}/disconnect: operator only; delete vault record. Does not revoke authorization on TikTok itself.
 - GET /api/gateway/v1/accounts/{id}/analytics, /videos?cursor=, /capabilities
 - POST /api/gateway/v1/trends: ingest structured source observation. GET /api/gateway/v1/trends?region=ID&days=7.

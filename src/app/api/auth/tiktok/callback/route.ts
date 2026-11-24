@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { APP_CONFIG } from "@/config/app";
-import { accounts,activate,clearLegacy,currentSlot,identity,storeAccount,slotFor,ADD_COOKIE,MAX_ACCOUNTS } from "@/lib/accounts";
+import { accounts,activate,clearLegacy,currentSlot,identity,slotNames,storeAccount,slotFor,ADD_COOKIE,MAX_ACCOUNTS } from "@/lib/accounts";
 import {validBinding} from "@/lib/gateway/store";
 import {saveAccount,profileIdentity} from "@/lib/gateway/vault";
 import { sessionToken } from "@/lib/session";
@@ -27,6 +27,9 @@ export async function GET(request: Request) {
     const user=await profileIdentity(tokens.access_token);
     if(!tokens.refresh_token)return fail("connection_failed");
     await saveAccount({slot:account.slot,openId:user.open_id,name:user.display_name||account.name,access:tokens.access_token,refresh:tokens.refresh_token,expiresAt:Date.now()+(tokens.expires_in||3600)*1000,updatedAt:new Date().toISOString()});
+    const n=slotNames(account.slot);const options={httpOnly:true,secure:process.env.NODE_ENV==="production",sameSite:"lax" as const,path:"/"};
+    jar.set(n.meta,JSON.stringify({name:user.display_name||account.name}),{...options,maxAge:tokens.refresh_expires_in||604800});
+    jar.set(n.access,"",{...options,maxAge:0});jar.set(n.refresh,"",{...options,maxAge:0});
     activate(jar,account.slot);clearLegacy(jar);
     return NextResponse.redirect(new URL("/dashboard?account_changed=1",base));
   }

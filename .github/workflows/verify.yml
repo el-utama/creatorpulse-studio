@@ -25,6 +25,9 @@ jobs:
       - run: npx playwright test
         env:
           APP_URL: http://localhost:3000
+      - run: npx playwright test --config playwright.gateway.config.mjs
+        env:
+          GATEWAY_TEST: "1"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

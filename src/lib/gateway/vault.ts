@@ -27,10 +27,10 @@ export async function saveAccount(a:VaultAccount){
 export async function removeVault(slot:string){if(!validSlot(slot))throw new GatewayError(400,"ID akun tidak valid.");await withSlotLock(slot,()=>redis(["HDEL",vaultHash,slot]));}
 export async function vaultToken(slot:string,force=false,previous?:string):Promise<string>{
  const {account:a}=await loadAccount(slot);
- if((!force&&a.expiresAt>Date.now()+60000)||(force&&previous&&a.access!==previous))return a.access;
+ if((!force&&a.expiresAt>Date.now()+30000)||(force&&previous&&a.access!==previous))return a.access;
  return withSlotLock(slot,async()=>{
   const {account:old,raw}=await loadAccount(slot);
-  if((!force&&old.expiresAt>Date.now()+60000)||(force&&previous&&old.access!==previous))return old.access;
+  if((!force&&old.expiresAt>Date.now()+30000)||(force&&previous&&old.access!==previous))return old.access;
   let t:TikTokTokenResponse;
   try{t=await refreshAccessToken(old.refresh);}catch{throw new GatewayError(401,"Sesi TikTok perlu dihubungkan ulang.");}
   if(!t.access_token||!t.refresh_token||(t.open_id&&t.open_id!==old.openId))throw new GatewayError(401,"Sesi TikTok perlu dihubungkan ulang.");
