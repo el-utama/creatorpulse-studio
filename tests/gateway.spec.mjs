@@ -101,3 +101,14 @@ test('terminal archival frees active queue but never permits reusing an executed
  expect((await request.post(base,{headers:agent,data:{...data,caption:'different'}})).status()).toBe(409);
  expect((await request.post(url+'/execute',{headers:agent})).status()).toBe(409);
 });
+
+test('old browser binding cannot regain access after disconnect and reenroll',async ({browser,request})=>{
+ const one=await browser.newContext(),two=await browser.newContext();
+ try{
+ const enroll=async ctx=>{const start=await ctx.request.get('/api/auth/tiktok',{maxRedirects:0});const state=new URL(start.headers().location).searchParams.get('state');await ctx.request.get('/api/auth/tiktok/callback?code=account-a&state='+state,{maxRedirects:0});const r=await ctx.request.post('/api/gateway/v1/enroll',{headers:operator});expect(r.ok()).toBe(true);return (await r.json()).id;};
+ const id=await enroll(one);expect((await one.request.get('/api/tiktok/analytics')).status()).toBe(200);
+ expect((await request.post('/api/gateway/v1/accounts/'+id+'/disconnect',{headers:operator})).ok()).toBe(true);
+ expect(await enroll(two)).toBe(id);expect((await two.request.get('/api/tiktok/analytics')).status()).toBe(200);
+ expect((await one.request.get('/api/tiktok/analytics')).status()).toBe(401);
+ }finally{await one.close();await two.close();}
+});

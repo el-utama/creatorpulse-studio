@@ -2,7 +2,7 @@ import {NextResponse} from "next/server";
 import {cookies} from "next/headers";
 import {APP_CONFIG} from "@/config/app";
 import {accounts,currentSlot,slotNames,sameOrigin} from "@/lib/accounts";
-import {authorize,GatewayError,config,binding} from "@/lib/gateway/store";
+import {authorize,GatewayError,config,binding,limitAgent} from "@/lib/gateway/store";
 import {listVault,readAccount,saveAccount,removeVault,profileIdentity,slotForId} from "@/lib/gateway/vault";
 import {prepare,approve,cancel,execute,checkStatus,getPost,listPosts,archive} from "@/lib/gateway/posts";
 import {recordTrend,listTrends} from "@/lib/gateway/trends";
@@ -16,9 +16,9 @@ function fail(error:unknown){return reply({error:error instanceof GatewayError?e
 function cursorOf(url:URL){const raw=url.searchParams.get("cursor")||"0",n=Number(raw);if(!/^\d+$/.test(raw)||!Number.isSafeInteger(n))throw new GatewayError(400,"Cursor tidak valid.");return n;}
 export async function GET(request:Request,ctx:Ctx){
  const p=(await ctx.params).path,url=new URL(request.url);
- if(p.join("/") === "health")return reply({version:"3.5-dual-post",storage:"local_bridge",directPublicEnabled:process.env.TIKTOK_DIRECT_POST_AUDITED==="true",configured:!!config(),posting:config()?"approval_required_inbox_and_direct":"disabled",trends:"observations_only"});
+ if(p.join("/") === "health")return reply({version:"3.6-hardened",storage:"local_bridge",directPublicEnabled:process.env.TIKTOK_DIRECT_POST_AUDITED==="true",configured:!!config(),posting:config()?"approval_required_inbox_and_direct":"disabled",trends:"observations_only"});
  try{
-  authorize(request);
+  authorize(request);await limitAgent(request);
   if(p.join("/") === "posts")return reply({posts:await listPosts()});
   if(p[0]==="posts"&&p.length===2)return reply(await getPost(p[1]));
   if(p.join("/") === "accounts")return reply({accounts:await listVault(),limit:3});
@@ -48,11 +48,11 @@ export async function POST(request:Request,ctx:Ctx){
    if(!token||!refresh)throw new GatewayError(401,"Hubungkan kembali akun TikTok terlebih dahulu.");
    const user=await profileIdentity(token);
    if(slotForId(user.open_id)!==slot)throw new GatewayError(409,"Akun aktif berubah.");
-   await saveAccount({slot,openId:user.open_id,name:user.display_name||"Akun TikTok",access:token,refresh,expiresAt:Date.now()+60000,updatedAt:new Date().toISOString()});
+   const epoch=await saveAccount({slot,openId:user.open_id,name:user.display_name||"Akun TikTok",access:token,refresh,expiresAt:Date.now()+60000,updatedAt:new Date().toISOString()});
    // Move the active browser session onto the vault; do not keep rotating refresh tokens in cookies.
    const options={httpOnly:true,secure:process.env.NODE_ENV==="production",sameSite:"lax" as const,path:"/"};
    jar.set(n.access,"",{...options,maxAge:0});jar.set(n.refresh,"",{...options,maxAge:0});
-   jar.set("creatorpulse_account_"+slot+"_v",binding(slot),{...options,maxAge:365*86400});
+   jar.set("creatorpulse_account_"+slot+"_v",binding(slot,epoch),{...options,maxAge:365*86400});
    return reply({success:true,id:slot,name:user.display_name});
   }
   authorize(request);

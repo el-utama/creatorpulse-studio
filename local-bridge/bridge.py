@@ -44,6 +44,7 @@ class Store:
             c.executescript("""
               CREATE TABLE IF NOT EXISTS records (bucket TEXT NOT NULL, field TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY(bucket,field));
               CREATE TABLE IF NOT EXISTS ephemeral (key TEXT PRIMARY KEY, value TEXT NOT NULL, expires REAL NOT NULL);
+              CREATE TABLE IF NOT EXISTS rate_limit (id INTEGER PRIMARY KEY CHECK(id=1), minute INTEGER NOT NULL, count INTEGER NOT NULL);
               CREATE TABLE IF NOT EXISTS trends (seq INTEGER PRIMARY KEY AUTOINCREMENT, value TEXT NOT NULL);
             """)
 
@@ -68,6 +69,10 @@ class Store:
 
     def dispatch(self, c, cmd):
         op, *a = cmd
+        if op == "RATE_AGENT" and not a:
+            minute=int(time.time()//60)
+            c.execute("INSERT INTO rate_limit VALUES(1,?,1) ON CONFLICT(id) DO UPDATE SET count=CASE WHEN minute=excluded.minute THEN MIN(count+1,61) ELSE 1 END,minute=excluded.minute",(minute,))
+            return c.execute("SELECT count FROM rate_limit WHERE id=1").fetchone()[0]
         if op == "PING" and not a:
             return "PONG"
         if op == "ARCHIVE_POST" and len(a) == 2 and field(POSTS,a[0]) and bounded(a[1]):

@@ -2,8 +2,8 @@ import {GatewayError,redis,seal,unseal,vaultHash,withSlotLock} from "./store";
 import {refreshAccessToken} from "@/lib/tiktok";
 import {APP_CONFIG} from "@/config/app";
 import type {TikTokTokenResponse} from "@/types/tiktok";
-import {createHash} from "node:crypto";
-export type VaultAccount={slot:string;openId:string;name:string;access:string;refresh:string;expiresAt:number;updatedAt:string};
+import {createHash,randomBytes} from "node:crypto";
+export type VaultAccount={slot:string;openId:string;name:string;access:string;refresh:string;expiresAt:number;updatedAt:string;epoch:string};
 export const slotForId=(id:string)=>createHash("sha256").update(id).digest("hex").slice(0,32);
 const validSlot=(slot:string)=>/^[a-f0-9]{32}$/.test(slot);
 function decode(slot:string,raw:string){const a=unseal<VaultAccount>(raw,"vault:"+slot);if(a.slot!==slot||slotForId(a.openId)!==slot)throw new GatewayError(503,"Identitas vault tidak valid.");return a;}
@@ -18,19 +18,24 @@ export async function listVault(){
  const accounts=[];for(let i=0;i+1<entries.length&&accounts.length<3;i+=2){const a=decode(entries[i],entries[i+1]);accounts.push({id:a.slot,name:a.name,updatedAt:a.updatedAt,accessExpiresAt:new Date(a.expiresAt).toISOString()});}
  return accounts;
 }
-export async function saveAccount(a:VaultAccount){
+export async function saveAccount(input:Omit<VaultAccount,"epoch">,expectedEpoch?:string){
+ const a:VaultAccount={...input,epoch:randomBytes(24).toString("hex")};
  if(!validSlot(a.slot)||slotForId(a.openId)!==a.slot||!a.access||!a.refresh)throw new GatewayError(400,"Akun atau token tidak lengkap.");
  await withSlotLock(a.slot,async()=>{
+ if(expectedEpoch){const {account}=await loadAccount(a.slot);if(account.epoch!==expectedEpoch)throw new GatewayError(401,"Sesi lama tidak berlaku.");}
  const result=await redis<number>(["EVAL","if redis.call('HEXISTS',KEYS[1],ARGV[1])==0 and redis.call('HLEN',KEYS[1])>=3 then return 0 end redis.call('HSET',KEYS[1],ARGV[1],ARGV[2]) return 1",1,vaultHash,a.slot,seal(a,"vault:"+a.slot)]);
  if(result!==1)throw new GatewayError(409,"Maksimal tiga akun gateway.");
  });
+ return a.epoch;
 }
 export async function removeVault(slot:string){if(!validSlot(slot))throw new GatewayError(400,"ID akun tidak valid.");await withSlotLock(slot,()=>redis(["HDEL",vaultHash,slot]));}
-export async function vaultToken(slot:string,force=false,previous?:string):Promise<string>{
+export async function vaultToken(slot:string,force=false,previous?:string,expectedEpoch?:string):Promise<string>{
  const {account:a}=await loadAccount(slot);
+ if(expectedEpoch&&a.epoch!==expectedEpoch)throw new GatewayError(401,"Sesi lama tidak berlaku.");
  if((!force&&a.expiresAt>Date.now()+30000)||(force&&previous&&a.access!==previous))return a.access;
  return withSlotLock(slot,async()=>{
   const {account:old,raw}=await loadAccount(slot);
+  if(expectedEpoch&&old.epoch!==expectedEpoch)throw new GatewayError(401,"Sesi lama tidak berlaku.");
   if((!force&&old.expiresAt>Date.now()+30000)||(force&&previous&&old.access!==previous))return old.access;
   let t:TikTokTokenResponse;
   try{t=await refreshAccessToken(old.refresh);}catch{throw new GatewayError(401,"Sesi TikTok perlu dihubungkan ulang.");}

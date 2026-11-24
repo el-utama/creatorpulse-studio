@@ -36,8 +36,15 @@ export function unseal<T>(value:string,context:string):T{
  const decipher=createDecipheriv("aes-256-gcm",key,data.subarray(0,12));decipher.setAAD(Buffer.from(context));decipher.setAuthTag(data.subarray(12,28));
  return JSON.parse(Buffer.concat([decipher.update(data.subarray(28)),decipher.final()]).toString("utf8")) as T;
 }
-export function binding(slot:string){return createHmac("sha256",requiredConfig().key).update("browser-slot:"+slot).digest("base64url");}
-export function validBinding(slot:string,value:string|undefined){try{return !!value&&equal(binding(slot),value);}catch{return false;}}
+export function binding(slot:string,epoch:string){return epoch+"."+createHmac("sha256",requiredConfig().key).update("browser-slot:"+slot+":"+epoch).digest("base64url");}
+export function bindingEpoch(slot:string,value:string|undefined){try{const epoch=value?.split(".")[0];return epoch&&/^[a-f0-9]{48}$/.test(epoch)&&equal(binding(slot,epoch),value!)?epoch:null;}catch{return null;}}
+export function validBinding(slot:string,value:string|undefined){return !!bindingEpoch(slot,value);}
+export async function limitAgent(request:Request){
+ const c=requiredConfig();if(equal(request.headers.get("authorization")||"","Bearer "+c.operator))return;
+ const count=await redis<number>(["RATE_AGENT"]);
+ if(count>60)throw new GatewayError(429,"Batas 60 permintaan agent per menit. Coba lagi pada menit berikutnya.");
+}
+
 export async function withSlotLock<T>(slot:string,fn:()=>Promise<T>):Promise<T>{
  const key="creatorpulse:v3:lock:"+slot,nonce=randomBytes(24).toString("hex");
  if(await redis(["SET",key,nonce,"NX","PX",60000])!=="OK")throw new GatewayError(409,"Akun sedang diproses; coba lagi.");

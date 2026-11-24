@@ -25,6 +25,12 @@ class BridgeTests(unittest.TestCase):
         with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
             results = list(pool.map(lambda i:self.s.run(["EVAL",CAS,1,POSTS,id,"draft",str(i)]),range(8)))
         self.assertEqual(sum(results),1)
+    def test_rate_limit_persistent(self):
+        from unittest.mock import patch
+        with patch("bridge.time.time",return_value=120):
+            for i in range(65): self.assertEqual(self.s.run(["RATE_AGENT"]),min(i+1,61))
+            self.assertEqual(Store(self.path).run(["RATE_AGENT"]),61)
+        with patch("bridge.time.time",return_value=180): self.assertEqual(self.s.run(["RATE_AGENT"]),1)
     def test_archive_retains_identity(self):
         id = "00000000-0000-4000-8000-000000000002"
         self.assertEqual(self.s.run(["EVAL",CREATE,1,POSTS,id,"done"]),1)
