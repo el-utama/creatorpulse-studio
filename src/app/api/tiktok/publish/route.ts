@@ -11,6 +11,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
+  let acceptedId: string | null = null;
   try {
     const formData = await request.formData();
     const mode = formData.get("mode") as string;
@@ -86,6 +87,7 @@ export async function POST(request: Request) {
     if (videoBuffer) Object.assign(initBody.source_info as Record<string, unknown>, { video_size: videoBuffer.length, chunk_size: videoBuffer.length, total_chunk_count: 1 });
     const initResult = await initPublish(accessToken, initBody, mode);
     const { publish_id, upload_url } = initResult;
+    acceptedId = publish_id;
 
     if (sourceType === "FILE_UPLOAD") {
       if (!upload_url || !videoBuffer || !file) throw new Error("Missing upload information");
@@ -98,7 +100,8 @@ export async function POST(request: Request) {
       message: "Upload initiated successfully",
     });
   } catch (error) {
-    console.error("Publish error:", error);
+    console.error("Publication request failed");
+    if (acceptedId) return NextResponse.json({ publish_id: acceptedId, warning: "TikTok menerima inisialisasi, tetapi transfer belum terkonfirmasi. Periksa status sebelum mencoba ulang." }, {status:202});
     return NextResponse.json(
       { error: "Publikasi belum dapat dikonfirmasi. Periksa akun TikTok sebelum mencoba ulang." },
       { status: 500 }
