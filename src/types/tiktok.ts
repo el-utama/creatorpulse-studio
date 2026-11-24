@@ -15,7 +15,7 @@ export interface TikTokVideo {
   title: string;
   video_description?: string;
   cover_image_url: string;
-  create_time: string;
+  create_time: number | string;
   share_url: string;
   view_count: number;
   like_count: number;
@@ -27,6 +27,7 @@ export interface TikTokTokenResponse {
   access_token: string;
   refresh_token: string;
   expires_in: number;
+  refresh_expires_in?: number;
   scope: string;
   token_type: string;
 }
