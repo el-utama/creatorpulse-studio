@@ -40,6 +40,15 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
   const [disableComment, setDisableComment] = useState(false);
   const [disableDuet, setDisableDuet] = useState(false);
   const [disableStitch, setDisableStitch] = useState(false);
+  const [capabilities, setCapabilities] = useState<import("@/lib/tiktok").CreatorCapabilities | null>(null);
+  const [capabilityError, setCapabilityError] = useState(false);
+  useEffect(() => {
+    if (mode !== "profile") return;
+    const controller = new AbortController();
+    setCapabilities(null); setCapabilityError(false); setPrivacy(""); setConsent(false); setReview(false);
+    fetch("/api/tiktok/creator", {signal:controller.signal}).then(async res => { if (!res.ok) throw new Error(); return res.json(); }).then(data => { if (controller.signal.aborted) return; setCapabilities(data); setDisableComment(true); setDisableDuet(true); setDisableStitch(true); }).catch(() => { if (!controller.signal.aborted) setCapabilityError(true); });
+    return () => controller.abort();
+  }, [mode]);
   const [review, setReview] = useState(false);
   const [consent, setConsent] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -83,7 +92,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
 
   const isDirectUpload = mode === "profile" && !!file && previewUrl;
   const validUrl = (() => { try { return new URL(videoUrl ?? "").protocol === "https:"; } catch { return false; } })();
-  const ready = mode === "profile" ? !!isDirectUpload && !!privacy : validUrl;
+  const ready = mode === "profile" ? !!isDirectUpload && !!privacy && !!capabilities?.privacy_level_options.includes(privacy) : validUrl;
   const canPublish = !publishing && consent && review && ready;
 
   return (
@@ -213,7 +222,9 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
           <Label htmlFor="privacy" className="text-xs font-medium">
             Visibilitas video
           </Label>
+          {!capabilities && <p role="status" className="text-sm">{capabilityError ? "Pengaturan akun gagal dimuat. Pilih Inbox lalu kembali ke Direct Post untuk mencoba lagi." : "Memuat pengaturan akun…"}</p>}
           <Select
+            disabled={!capabilities || publishing}
             value={privacy}
             onValueChange={(v) => { setPrivacy(v); setConsent(false); setReview(false); }}
           >
@@ -221,10 +232,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
               <SelectValue placeholder="Pilih privacy" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="PUBLIC_TO_EVERYONE">Semua orang</SelectItem>
-              <SelectItem value="FOLLOWER_OF_CREATOR">Pengikut</SelectItem>
-              <SelectItem value="MUTUAL_FOLLOW_FRIENDS">Teman yang saling mengikuti</SelectItem>
-              <SelectItem value="SELF_ONLY">Hanya saya</SelectItem>
+              {capabilities?.privacy_level_options.map(value => <SelectItem key={value} value={value}>{({PUBLIC_TO_EVERYONE:"Semua orang",FOLLOWER_OF_CREATOR:"Pengikut",MUTUAL_FOLLOW_FRIENDS:"Teman yang saling mengikuti",SELF_ONLY:"Hanya saya"} as Record<string,string>)[value] ?? value}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -233,6 +241,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <label className="flex items-center gap-2 cursor-pointer text-sm leading-none">
             <Checkbox
+              disabled={!capabilities || capabilities.comment_disabled || publishing}
               checked={disableComment}
               onCheckedChange={(v) => { setDisableComment(v === true); setConsent(false); setReview(false); }}
               className="h-11 w-11"
@@ -244,6 +253,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
           </label>
           <label className="flex items-center gap-2 cursor-pointer text-sm leading-none">
             <Checkbox
+              disabled={!capabilities || capabilities.duet_disabled || publishing}
               checked={disableDuet}
               onCheckedChange={(v) => { setDisableDuet(v === true); setConsent(false); setReview(false); }}
               className="h-11 w-11"
@@ -255,6 +265,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
           </label>
           <label className="flex items-center gap-2 cursor-pointer text-sm leading-none">
             <Checkbox
+              disabled={!capabilities || capabilities.stitch_disabled || publishing}
               checked={disableStitch}
               onCheckedChange={(v) => { setDisableStitch(v === true); setConsent(false); setReview(false); }}
               className="h-11 w-11"
