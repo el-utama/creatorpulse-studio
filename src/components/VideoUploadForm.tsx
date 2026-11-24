@@ -29,10 +29,19 @@ export interface PublishPayload {
   disableDuet: boolean;
   disableStitch: boolean;
   consent: boolean;
+  duration: number | null;
+  brandOrganic: boolean;
+  brandContent: boolean;
+  isAigc: boolean;
 }
 
 export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing = false, error }: UploadFormProps) {
   const [mode, setMode] = useState<"inbox" | "profile">("inbox");
+  const [duration, setDuration] = useState<number | null>(null);
+  const [commercial, setCommercial] = useState(false);
+  const [brandOrganic, setBrandOrganic] = useState(false);
+  const [brandContent, setBrandContent] = useState(false);
+  const [isAigc, setIsAigc] = useState(false);
   const [source, setSource] = useState<"file" | "url">("url");
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -62,6 +71,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
     const selectedFile = e.target.files?.[0] ?? null;
     if (!selectedFile) return;
 
+    setDuration(null);
     setFile(null);
     setPreviewUrl(null);
     setConsent(false); setReview(false);
@@ -93,7 +103,8 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
 
   const hasFile = !!file && !!previewUrl;
   const validUrl = (() => { try { return new URL(videoUrl ?? "").protocol === "https:"; } catch { return false; } })();
-  const ready = (source === "file" ? hasFile : validUrl) && (mode === "inbox" || (!!privacy && !!capabilities?.privacy_level_options.includes(privacy)));
+  const validDuration = duration !== null && Number.isFinite(duration) && duration > 0 && duration <= (capabilities?.max_video_post_duration_sec ?? 0);
+  const ready = (source === "file" ? hasFile : validUrl) && (mode === "inbox" || (!!privacy && !!capabilities?.privacy_level_options.includes(privacy) && validDuration && (!commercial || brandOrganic || brandContent) && (!commercial || !brandContent || ["PUBLIC_TO_EVERYONE","MUTUAL_FOLLOW_FRIENDS"].includes(privacy))));
   const canPublish = !publishing && consent && review && ready;
 
   return (
@@ -143,7 +154,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
           </div>
         </div>
 
-        <div className="space-y-2"><h3 className="text-sm font-medium">Sumber video</h3><div role="group" aria-label="Sumber video" className="flex gap-2"><Button type="button" variant={source === "url" ? "default" : "outline"} aria-pressed={source === "url"} disabled={publishing} onClick={() => {setSource("url");setConsent(false);setReview(false);}}>Tautan HTTPS</Button><Button type="button" variant={source === "file" ? "default" : "outline"} aria-pressed={source === "file"} disabled={publishing} onClick={() => {setSource("file");setConsent(false);setReview(false);}}>File perangkat</Button></div></div>
+        <div className="space-y-2"><h3 className="text-sm font-medium">Sumber video</h3><div role="group" aria-label="Sumber video" className="flex gap-2"><Button type="button" variant={source === "url" ? "default" : "outline"} aria-pressed={source === "url"} disabled={publishing} onClick={() => {setSource("url");setDuration(null);setConsent(false);setReview(false);}}>Tautan HTTPS</Button><Button type="button" variant={source === "file" ? "default" : "outline"} aria-pressed={source === "file"} disabled={publishing} onClick={() => {setSource("file");setDuration(null);setConsent(false);setReview(false);}}>File perangkat</Button></div></div>
         {source === "url" ? (
           <div className="space-y-2">
             <Label htmlFor="video-url" className="text-xs font-medium">
@@ -154,8 +165,9 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
               placeholder="https://contoh.com/video.mp4"
               value={videoUrl ?? ""}
               type="url"
-              onChange={(e) => { setVideoUrl(e.target.value); setConsent(false); setReview(false); }}
+              onChange={(e) => { setVideoUrl(e.target.value); setDuration(null); setConsent(false); setReview(false); }}
             />
+            {mode === "profile" && validUrl && <video key={videoUrl} aria-label="Pratinjau video" src={videoUrl ?? undefined} controls preload="metadata" className="w-full max-h-[360px] bg-black rounded-lg" onLoadedMetadata={e=>setDuration(e.currentTarget.duration)} onError={()=>setDuration(null)}/>}
             <p className="text-xs text-muted-foreground">
               Gunakan URL dari domain atau awalan URL yang telah diverifikasi untuk aplikasi TikTok.
             </p>
@@ -184,6 +196,11 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
             {file && previewUrl && (
               <div className="relative group">
                 <video
+                  key={previewUrl}
+                  aria-label="Pratinjau video"
+                  preload="metadata"
+                  onLoadedMetadata={e=>setDuration(e.currentTarget.duration)}
+                  onError={()=>setDuration(null)}
                   src={previewUrl}
                   className="w-full max-h-[420px] aspect-[9/16] object-contain bg-black rounded-lg border border-border"
                   controls
@@ -246,45 +263,48 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
           <label className="flex items-center gap-2 cursor-pointer text-sm leading-none">
             <Checkbox
               disabled={!capabilities || capabilities.comment_disabled || publishing}
-              checked={disableComment}
-              onCheckedChange={(v) => { setDisableComment(v === true); setConsent(false); setReview(false); }}
+              checked={!disableComment}
+              onCheckedChange={(v) => { setDisableComment(v !== true); setConsent(false); setReview(false); }}
               className="h-11 w-11"
-              aria-label="Nonaktifkan komentar"
+              aria-label="Izinkan komentar"
             />
             <span className="flex items-center gap-1 text-sm">
-              Nonaktifkan komentar
+              Izinkan komentar
             </span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer text-sm leading-none">
             <Checkbox
               disabled={!capabilities || capabilities.duet_disabled || publishing}
-              checked={disableDuet}
-              onCheckedChange={(v) => { setDisableDuet(v === true); setConsent(false); setReview(false); }}
+              checked={!disableDuet}
+              onCheckedChange={(v) => { setDisableDuet(v !== true); setConsent(false); setReview(false); }}
               className="h-11 w-11"
-              aria-label="Nonaktifkan duet"
+              aria-label="Izinkan duet"
             />
             <span className="flex items-center gap-1 text-sm">
-              Nonaktifkan duet
+              Izinkan duet
             </span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer text-sm leading-none">
             <Checkbox
               disabled={!capabilities || capabilities.stitch_disabled || publishing}
-              checked={disableStitch}
-              onCheckedChange={(v) => { setDisableStitch(v === true); setConsent(false); setReview(false); }}
+              checked={!disableStitch}
+              onCheckedChange={(v) => { setDisableStitch(v !== true); setConsent(false); setReview(false); }}
               className="h-11 w-11"
-              aria-label="Nonaktifkan stitch"
+              aria-label="Izinkan stitch"
             />
             <span className="flex items-center gap-1 text-sm">
-              Nonaktifkan stitch
+              Izinkan stitch
             </span>
           </label>
         </div>
 
+        <p className="text-sm text-muted-foreground">{validDuration ? `Durasi video: ${Math.round(duration ?? 0)} detik` : "Video harus dapat dipratinjau dan durasinya sesuai batas akun sebelum dipublikasikan."}</p>
+        <fieldset className="space-y-3 rounded-lg border p-3"><legend className="px-1 text-sm font-medium">Pengungkapan konten</legend><label className="flex items-center gap-2 text-sm"><Checkbox checked={commercial} onCheckedChange={v=>{setCommercial(v===true);setBrandOrganic(false);setBrandContent(false);setConsent(false);setReview(false);}}/> Konten promosi atau komersial</label>{commercial && <><label className="flex items-center gap-2 text-sm"><Checkbox checked={brandOrganic} onCheckedChange={v=>{setBrandOrganic(v===true);setConsent(false);setReview(false);}}/> Merek atau bisnis sendiri</label><label className="flex items-center gap-2 text-sm"><Checkbox checked={brandContent} disabled={privacy==="SELF_ONLY" || privacy==="FOLLOWER_OF_CREATOR"} onCheckedChange={v=>{setBrandContent(v===true);setConsent(false);setReview(false);}}/> Kemitraan berbayar dengan pihak ketiga</label><p className="text-xs text-muted-foreground">{brandContent?"Label: kemitraan berbayar. Pilih visibilitas publik atau teman.":brandOrganic?"Label: konten promosi.":"Pilih minimal satu kategori. Kemitraan berbayar tidak dapat bersifat privat."}</p></>}<label className="flex items-center gap-2 text-sm"><Checkbox checked={isAigc} onCheckedChange={v=>{setIsAigc(v===true);setConsent(false);setReview(false);}}/> Konten dihasilkan AI</label></fieldset>
         </>}
         {!review && <Button type="button" variant="outline" disabled={!ready || publishing} onClick={() => setReview(true)}>Tinjau publikasi</Button>}
         {review && <section className="space-y-3 rounded-lg border p-4" aria-label="Tinjauan publikasi"><h3 className="font-semibold">Konfirmasi publikasi</h3><p className="text-sm">Akun: {accountName}</p><p className="text-sm break-all">Video: {source === "url" ? videoUrl : file?.name}</p><p className="text-sm">{mode === "inbox" ? "Dikirim ke inbox; selesaikan posting di TikTok." : `Visibilitas: ${({PUBLIC_TO_EVERYONE:"Semua orang",FOLLOWER_OF_CREATOR:"Pengikut",MUTUAL_FOLLOW_FRIENDS:"Teman",SELF_ONLY:"Hanya saya"} as Record<string,string>)[privacy] ?? privacy}`}</p>
         {mode === "profile" && <p className="text-sm whitespace-pre-wrap break-words">Caption: {caption || "(tanpa caption)"}</p>}
+        {mode === "profile" && <p className="text-sm">Dengan memposting, Anda menyetujui ketentuan penggunaan musik TikTok{commercial && brandContent ? " dan kebijakan konten bermerek" : ""}. Konten mungkin memerlukan beberapa menit untuk diproses.</p>}
         {/* Consent */}
         <div className="flex items-start gap-2 pt-2 border-t border-border">
           <Checkbox
@@ -315,6 +335,10 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
               disableDuet,
               disableStitch,
               consent,
+              duration,
+              brandOrganic: commercial && brandOrganic,
+              brandContent: commercial && brandContent,
+              isAigc,
             });
           }}
           disabled={!canPublish}
