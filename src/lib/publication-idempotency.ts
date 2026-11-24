@@ -7,12 +7,12 @@ type RecordValue = { state: "pending" } | { state: "complete"; body: Reply; stat
 type LocalEntry = { expires: number; value: RecordValue };
 const local = new Map<string,LocalEntry>();
 const ttl = 86400;
-const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
-const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+const redisUrl = process.env.CREATORPULSE_BRIDGE_URL || process.env.UPSTASH_REDIS_REST_URL;
+const redisToken = process.env.CREATORPULSE_BRIDGE_URL || process.env.CREATORPULSE_BRIDGE_TOKEN ? process.env.CREATORPULSE_BRIDGE_TOKEN : process.env.UPSTASH_REDIS_REST_TOKEN;
 
 async function redis(command: (string | number)[]) {
   if (!redisUrl || !redisToken) throw new Error("Idempotency storage configuration incomplete");
-  const res = await fetch(redisUrl, {method:"POST",headers:{Authorization:`Bearer ${redisToken}`,"Content-Type":"application/json"},body:JSON.stringify(command),cache:"no-store"});
+  const res = await fetch(redisUrl, {method:"POST",headers:{Authorization:`Bearer ${redisToken}`,"Content-Type":"application/json"},body:JSON.stringify(command),cache:"no-store",redirect:"error",signal:AbortSignal.timeout(10000)});
   const data = await res.json();
   if (!res.ok || data.error) throw new Error("Idempotency storage unavailable");
   return data.result;
@@ -27,7 +27,7 @@ export async function publicationKey(token: string, requestId: string, expectedA
 }
 export async function reservePublication(key: string): Promise<RecordValue | null> {
   const pending: RecordValue = {state:"pending"};
-  if (redisUrl || redisToken) {
+  if (redisUrl || redisToken || process.env.CREATORPULSE_BRIDGE_TOKEN) {
     const acquired = await redis(["SET",key,JSON.stringify(pending),"EX",ttl,"NX"]);
     if (acquired === "OK") return null;
     const previous = await redis(["GET",key]);

@@ -3,11 +3,11 @@ export class GatewayError extends Error {constructor(public status:number,messag
 export const vaultHash="creatorpulse:v3:vault";
 export const trendList="creatorpulse:v3:trends";
 export function config(){
- const url=process.env.UPSTASH_REDIS_REST_URL,token=process.env.UPSTASH_REDIS_REST_TOKEN;
+ const url=process.env.CREATORPULSE_BRIDGE_URL,token=process.env.CREATORPULSE_BRIDGE_TOKEN;
  const operator=process.env.CREATORPULSE_OPERATOR_KEY,agent=process.env.CREATORPULSE_AGENT_KEY;
  const key=Buffer.from(process.env.CREATORPULSE_VAULT_KEY||"","base64");
- if(!url||!token||!operator||!agent||operator.length<32||agent.length<32||operator===agent||key.length!==32)return null;
- try{if(new URL(url).protocol!=="https:")return null;}catch{return null;}
+ if(!url||!token||token.length<32||!operator||!agent||operator.length<32||agent.length<32||operator===agent||key.length!==32)return null;
+ try{const u=new URL(url);if(u.protocol!=="https:"||u.username||u.password||u.search||u.hash||u.pathname!=="/storage/v1")return null;}catch{return null;}
  return {url,token,operator,agent,key};
 }
 export function requiredConfig(){const c=config();if(!c)throw new GatewayError(503,"Gateway belum dikonfigurasi.");return c;}
@@ -20,7 +20,7 @@ export function authorize(request:Request,owner=false){
 }
 export async function redis<T=unknown>(command:(string|number)[]):Promise<T>{
  const c=requiredConfig();
- const res=await fetch(c.url,{method:"POST",headers:{Authorization:"Bearer "+c.token,"Content-Type":"application/json"},body:JSON.stringify(command),cache:"no-store",signal:AbortSignal.timeout(10000)});
+ const res=await fetch(c.url,{method:"POST",headers:{Authorization:"Bearer "+c.token,"Content-Type":"application/json"},body:JSON.stringify(command),cache:"no-store",redirect:"error",signal:AbortSignal.timeout(10000)});
  const data=await res.json().catch(()=>null);
  if(!res.ok||!data||data.error)throw new GatewayError(503,"Penyimpanan gateway tidak tersedia.");
  return data.result as T;

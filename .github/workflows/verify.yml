@@ -2,7 +2,7 @@ name: Verify
 on:
   pull_request:
   push:
-    branches: [refactor/ui-ux-v2]
+    branches: [main, refactor/ui-ux-v2]
 permissions:
   contents: read
 jobs:
@@ -15,6 +15,7 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+      - run: python3 -m unittest discover -s local-bridge -p 'test_*.py'
       - run: npm ci
       - run: npx tsc --noEmit
       - run: npm run build

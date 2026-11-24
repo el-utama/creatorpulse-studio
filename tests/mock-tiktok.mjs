@@ -5,6 +5,7 @@ const mockKeys=new Map(),mockHashes=new Map(),mockLists=new Map();
 const reply = data => Response.json({data,error:{code:'ok'}});
 globalThis.fetch = async (input, options) => {
   const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
+  if(url.hostname==='mock-local-bridge.invalid')return originalFetch('http://127.0.0.1:8765/storage/v1',options);
   if(url.hostname==='mock-redis.invalid'){
     const [cmd,...a]=JSON.parse(options.body);let result=null;
     const hash=k=>{if(!mockHashes.has(k))mockHashes.set(k,new Map());return mockHashes.get(k)};
