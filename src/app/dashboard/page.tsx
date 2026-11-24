@@ -18,7 +18,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AnalyticsCards } from "@/components/AnalyticsCards";
+import { StudioOverview } from "@/components/StudioOverview";
 import { VideoList } from "@/components/VideoList";
 import { VideoUploadForm, type PublishPayload } from "@/components/VideoUploadForm";
 import { PublishStatusChecker } from "@/components/PublishStatusChecker";
@@ -183,19 +183,19 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="studio-shell min-h-screen flex flex-col">
       <Navbar />
 
-      <main className="flex-1 bg-muted/40 px-4 sm:px-6 lg:px-8 py-6 lg:py-8" id="main-content">
-        <div className="max-w-[1400px] mx-auto">
+      <main className="flex-1 px-4 sm:px-6 lg:px-8 py-5 lg:py-8" id="main-content">
+        <div className="max-w-[1440px] mx-auto">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 lg:mb-8">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-                Studio Kreator
+                {({analytics:"Ringkasan",content:"Perpustakaan konten",publish:"Buat publikasi",status:"Aktivitas publikasi"} as Record<string,string>)[activeTab] || "Studio Kreator"}
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground">
-                Kelola konten dan pantau performa akun TikTok Anda.
+                Workspace / {({analytics:"Analitik akun",content:"Konten TikTok",publish:"Editor publikasi",status:"Riwayat & status"} as Record<string,string>)[activeTab]}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -231,74 +231,21 @@ export default function DashboardPage() {
           )}
 
           {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-8 lg:items-start">
-            <TabsList aria-label="Navigasi studio" className="sticky top-12 z-20 grid h-auto w-full grid-cols-4 gap-1 bg-background p-1 shadow-sm lg:sticky lg:top-16 lg:w-52 lg:grid-cols-1 lg:justify-start lg:p-2">
-              <TabsTrigger value="analytics" className="flex min-h-12 flex-col gap-1 px-1 text-[11px] sm:text-sm lg:flex-row lg:justify-start lg:px-3"><LayoutDashboard className="h-4 w-4" aria-hidden="true"/> Ringkasan</TabsTrigger>
-              <TabsTrigger value="content" className="flex min-h-12 flex-col gap-1 px-1 text-[11px] sm:text-sm lg:flex-row lg:justify-start lg:px-3"><Film className="h-4 w-4" aria-hidden="true"/> Konten</TabsTrigger>
-              <TabsTrigger value="publish" className="flex min-h-12 flex-col gap-1 px-1 text-[11px] sm:text-sm lg:flex-row lg:justify-start lg:px-3"><PlusSquare className="h-4 w-4" aria-hidden="true"/> Buat post</TabsTrigger>
-              <TabsTrigger value="status" className="flex min-h-12 flex-col gap-1 px-1 text-[11px] sm:text-sm lg:flex-row lg:justify-start lg:px-3"><ListChecks className="h-4 w-4" aria-hidden="true"/> Aktivitas</TabsTrigger>
-            </TabsList>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-7 lg:items-start">
+            <aside className="studio-sidebar"><div className="hidden lg:block px-3 pb-4"><p className="text-[10px] uppercase tracking-[0.2em] font-semibold text-slate-400">Workspace</p><div className="mt-3 flex items-center gap-3 min-w-0"><div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-indigo-100 text-indigo-700 grid place-items-center font-semibold">{profile?.avatar_url?<img src={profile.avatar_url} alt="" className="h-full w-full object-cover"/>:profile?.display_name?.slice(0,1)||"CP"}</div><div className="min-w-0"><p className="truncate text-sm font-semibold">{profile?.display_name||"CreatorPulse"}</p><p className="text-xs text-slate-500">{profile?"Akun TikTok terhubung":"Workspace kreator"}</p></div></div></div><TabsList aria-label="Navigasi studio" className="studio-nav grid h-auto w-full grid-cols-4 gap-1 bg-transparent p-0 lg:grid-cols-1 lg:justify-start">
+              <TabsTrigger value="analytics" className="studio-tab flex min-h-12 flex-col gap-1 px-1 text-[11px] sm:text-sm lg:flex-row lg:justify-start lg:px-3"><LayoutDashboard className="h-4 w-4" aria-hidden="true"/> Ringkasan</TabsTrigger>
+              <TabsTrigger value="content" className="studio-tab flex min-h-12 flex-col gap-1 px-1 text-[11px] sm:text-sm lg:flex-row lg:justify-start lg:px-3"><Film className="h-4 w-4" aria-hidden="true"/> Konten</TabsTrigger>
+              <TabsTrigger value="publish" className="studio-tab flex min-h-12 flex-col gap-1 px-1 text-[11px] sm:text-sm lg:flex-row lg:justify-start lg:px-3"><PlusSquare className="h-4 w-4" aria-hidden="true"/> Buat post</TabsTrigger>
+              <TabsTrigger value="status" className="studio-tab flex min-h-12 flex-col gap-1 px-1 text-[11px] sm:text-sm lg:flex-row lg:justify-start lg:px-3"><ListChecks className="h-4 w-4" aria-hidden="true"/> Aktivitas</TabsTrigger>
+            </TabsList><div className="hidden lg:block mt-5 border-t pt-4 px-3 text-xs text-slate-500 leading-relaxed">Satu akun aktif<br/>Data langsung dari TikTok</div></aside>
             <div className="min-w-0">
 
             {/* Tab: Analytics */}
-            <TabsContent value="analytics" className="mt-4 space-y-4 lg:mt-0">
+            <TabsContent value="analytics" className="mt-4 space-y-5 lg:mt-0">
               {/* Profile + Metrics */}
-              <h2 className="text-lg font-semibold text-foreground mb-4">Profil & Analitik</h2>
+              
               {profile ? (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                  <div className="lg:col-span-4">
-                    <Card>
-                      <CardHeader>
-                        <div className="flex flex-col lg:flex-row items-center gap-2 lg:gap-3 text-center lg:text-left">
-                          <img
-                            src={profile.avatar_url}
-                            alt={profile.display_name}
-                            className="w-12 h-12 rounded-full border border-border mx-auto lg:mx-0"
-                          />
-                          <div className="text-center lg:text-left">
-                            <CardTitle className="text-base font-semibold">
-                              {profile.display_name}
-                            </CardTitle>
-                            <p className="text-xs text-muted-foreground">
-                              Akun TikTok terhubung
-                            </p>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="pt-3">
-                        {profile.bio_description && (
-                          <p className="text-xs text-muted-foreground mb-3">
-                            {profile.bio_description}
-                          </p>
-                        )}
-                        <details className="space-y-1.5"><summary className="cursor-pointer text-xs text-muted-foreground">Detail akun</summary>
-                          <div className="flex justify-between text-xs">
-                            <span className="text-muted-foreground">Open ID</span>
-                            <span className="text-foreground font-mono text-xs truncate">
-                              {profile.open_id}
-                            </span>
-                          </div>
-                          {profile.union_id && (
-                            <div className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">Union ID</span>
-                              <span className="text-foreground font-mono text-xs truncate">
-                                {profile.union_id}
-                              </span>
-                            </div>
-                          )}
-                        </details>
-                      </CardContent>
-                    </Card>
-                  </div>
-                  <div className="lg:col-span-8">
-                    <AnalyticsCards
-                      followers={profile.follower_count}
-                      following={profile.following_count}
-                      likes={profile.likes_count}
-                      videos={profile.video_count}
-                    />
-                  </div>
-                </div>
+                <StudioOverview profile={profile} videos={videos} history={history} onNavigate={setActiveTab} videoError={!!analyticsError}/>
               ) : (
                 <Card>
                   <CardContent className="py-8 text-center space-y-3">
@@ -322,11 +269,11 @@ export default function DashboardPage() {
             </TabsContent>
             <TabsContent value="content" className="mt-4 space-y-4 lg:mt-0">
               {/* Video List */}
-              <h2 className="text-lg font-semibold text-foreground mb-4">Perpustakaan Konten</h2>
+              
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-semibold">
-                    Daftar Video Terbaru
+                    Koleksi video
                   </CardTitle>
                   <CardDescription className="text-xs">
                     Video terbaru dari TikTok. Muat ulang untuk memperbarui data.
@@ -455,7 +402,7 @@ export default function DashboardPage() {
         </div>
       </main>
 
-      <footer className="border-t border-border bg-muted/50 py-6 px-4">
+      <footer className="border-t border-border bg-transparent py-5 px-4">
         <div className="max-w-[1400px] mx-auto flex flex-col sm:flex-row justify-between items-center gap-3 text-xs sm:text-sm text-muted-foreground">
           <p>© {new Date().getFullYear()} CreatorPulse Studio. All rights reserved.</p>
           <div className="flex sm:gap-6 gap-3">

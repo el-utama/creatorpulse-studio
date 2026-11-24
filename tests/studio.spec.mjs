@@ -95,7 +95,7 @@ test('keyboard navigation, narrow layout and logout', async ({page,context}) => 
   await page.setViewportSize({width:320,height:700});
   await page.goto('/dashboard');
   await expect(page.getByText('Test Creator').first()).toBeVisible();
-  const summary = page.getByRole('tab',{name:'Ringkasan'});
+  const summary = page.getByRole('tab',{name:'Ringkasan',exact:true});
   await summary.focus();
   await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('tab',{name:'Konten'})).toHaveAttribute('aria-selected','true');
@@ -120,7 +120,7 @@ test('pagination, refresh and actionable errors',async ({request})=>{
  const creator=await request.get('/api/tiktok/creator',{headers:{Cookie:'creatorpulse_access_token=expired; creatorpulse_refresh_token=refresh-test'}});
  expect(creator.status()).toBe(200);
  expect(creator.headers()['set-cookie']).toContain('renewed');
- const rejected=await request.post('/api/tiktok/publish',{headers,multipart:{requestId:crypto.randomUUID(),mode:'inbox',videoUrl:'https://unverified.example/video.mp4',consent:'true'}});
+ const rejected=await request.post('/api/tiktok/publish',{headers,multipart:{accountId:'mock-stable-account',requestId:crypto.randomUUID(),mode:'inbox',videoUrl:'https://unverified.example/video.mp4',consent:'true'}});
  expect(rejected.status()).toBe(400);
  expect((await rejected.json()).error).toContain('url_ownership_unverified');
  const failure=await request.post('/api/tiktok/publish/status',{headers,data:{publish_ids:['failed-test']}});
