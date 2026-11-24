@@ -26,7 +26,7 @@ export const APP_CONFIG = {
     refreshToken: "creatorpulse_refresh_token",
     oauthState: "creatorpulse_oauth_state",
   },
-  maxDirectUploadMB: 4.5,
+  maxDirectUploadMB: 4,
 } as const;
 
 export type Scopes = (typeof APP_CONFIG.scopes)[number];
