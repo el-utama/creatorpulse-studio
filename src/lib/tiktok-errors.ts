@@ -3,6 +3,7 @@ export class TikTokApiError extends Error {
   constructor(public code: string, public status: number) { super(code); }
 }
 const messages: Record<string,string> = {
+  account_changed:"Akun yang terhubung berubah. Muat ulang dasbor sebelum mempublikasikan.",
   access_token_invalid:"Sesi TikTok berakhir. Hubungkan kembali akun.",
   scope_not_authorized:"Akun belum memberi izin yang diperlukan untuk fitur ini.",
   url_ownership_unverified:"Domain atau awalan URL video belum diverifikasi oleh TikTok. Gunakan sumber terverifikasi atau file lokal.",

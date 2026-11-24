@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { readTikTok, TikTokApiError } from "@/lib/tiktok-errors";
 import { APP_CONFIG } from "@/config/app";
 
 type Reply = { publish_id: string; success?: boolean; warning?: string; message?: string };
@@ -16,11 +17,12 @@ async function redis(command: (string | number)[]) {
   if (!res.ok || data.error) throw new Error("Idempotency storage unavailable");
   return data.result;
 }
-export async function publicationKey(token: string, requestId: string) {
+export async function publicationKey(token: string, requestId: string, expectedAccountId: string) {
   const res = await fetch(APP_CONFIG.tiktokUserInfoUrl+"?fields=open_id",{headers:{Authorization:`Bearer ${token}`},cache:"no-store"});
-  const data = await res.json();
-  const id = data.data?.user?.open_id;
-  if (!res.ok || data.error?.code !== "ok" || typeof id !== "string" || !id) throw new Error("Cannot confirm account");
+  const data = await readTikTok<{user:{open_id:string}}>(res);
+  const id = data.user?.open_id;
+  if (typeof id !== "string" || !id) throw new Error("Cannot confirm account");
+  if (id !== expectedAccountId) throw new TikTokApiError("account_changed",409);
   return "creatorpulse:publish:v1:"+createHash("sha256").update(JSON.stringify([id,requestId])).digest("hex");
 }
 export async function reservePublication(key: string): Promise<RecordValue | null> {

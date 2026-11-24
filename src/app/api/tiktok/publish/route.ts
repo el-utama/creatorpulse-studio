@@ -19,6 +19,8 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const requestId = formData.get("requestId");
     if (typeof requestId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) return NextResponse.json({error:"ID permintaan tidak valid."},{status:400});
+    const expectedAccountId=formData.get("accountId");
+    if(typeof expectedAccountId!=="string" || !expectedAccountId || expectedAccountId.length>256) return NextResponse.json({error:"Akun tujuan belum terkonfirmasi."},{status:400});
     const mode = formData.get("mode") as string;
     const videoUrl = formData.get("videoUrl") as string;
     const caption = formData.get("caption") as string;
@@ -105,7 +107,13 @@ export async function POST(request: Request) {
     }
 
     if (videoBuffer) Object.assign(initBody.source_info as Record<string, unknown>, { video_size: videoBuffer.length, chunk_size: videoBuffer.length, total_chunk_count: 1 });
-    const key = await publicationKey(accessToken, requestId);
+    let key: string;
+    try {key=await publicationKey(accessToken,requestId,expectedAccountId);} catch(error) {
+      if(!isAuthError(error)) throw error;
+      accessToken=await sessionToken(true);
+      if(!accessToken) throw new TikTokApiError("access_token_invalid",401);
+      key=await publicationKey(accessToken,requestId,expectedAccountId);
+    }
     const previous = await reservePublication(key);
     if (previous?.state === "complete") return NextResponse.json(previous.body,{status:previous.status});
     if (previous) return NextResponse.json({error:"Permintaan sebelumnya sedang diproses atau hasilnya belum pasti. Periksa aktivitas TikTok; jangan kirim ulang konten."},{status:409});
@@ -131,7 +139,7 @@ export async function POST(request: Request) {
     }
     return NextResponse.json(
       { error: explainTikTok(error,"Publikasi belum dapat dikonfirmasi. Periksa akun TikTok sebelum mencoba ulang.") },
-      { status: isAuthError(error) ? 401 : error instanceof TikTokApiError && error.status===400 ? 400 : 502 }
+      { status: isAuthError(error) ? 401 : error instanceof TikTokApiError && [400,403,409,429].includes(error.status) ? error.status : 502 }
     );
   }
 }

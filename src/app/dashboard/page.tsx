@@ -51,6 +51,14 @@ export default function DashboardPage() {
   const [formVersion, setFormVersion] = useState(0);
   const [history, setHistory] = useState<{ id: string; createdAt: string }[]>([]);
   const accountId = profile?.open_id;
+  const [pending,setPending]=useState(false);
+  const [pendingAcknowledged,setPendingAcknowledged]=useState(false);
+  const pendingKey=accountId?`creatorpulse:pending:${accountId}`:null;
+  useEffect(()=>{
+    setPendingAcknowledged(false);
+    const sync=()=>{try{setPending(!!pendingKey && !!localStorage.getItem(pendingKey));}catch{setPending(false);}};
+    sync();window.addEventListener("storage",sync);return ()=>window.removeEventListener("storage",sync);
+  },[pendingKey]);
   useEffect(() => {
     setPublishId(null);
     setHistory([]);
@@ -109,12 +117,17 @@ export default function DashboardPage() {
   const [publishWarning, setPublishWarning] = useState<string | null>(null);
   const [publishError, setPublishError] = useState<string | null>(null);
   const handlePublish = async (payload: PublishPayload) => {
-    if (publishLock.current) return;
+    if (publishLock.current || !accountId || !pendingKey || pending) return;
     publishLock.current = true;
     setPublishing(true);
     setPublishError(null);
-    try {
+    const submit = async () => {
+      let reserved=false;
+      try {
+      if(localStorage.getItem(pendingKey)) {setPending(true);throw new Error("Ada publikasi yang belum terkonfirmasi. Periksa TikTok terlebih dahulu.");}
+      localStorage.setItem(pendingKey,JSON.stringify({requestId:payload.requestId,createdAt:Date.now()}));reserved=true;setPending(true);
       const formData = new FormData();
+      formData.append("accountId",accountId);
       formData.append("mode", payload.mode);
       formData.append("videoUrl", payload.videoUrl ?? "");
       formData.append("caption", payload.caption);
@@ -139,6 +152,7 @@ export default function DashboardPage() {
 
       if (!res.ok) {
         const errorData = await res.json();
+        if([400,401,403,429].includes(res.status)) {localStorage.removeItem(pendingKey);reserved=false;setPending(false);}
         throw new Error(errorData.error || "Gagal memulai publikasi");
       }
 
@@ -149,12 +163,20 @@ export default function DashboardPage() {
       const nextHistory = [{ id: data.publish_id as string, createdAt: new Date().toISOString() }, ...history.filter(record => record.id !== data.publish_id)].slice(0, 50);
       setHistory(nextHistory);
       try { if (accountId) localStorage.setItem(`creatorpulse:publications:${accountId}`, JSON.stringify(nextHistory)); } catch { /* Keep in-memory history. */ }
+      localStorage.removeItem(pendingKey);reserved=false;setPending(false);setPendingAcknowledged(false);
       setFormVersion(v => v + 1);
       setActiveTab("status");
     } catch (err) {
       console.error("Publish error:", err);
       setPublishError(err instanceof Error ? err.message : "Gagal memulai publikasi");
-    } finally {
+      if(reserved) setPending(true);
+      }
+    };
+    try {
+      if(navigator.locks) await navigator.locks.request(pendingKey, {ifAvailable:true}, async lock=>{if(!lock) {setPublishError("Publikasi sedang berlangsung di tab lain.");return;} await submit();});
+      else await submit();
+    } catch(error) {setPublishError(error instanceof Error?error.message:"Publikasi tidak dapat dikirim.");}
+    finally {
       publishLock.current = false;
       setPublishing(false);
     }
@@ -330,12 +352,13 @@ export default function DashboardPage() {
               {profile ? (
                 <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-4">
                   <div className="order-2 lg:order-1">
+                    {pending && !publishing && <div role="alert" className="mb-3 space-y-3 rounded-lg border border-destructive p-4 text-sm"><p>Publikasi sebelumnya belum terkonfirmasi. Jangan kirim ulang sebelum memeriksa profil atau inbox TikTok.</p><a className="underline" href="https://www.tiktok.com/" target="_blank" rel="noreferrer">Buka TikTok</a><label className="flex items-center gap-2"><input type="checkbox" checked={pendingAcknowledged} onChange={e=>setPendingAcknowledged(e.target.checked)}/> Saya sudah memeriksa TikTok dan memastikan aman untuk memulai publikasi baru.</label><Button type="button" variant="outline" disabled={!pendingAcknowledged} onClick={()=>{try{if(pendingKey)localStorage.removeItem(pendingKey);setPending(false);setPendingAcknowledged(false);setPublishError(null);setFormVersion(v=>v+1);}catch{setPublishError("Penyimpanan browser tidak tersedia.");}}}>Buka blokir publikasi</Button></div>}
                     <VideoUploadForm
                       key={`${profile.open_id}:${formVersion}`}
                       accountName={profile.display_name}
                       avatarUrl={profile.avatar_url}
                       onPublish={handlePublish}
-                      publishing={publishing}
+                      publishing={publishing || pending}
                       error={publishError}
                     />
                   </div>

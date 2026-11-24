@@ -60,11 +60,13 @@ test('direct post requires account capabilities and explicit privacy', async ({p
 
 test('server publication contracts and validation', async ({request}) => {
   const headers = {Cookie:'creatorpulse_access_token=mock-only'};
-  const base = {requestId:crypto.randomUUID(),mode:'inbox',videoUrl:'https://example.com/video.mp4',consent:'true'};
+  const base = {accountId:'mock-stable-account',requestId:crypto.randomUUID(),mode:'inbox',videoUrl:'https://example.com/video.mp4',consent:'true'};
   const denied = await request.post('/api/tiktok/publish',{multipart:base});
   expect(denied.status()).toBe(401);
   const invalid = await request.post('/api/tiktok/publish',{headers,multipart:{...base,consent:'false'}});
   expect(invalid.status()).toBe(400);
+  const wrongAccount = await request.post('/api/tiktok/publish',{headers,multipart:{...base,accountId:'wrong-account'}});
+  expect(wrongAccount.status()).toBe(409);
   const inbox = await request.post('/api/tiktok/publish',{headers,multipart:base});
   expect(inbox.status()).toBe(200);
   const inboxId = (await inbox.json()).publish_id;
@@ -72,7 +74,7 @@ test('server publication contracts and validation', async ({request}) => {
   const replay = await request.post('/api/tiktok/publish',{headers,multipart:base});
   expect(replay.status()).toBe(200);
   expect((await replay.json()).publish_id).toBe(inboxId);
-  const upload = await request.post('/api/tiktok/publish',{headers,multipart:{requestId:crypto.randomUUID(),mode:'inbox',consent:'true',file:{name:'test.mp4',mimeType:'video/mp4',buffer:Buffer.from([1,2,3,4])}}});
+  const upload = await request.post('/api/tiktok/publish',{headers,multipart:{accountId:'mock-stable-account',requestId:crypto.randomUUID(),mode:'inbox',consent:'true',file:{name:'test.mp4',mimeType:'video/mp4',buffer:Buffer.from([1,2,3,4])}}});
   expect(upload.status()).toBe(200);
   const caps = await request.get('/api/tiktok/creator',{headers});
   expect((await caps.json()).privacy_level_options).toEqual(['SELF_ONLY']);
@@ -136,4 +138,21 @@ test('content loads another page and searches loaded descriptions',async ({page,
  await page.getByLabel('Cari video').fill('musik unik');
  await expect(page.getByText('Video baru',{exact:true})).toHaveCount(0);
  await expect(page.getByText('Video lama',{exact:true})).toBeVisible();
+});
+
+test('uncertain publication stays blocked after reload',async ({page,context})=>{
+ await context.addCookies([{name:'creatorpulse_access_token',value:'mock-only',url:'http://localhost:3000'}]);
+ await page.route('**/api/tiktok/analytics',route=>route.fulfill({json:{user_info:{open_id:'uncertain-account',display_name:'Test Creator',avatar_url:'',follower_count:0,following_count:0,likes_count:0,video_count:0},videos:{data:[]}}}));
+ await page.route('**/api/tiktok/publish',route=>route.fulfill({status:502,json:{error:'Hasil belum pasti'}}));
+ await page.goto('/dashboard');await page.getByRole('tab',{name:'Buat post'}).click();
+ await page.getByLabel('Tautan video HTTPS').fill('https://example.com/video.mp4');
+ await page.getByRole('button',{name:'Tinjau publikasi'}).click();
+ await page.locator('#publication-consent').click();
+ await page.getByRole('button',{name:'Kirim ke inbox TikTok'}).click();
+ await expect(page.getByRole('button',{name:'Buka blokir publikasi'})).toBeDisabled();
+ await page.reload();await page.getByRole('tab',{name:'Buat post'}).click();
+ await expect(page.getByRole('button',{name:'Buka blokir publikasi'})).toBeDisabled();
+ await page.getByLabel('Saya sudah memeriksa TikTok dan memastikan aman untuk memulai publikasi baru.').check();
+ await page.getByRole('button',{name:'Buka blokir publikasi'}).click();
+ await expect(page.getByRole('button',{name:'Buka blokir publikasi'})).toHaveCount(0);
 });
