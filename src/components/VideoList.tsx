@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate, formatNumber } from "@/lib/utils";
 
@@ -18,6 +19,9 @@ interface VideoItem {
 }
 
 export function VideoList({ videos }: { videos: VideoItem[] }) {
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState("recent");
+  const filtered = [...videos].filter(v => (v.title ?? v.video_description ?? "").toLowerCase().includes(query.toLowerCase())).sort((a,b) => sort === "views" ? b.view_count-a.view_count : sort === "likes" ? b.like_count-a.like_count : Number(b.create_time)-Number(a.create_time));
   if (!videos || videos.length === 0) {
     return (
       <div className="text-center py-12">
@@ -27,8 +31,8 @@ export function VideoList({ videos }: { videos: VideoItem[] }) {
   }
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-      {videos.map((video) => (
+    <div className="space-y-4"><div className="flex flex-wrap gap-3"><label className="flex-1 text-sm">Cari video<input className="mt-1 block w-full rounded-md border bg-background p-2" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Cari judul"/></label><label className="text-sm">Urutkan<select className="mt-1 block rounded-md border bg-background p-2" value={sort} onChange={e=>setSort(e.target.value)}><option value="recent">Terbaru</option><option value="views">Tayangan</option><option value="likes">Suka</option></select></label></div><p className="text-sm text-muted-foreground">{filtered.length} dari {videos.length} video</p><div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+      {filtered.map((video) => (
         <Card key={video.id} className="overflow-hidden shadow-none">
           <div className="relative aspect-[9/16] w-full bg-muted overflow-hidden">
             <Image
@@ -72,6 +76,6 @@ export function VideoList({ videos }: { videos: VideoItem[] }) {
           </CardFooter>
         </Card>
       ))}
-    </div>
+    </div></div>
   );
 }
