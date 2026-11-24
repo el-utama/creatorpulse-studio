@@ -58,7 +58,7 @@ export function Navbar() {
             </a>
           ) : (
             <Button
-              variant="destructive"
+              variant="outline"
               size="sm"
               onClick={async () => {
                 try {
@@ -82,6 +82,7 @@ export function Navbar() {
             variant="ghost"
             size="lg"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label={mobileMenuOpen ? "Tutup menu" : "Buka menu"}
             aria-expanded={mobileMenuOpen}
             aria-controls="mobile-menu"
             className="h-11 w-11"
@@ -133,11 +134,11 @@ export function Navbar() {
                   href="/api/auth/tiktok"
                   className="block w-full px-4 py-2 text-sm font-medium text-center bg-tiktok-primary text-white rounded-lg hover:bg-tiktok-primary/90 transition-colors"
                 >
-                  Connect with TikTok
+                  Hubungkan TikTok
                 </a>
               ) : (
                 <Button
-                  variant="destructive"
+                  variant="outline"
                   size="sm"
                   onClick={async () => {
                     setMobileMenuOpen(false);
