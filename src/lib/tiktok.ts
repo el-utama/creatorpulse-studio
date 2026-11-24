@@ -216,7 +216,7 @@ export async function uploadVideoChunk(
     },
     body: fileBuffer as unknown as BodyInit,
   });
-  if (!response.ok) throw new Error(`Video transfer failed: ${response.status}`);
+  if (response.status !== 201) throw new Error(`Video transfer not confirmed: ${response.status}`);
   return response;
 }
 export interface CreatorCapabilities {
