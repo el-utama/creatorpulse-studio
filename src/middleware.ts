@@ -15,7 +15,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Redirect authenticated users away from landing page
-  if (pathname === "/" && accessToken) {
+  if (pathname === "/" && accessToken && !request.nextUrl.searchParams.has("error")) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
