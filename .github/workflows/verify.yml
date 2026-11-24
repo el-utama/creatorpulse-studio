@@ -20,3 +20,8 @@ jobs:
       - run: npm run build
         env:
           APP_URL: http://localhost:3000
+      - run: npm install --no-save --package-lock=false @playwright/test@1.56.1
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+        env:
+          APP_URL: http://localhost:3000
