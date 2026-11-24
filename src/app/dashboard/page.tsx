@@ -22,7 +22,7 @@ import { AnalyticsCards } from "@/components/AnalyticsCards";
 import { VideoList } from "@/components/VideoList";
 import { VideoUploadForm, type PublishPayload } from "@/components/VideoUploadForm";
 import { PublishStatusChecker } from "@/components/PublishStatusChecker";
-import { RefreshCw, LogOut, ShieldAlert } from "lucide-react";
+import { RefreshCw, ShieldAlert, LayoutDashboard, Film, PlusSquare, ListChecks } from "lucide-react";
 
 interface UserProfile {
   open_id: string;
@@ -39,7 +39,8 @@ interface UserProfile {
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("analytics");
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [videos, setVideos] = useState<any[]>([]);
+  const [videos, setVideos] = useState<import("@/types/tiktok").TikTokVideo[]>([]);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
   const [publishId, setPublishId] = useState<string | null>(null);
@@ -68,6 +69,7 @@ export default function DashboardPage() {
       const data = await res.json();
       setProfile(data.user_info ?? null);
       setVideos(data.videos?.data ?? []);
+      setLastUpdated(new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }));
     } catch (err) {
       setAnalyticsError(err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -131,7 +133,7 @@ export default function DashboardPage() {
     <div className="min-h-screen flex flex-col">
       <Navbar />
 
-      <main className="flex-1 px-3 sm:px-4 lg:px-6 py-4 sm:py-6" id="main-content">
+      <main className="flex-1 bg-muted/40 px-4 sm:px-6 lg:px-8 py-6 lg:py-8" id="main-content">
         <div className="max-w-[1400px] mx-auto">
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
@@ -140,10 +142,12 @@ export default function DashboardPage() {
                 Studio Kreator
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground">
-                Kelola profil, unggah video, dan pantau analitik TikTok Anda.
+                Kelola konten dan pantau performa akun TikTok Anda.
               </p>
             </div>
-            <div className="flex sm:flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {lastUpdated && <span className="text-xs text-muted-foreground">Diperbarui {lastUpdated}</span>}
+              <Button onClick={() => setActiveTab("publish")} disabled={!profile || publishing}><PlusSquare className="mr-2 h-4 w-4" aria-hidden="true"/> Buat postingan</Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -175,20 +179,16 @@ export default function DashboardPage() {
 
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="w-full overflow-x-auto scrollbar-hidden pb-1">
-              <TabsTrigger value="analytics" className="text-xs sm:text-sm">
-                Profil & Analitik
-              </TabsTrigger>
-              <TabsTrigger value="publish" className="text-xs sm:text-sm">
-                Upload & Posting
-              </TabsTrigger>
-              <TabsTrigger value="status" className="text-xs sm:text-sm">
-                Riwayat Publikasi
-              </TabsTrigger>
+            <TabsList aria-label="Navigasi studio" className="sticky top-12 z-20 grid h-auto w-full grid-cols-4 gap-1 bg-background p-1 shadow-sm lg:sticky lg:top-16 lg:float-left lg:w-52 lg:grid-cols-1 lg:justify-start lg:p-2">
+              <TabsTrigger value="analytics" className="flex min-h-12 flex-col gap-1 px-1 text-[11px] sm:text-sm lg:flex-row lg:justify-start lg:px-3"><LayoutDashboard className="h-4 w-4" aria-hidden="true"/> Ringkasan</TabsTrigger>
+              <TabsTrigger value="content" className="flex min-h-12 flex-col gap-1 px-1 text-[11px] sm:text-sm lg:flex-row lg:justify-start lg:px-3"><Film className="h-4 w-4" aria-hidden="true"/> Konten</TabsTrigger>
+              <TabsTrigger value="publish" className="flex min-h-12 flex-col gap-1 px-1 text-[11px] sm:text-sm lg:flex-row lg:justify-start lg:px-3"><PlusSquare className="h-4 w-4" aria-hidden="true"/> Buat post</TabsTrigger>
+              <TabsTrigger value="status" className="flex min-h-12 flex-col gap-1 px-1 text-[11px] sm:text-sm lg:flex-row lg:justify-start lg:px-3"><ListChecks className="h-4 w-4" aria-hidden="true"/> Aktivitas</TabsTrigger>
             </TabsList>
+            <div className="min-w-0 lg:ml-60">
 
             {/* Tab: Analytics */}
-            <TabsContent value="analytics" className="mt-4 space-y-4">
+            <TabsContent value="analytics" className="mt-4 space-y-4 lg:mt-0">
               {/* Profile + Metrics */}
               <h2 className="text-lg font-semibold text-foreground mb-4">Profil & Analitik</h2>
               {profile ? (
@@ -218,7 +218,7 @@ export default function DashboardPage() {
                             {profile.bio_description}
                           </p>
                         )}
-                        <div className="space-y-1.5">
+                        <details className="space-y-1.5"><summary className="cursor-pointer text-xs text-muted-foreground">Detail akun</summary>
                           <div className="flex justify-between text-xs">
                             <span className="text-muted-foreground">Open ID</span>
                             <span className="text-foreground font-mono text-xs truncate">
@@ -233,7 +233,7 @@ export default function DashboardPage() {
                               </span>
                             </div>
                           )}
-                        </div>
+                        </details>
                       </CardContent>
                     </Card>
                   </div>
@@ -266,6 +266,8 @@ export default function DashboardPage() {
                 </Card>
               )}
 
+            </TabsContent>
+            <TabsContent value="content" className="mt-4 space-y-4 lg:mt-0">
               {/* Video List */}
               <h2 className="text-lg font-semibold text-foreground mb-4 mt-8">Daftar Video Terbaru</h2>
               <Card>
@@ -290,7 +292,7 @@ export default function DashboardPage() {
             </TabsContent>
 
             {/* Tab: Publish */}
-            <TabsContent value="publish" className="mt-4 space-y-4">
+            <TabsContent forceMount hidden={activeTab !== "publish"} value="publish" className="mt-4 space-y-4 lg:mt-0">
               {profile ? (
                 <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-4">
                   <div className="order-2 lg:order-1">
@@ -362,7 +364,7 @@ export default function DashboardPage() {
             </TabsContent>
 
             {/* Tab: Status */}
-            <TabsContent value="status" className="mt-4 space-y-4">
+            <TabsContent value="status" className="mt-4 space-y-4 lg:mt-0">
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-semibold">
@@ -389,6 +391,7 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
             </TabsContent>
+            </div>
           </Tabs>
         </div>
       </main>
