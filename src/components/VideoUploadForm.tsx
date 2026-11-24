@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -15,6 +15,8 @@ interface UploadFormProps {
   accountName: string;
   avatarUrl: string;
   onPublish: (payload: PublishPayload) => void;
+  publishing?: boolean;
+  error?: string | null;
 }
 
 export interface PublishPayload {
@@ -29,12 +31,12 @@ export interface PublishPayload {
   consent: boolean;
 }
 
-export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFormProps) {
+export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing = false, error }: UploadFormProps) {
   const [mode, setMode] = useState<"inbox" | "profile">("inbox");
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
-  const [privacy, setPrivacy] = useState("PUBLIC_TO_EVERYONE");
+  const [privacy, setPrivacy] = useState("");
   const [disableComment, setDisableComment] = useState(false);
   const [disableDuet, setDisableDuet] = useState(false);
   const [disableStitch, setDisableStitch] = useState(false);
@@ -42,21 +44,25 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
 
+  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0] ?? null;
     if (!selectedFile) return;
 
-    const validTypes = ["video/mp4", "video/quicktime", "video/x-msvideo"];
+    setFile(null);
+    setPreviewUrl(null);
+    setConsent(false);
+    const validTypes = ["video/mp4", "video/quicktime"];
     if (!validTypes.includes(selectedFile.type)) {
       setFileError("Hanya file .mp4 atau .mov yang didukung.");
       return;
     }
 
-    const maxBytes = 4.5 * 1024 * 1024;
+    const maxBytes = 4 * 1024 * 1024;
     if (selectedFile.size > maxBytes) {
-      setFileError("File terlalu besar untuk upload langsung (maks 4.5 MB). Gunakan opsi PULL_FROM_URL.");
+      setFileError("File terlalu besar untuk upload langsung (maks 4 MB). Gunakan opsi PULL_FROM_URL.");
       return;
     }
 
@@ -70,11 +76,13 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setFile(null);
     setPreviewUrl(null);
+    setConsent(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, [previewUrl]);
 
   const isDirectUpload = mode === "profile" && !!file && previewUrl;
-  const canPublish = consent && (isDirectUpload || (mode === "inbox" && !!videoUrl));
+  const validUrl = (() => { try { return new URL(videoUrl ?? "").protocol === "https:"; } catch { return false; } })();
+  const canPublish = !publishing && consent && (mode === "profile" ? !!isDirectUpload && !!privacy : validUrl);
 
   return (
     <Card className="overflow-hidden">
@@ -99,7 +107,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
             className="flex items-center gap-2 border border-input rounded-md p-1"
           >
             <button
-              onClick={() => setMode("inbox")}
+              onClick={() => { setMode("inbox"); setConsent(false); }}
               aria-pressed={mode === "inbox"}
               className={`flex-1 h-11 py-2 text-xs font-medium rounded-md transition-all ${
                 mode === "inbox"
@@ -110,7 +118,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
               Draft / Inbox
             </button>
             <button
-              onClick={() => setMode("profile")}
+              onClick={() => { setMode("profile"); setConsent(false); }}
               aria-pressed={mode === "profile"}
               className={`flex-1 h-11 py-2 text-xs font-medium rounded-md transition-all ${
                 mode === "profile"
@@ -127,16 +135,17 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
         {mode === "inbox" ? (
           <div className="space-y-2">
             <Label htmlFor="video-url" className="text-xs font-medium">
-              URL Video (PULL_FROM_URL)
+              Tautan video HTTPS
             </Label>
             <Input
               id="video-url"
               placeholder="https://contoh.com/video.mp4"
               value={videoUrl ?? ""}
-              onChange={(e) => setVideoUrl(e.target.value)}
+              type="url"
+              onChange={(e) => { setVideoUrl(e.target.value); setConsent(false); }}
             />
             <p className="text-xs text-muted-foreground">
-              Untuk file lebih besar dari 4.5 MB, unggah ke penyimpanan publik.
+              Gunakan URL dari domain atau awalan URL yang telah diverifikasi untuk aplikasi TikTok.
             </p>
           </div>
         ) : (
@@ -164,7 +173,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
               <div className="relative group">
                 <video
                   src={previewUrl}
-                  className="w-full h-40 object-cover rounded-lg border border-border"
+                  className="w-full max-h-[420px] aspect-[9/16] object-contain bg-black rounded-lg border border-border"
                   controls
                 />
                 <button
@@ -177,7 +186,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
               </div>
             )}
             <p className="text-xs text-muted-foreground">
-              Batas upload langsung lewat serverless:~4.5 MB.
+              Batas upload langsung lewat serverless:~4 MB.
             </p>
           </div>
         )}
@@ -185,34 +194,34 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
         {/* Caption */}
         <div className="space-y-1.5">
           <Label htmlFor="caption" className="text-xs font-medium">
-            Caption / Title
+            Caption video
           </Label>
           <Textarea
             id="caption"
             rows={2}
             placeholder="Tulis caption video di sini..."
             value={caption}
-            onChange={(e) => setCaption(e.target.value)}
+            onChange={(e) => { setCaption(e.target.value); setConsent(false); }}
           />
         </div>
 
         {/* Privacy */}
         <div className="space-y-1.5">
           <Label htmlFor="privacy" className="text-xs font-medium">
-            Privacy Level
+            Visibilitas video
           </Label>
           <Select
             value={privacy}
-            onValueChange={setPrivacy}
+            onValueChange={(v) => { setPrivacy(v); setConsent(false); }}
           >
             <SelectTrigger id="privacy" className="h-11">
               <SelectValue placeholder="Pilih privacy" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="PUBLIC_TO_EVERYONE">Public to Everyone</SelectItem>
-              <SelectItem value="FOLLOWER_OF_CREATOR">Follower of Creator</SelectItem>
-              <SelectItem value="MUTUAL_FOLLOW_FRIENDS">Mutual Follow Friends</SelectItem>
-              <SelectItem value="SELF_ONLY">Self Only</SelectItem>
+              <SelectItem value="PUBLIC_TO_EVERYONE">Semua orang</SelectItem>
+              <SelectItem value="FOLLOWER_OF_CREATOR">Pengikut</SelectItem>
+              <SelectItem value="MUTUAL_FOLLOW_FRIENDS">Teman yang saling mengikuti</SelectItem>
+              <SelectItem value="SELF_ONLY">Hanya saya</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -222,34 +231,34 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
           <label className="flex items-center gap-2 cursor-pointer text-sm leading-none">
             <Checkbox
               checked={disableComment}
-              onCheckedChange={(v) => setDisableComment(v === true)}
+              onCheckedChange={(v) => { setDisableComment(v === true); setConsent(false); }}
               className="h-11 w-11"
-              aria-label="Disable Comment"
+              aria-label="Nonaktifkan komentar"
             />
             <span className="flex items-center gap-1 text-sm">
-              Disable Comment
+              Nonaktifkan komentar
             </span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer text-sm leading-none">
             <Checkbox
               checked={disableDuet}
-              onCheckedChange={(v) => setDisableDuet(v === true)}
+              onCheckedChange={(v) => { setDisableDuet(v === true); setConsent(false); }}
               className="h-11 w-11"
-              aria-label="Disable Duet"
+              aria-label="Nonaktifkan duet"
             />
             <span className="flex items-center gap-1 text-sm">
-              Disable Duet
+              Nonaktifkan duet
             </span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer text-sm leading-none">
             <Checkbox
               checked={disableStitch}
-              onCheckedChange={(v) => setDisableStitch(v === true)}
+              onCheckedChange={(v) => { setDisableStitch(v === true); setConsent(false); }}
               className="h-11 w-11"
-              aria-label="Disable Stitch"
+              aria-label="Nonaktifkan stitch"
             />
             <span className="flex items-center gap-1 text-sm">
-              Disable Stitch
+              Nonaktifkan stitch
             </span>
           </label>
         </div>
@@ -257,6 +266,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
         {/* Consent */}
         <div className="flex items-start gap-2 pt-2 border-t border-border">
           <Checkbox
+            id="publication-consent"
             checked={consent}
             onCheckedChange={(v) => setConsent(v === true)}
             aria-required="true"
@@ -264,12 +274,13 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
             aria-label="Saya menyetujui ketentuan dan mengizinkan CreatorPulse Studio memposting video ini ke akun TikTok saya."
             className="h-11 w-11"
           />
-          <label id="consent-hint" className="text-sm leading-relaxed">
+          <label htmlFor="publication-consent" id="consent-hint" className="text-sm leading-relaxed">
             Saya menyetujui ketentuan dan mengizinkan CreatorPulse Studio memposting video ini ke akun TikTok saya.
           </label>
         </div>
       </CardContent>
-      <CardFooter>
+      <CardFooter className="flex-col items-stretch gap-2">
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <Button
           onClick={() => {
             onPublish({
@@ -288,10 +299,10 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
           className="w-full py-2.5 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
           title={!canPublish ? "Centang persetujuan dan lengkapi semua input sebelum publish" : undefined}
         >
-          {canPublish ? "Publish to TikTok" : "Lengkapi persetujuan & input"}
+          {publishing ? "Mengirim video…" : mode === "inbox" ? "Kirim ke inbox TikTok" : "Publikasikan ke TikTok"}
         </Button>
         {!consent && (
-          <p id="consent-hint" className="text-xs text-muted-foreground mt-2">
+          <p className="text-xs text-muted-foreground mt-2">
             Persetujuan eksplisit diperlukan sebelum tombol publish diaktifkan.
           </p>
         )}
