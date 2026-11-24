@@ -15,7 +15,7 @@ test('mobile dashboard: review, publish once, status, reload history', async ({p
   await page.route('**/api/tiktok/publish', async route=>{requests++; await route.fulfill({json:{publish_id:'mock-publish-1'}});});
   await page.route('**/api/tiktok/publish/status', route=>route.fulfill({json:{status:'SEND_TO_USER_INBOX'}}));
   await page.goto('/dashboard');
-  await expect(page.getByText('Test Creator').first()).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Halo, Test Creator',exact:true})).toBeVisible();
   await page.getByRole('tab',{name:'Buat post',exact:true}).click();
   await page.getByLabel('Tautan video HTTPS').fill('http://example.com/video.mp4');
   await expect(page.getByRole('button',{name:'Tinjau publikasi'})).toBeDisabled();
@@ -94,7 +94,7 @@ test('keyboard navigation, narrow layout and logout', async ({page,context}) => 
   await page.route('**/api/tiktok/analytics', route=>route.fulfill({json:{user_info:{open_id:'layout-account',display_name:'Test Creator',avatar_url:'',follower_count:12345678,following_count:2,likes_count:20,video_count:0},videos:{data:[]}}}));
   await page.setViewportSize({width:320,height:700});
   await page.goto('/dashboard');
-  await expect(page.getByText('Test Creator').first()).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Halo, Test Creator',exact:true})).toBeVisible();
   const summary = page.getByRole('tab',{name:'Ringkasan',exact:true});
   await summary.focus();
   await page.keyboard.press('ArrowRight');
