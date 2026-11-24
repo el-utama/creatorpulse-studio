@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate, formatNumber } from "@/lib/utils";
 
 interface VideoItem {
@@ -26,47 +26,42 @@ export function VideoList({ videos }: { videos: VideoItem[] }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
       {videos.map((video) => (
-        <Card key={video.id} className="overflow-hidden">
-          <div className="relative aspect-video w-full bg-muted">
+        <Card key={video.id} className="cursor-pointer hover:border-tiktok-primary/50 transition-colors">
+          <div className="relative aspect-video w-full bg-muted overflow-hidden">
             <img
               src={video.cover_image_url}
               alt={video.title}
               className="absolute inset-0 w-full h-full object-cover"
               loading="lazy"
             />
-          </div>
-          <CardHeader>
-            <CardTitle className="text-sm line-clamp-1">{video.title}</CardTitle>
-            <CardDescription className="text-xs text-muted-foreground">
+            <div className="absolute bottom-1 right-1 bg-black/60 text-white text-xs px-1 py-0.5 rounded">
               {formatDate(video.create_time)}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-3 grid grid-cols-4 gap-2 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <span className="text-foreground font-medium">👁</span>
-              {formatNumber(video.view_count)}
             </div>
-            <div className="flex items-center gap-1">
-              <span className="text-foreground font-medium">❤</span>
-              {formatNumber(video.like_count)}
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="text-foreground font-medium">💬</span>
-              {formatNumber(video.comment_count)}
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="text-foreground font-medium">🔁</span>
-              {formatNumber(video.share_count)}
+          </div>
+          <CardContent className="p-2 pt-1">
+            <CardTitle className="text-xs font-medium line-clamp-2 text-foreground mb-1">
+              {video.title}
+            </CardTitle>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                👁 {formatNumber(video.view_count)}
+              </span>
+              <span className="flex items-center gap-1">
+                ❤ {formatNumber(video.like_count)}
+              </span>
+              <span className="flex items-center gap-1">
+                💬 {formatNumber(video.comment_count)}
+              </span>
             </div>
           </CardContent>
-          <CardFooter className="p-3">
+          <CardFooter className="p-2 pt-0">
             <a
               href={video.share_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-tiktok-primary hover:underline font-medium"
+              className="text-xs text-tiktok-primary hover:underline font-medium block text-center"
             >
               Buka di TikTok →
             </a>
