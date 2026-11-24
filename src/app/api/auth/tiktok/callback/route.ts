@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { APP_CONFIG } from "@/config/app";
 import { accounts,activate,clearLegacy,currentSlot,identity,storeAccount,slotFor,ADD_COOKIE,MAX_ACCOUNTS } from "@/lib/accounts";
+import {validBinding} from "@/lib/gateway/store";
+import {saveAccount,profileIdentity} from "@/lib/gateway/vault";
 import { sessionToken } from "@/lib/session";
 import { exchangeCodeForToken } from "@/lib/tiktok";
 
@@ -21,6 +23,13 @@ export async function GET(request: Request) {
     if(typeof tokens.open_id!=="string"||!tokens.open_id)throw Error("identity_unavailable");
     return {slot:slotFor(tokens.open_id),name:"Akun TikTok"};
   });
+  if(validBinding(account.slot,jar.get("creatorpulse_account_"+account.slot+"_v")?.value)){
+    const user=await profileIdentity(tokens.access_token);
+    if(!tokens.refresh_token)return fail("connection_failed");
+    await saveAccount({slot:account.slot,openId:user.open_id,name:user.display_name||account.name,access:tokens.access_token,refresh:tokens.refresh_token,expiresAt:Date.now()+(tokens.expires_in||3600)*1000,updatedAt:new Date().toISOString()});
+    activate(jar,account.slot);clearLegacy(jar);
+    return NextResponse.redirect(new URL("/dashboard?account_changed=1",base));
+  }
   const legacy=!currentSlot(jar) && !!(jar.get(APP_CONFIG.cookieNames.accessToken)?.value||jar.get(APP_CONFIG.cookieNames.refreshToken)?.value);
   if(legacy&&adding){
     const oldToken=await sessionToken();

@@ -27,6 +27,7 @@ export async function exchangeCodeForToken(
   code: string
 ): Promise<TikTokTokenResponse> {
   const res = await fetch(APP_CONFIG.tiktokTokenUrl, {
+    signal: AbortSignal.timeout(10000),
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
