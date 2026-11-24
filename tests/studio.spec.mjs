@@ -156,3 +156,10 @@ test('uncertain publication stays blocked after reload',async ({page,context})=>
  await page.getByRole('button',{name:'Buka blokir publikasi'}).click();
  await expect(page.getByRole('button',{name:'Buka blokir publikasi'})).toHaveCount(0);
 });
+
+test('studio design overview and library views',async ({page,context})=>{
+ await context.addCookies([{name:'creatorpulse_access_token',value:'mock-only',url:'http://localhost:3000'}]);
+ await page.route('**/api/tiktok/analytics',route=>route.fulfill({json:{user_info:{open_id:'design-account',display_name:'Test Creator',avatar_url:'',follower_count:1000,following_count:20,likes_count:500,video_count:1},videos:{data:[{id:'design-v',title:'Sample video',cover_image_url:'',create_time:1,share_url:'https://www.tiktok.com/',view_count:100,like_count:10,comment_count:2,share_count:1}]}}}));
+ for(const width of [1440,768,390,320]){await page.setViewportSize({width,height:900});await page.goto('/dashboard');await expect(page.getByRole('heading',{name:'Performa konten'})).toBeVisible();await expect(page.getByRole('heading',{name:'Video teratas'})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);await page.screenshot({path:'test-results/design-overview-'+width+'.png',fullPage:true});}
+ await page.getByRole('tab',{name:'Konten',exact:true}).click();await page.getByRole('button',{name:'Tampilan grid'}).click();await expect(page.getByRole('button',{name:'Tampilan grid'})).toHaveAttribute('aria-pressed','true');await expect(page.getByText('Sample video',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Tampilan daftar'}).click();await expect(page.getByRole('button',{name:'Tampilan daftar'})).toHaveAttribute('aria-pressed','true');
+});

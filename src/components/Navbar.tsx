@@ -24,10 +24,10 @@ export function Navbar() {
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="flex h-12 items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className="flex h-14 items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-2">
-          <Play className="h-6 w-6 text-tiktok-primary" aria-hidden="true" />
-          <Link href="/" className="font-semibold tracking-tight">
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-indigo-700 text-white"><Play className="h-4 w-4" aria-hidden="true" /></span>
+          <Link href="/" className="text-sm sm:text-base font-semibold tracking-tight">
             CreatorPulse Studio
           </Link>
         </div>
@@ -61,7 +61,7 @@ export function Navbar() {
         {/* Desktop auth actions */}
         <div className="hidden md:flex items-center gap-3">
           {pathname !== "/dashboard" ? (
-            <a href="/api/auth/tiktok" className="inline-flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors">
+            <a href="/api/auth/tiktok" className="inline-flex items-center gap-2 bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-800 transition-colors">
               <Play className="h-4 w-4" aria-hidden="true" />
               Hubungkan TikTok
             </a>

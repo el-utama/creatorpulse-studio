@@ -111,26 +111,26 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
   const canPublish = !publishing && consent && review && ready;
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden rounded-2xl border-slate-200 shadow-none">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Video className="h-5 w-5 text-tiktok-primary" aria-hidden="true" />
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Video className="h-5 w-5 text-indigo-700" aria-hidden="true" />
           Unggah & Publikasikan Video
         </CardTitle>
         <CardDescription className="text-sm">
           Publikasi ke akun <strong>{accountName}</strong>. Pilih mode dan atur opsi sebelum menerbitkan.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
         {/* Tujuan publikasi */}
-        <div className="space-y-2">
+        <div className="space-y-3 rounded-xl border bg-slate-50 p-4">
           <Label htmlFor="mode" className="text-xs font-medium text-muted-foreground">
             Mode Posting
           </Label>
           <div
             role="group"
             aria-label="Mode posting"
-            className="flex items-center gap-2 border border-input rounded-md p-1"
+            className="flex items-center gap-2 rounded-xl bg-white border p-1"
           >
             <button
               onClick={() => { setMode("inbox"); setConsent(false); setReview(false); }}
@@ -138,7 +138,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
               aria-pressed={mode === "inbox"}
               className={`flex-1 h-11 py-2 text-xs font-medium rounded-md transition-all ${
                 mode === "inbox"
-                  ? "bg-background text-foreground shadow-sm border border-border"
+                  ? "bg-indigo-700 text-white shadow-sm"
                   : "text-muted-foreground hover:bg-muted"
               }`}
             >
@@ -159,7 +159,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
           </div>
         </div>
 
-        <div className="space-y-2"><h3 className="text-sm font-medium">Sumber video</h3><div role="group" aria-label="Sumber video" className="flex gap-2"><Button type="button" variant={source === "url" ? "default" : "outline"} aria-pressed={source === "url"} disabled={publishing} onClick={() => {if (source === "url") return;setSource("url");setDuration(null);setConsent(false);setReview(false);}}>Tautan HTTPS</Button><Button type="button" variant={source === "file" ? "default" : "outline"} aria-pressed={source === "file"} disabled={publishing} onClick={() => {if (source === "file") return;setSource("file");setDuration(null);setConsent(false);setReview(false);}}>File perangkat</Button></div></div>
+        <div className="space-y-2"><h3 className="text-sm font-medium">Sumber video</h3><div role="group" aria-label="Sumber video" className="flex flex-wrap gap-2"><Button type="button" variant={source === "url" ? "default" : "outline"} aria-pressed={source === "url"} disabled={publishing} onClick={() => {if (source === "url") return;setSource("url");setDuration(null);setConsent(false);setReview(false);}}>Tautan HTTPS</Button><Button type="button" variant={source === "file" ? "default" : "outline"} aria-pressed={source === "file"} disabled={publishing} onClick={() => {if (source === "file") return;setSource("file");setDuration(null);setConsent(false);setReview(false);}}>File perangkat</Button></div></div>
         {source === "url" ? (
           <div className="space-y-2">
             <Label htmlFor="video-url" className="text-xs font-medium">
@@ -311,7 +311,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
         <fieldset className="space-y-3 rounded-lg border p-3"><legend className="px-1 text-sm font-medium">Pengungkapan konten</legend><label className="flex items-center gap-2 text-sm"><Checkbox disabled={publishing} checked={commercial} onCheckedChange={v=>{setCommercial(v===true);setBrandOrganic(false);setBrandContent(false);setConsent(false);setReview(false);}}/> Konten promosi atau komersial</label>{commercial && <><label className="flex items-center gap-2 text-sm"><Checkbox disabled={publishing} checked={brandOrganic} onCheckedChange={v=>{setBrandOrganic(v===true);setConsent(false);setReview(false);}}/> Merek atau bisnis sendiri</label><label className="flex items-center gap-2 text-sm"><Checkbox checked={brandContent} disabled={publishing || privacy==="SELF_ONLY" || privacy==="FOLLOWER_OF_CREATOR"} onCheckedChange={v=>{setBrandContent(v===true);setConsent(false);setReview(false);}}/> Kemitraan berbayar dengan pihak ketiga</label><p className="text-xs text-muted-foreground">{brandContent?"Label: kemitraan berbayar. Pilih visibilitas publik atau teman.":brandOrganic?"Label: konten promosi.":"Pilih minimal satu kategori. Kemitraan berbayar tidak dapat bersifat privat."}</p></>}<label className="flex items-center gap-2 text-sm"><Checkbox disabled={publishing} checked={isAigc} onCheckedChange={v=>{setIsAigc(v===true);setConsent(false);setReview(false);}}/> Konten dihasilkan AI</label></fieldset>
         </>}
         {!review && <Button type="button" variant="outline" disabled={!ready || publishing} onClick={() => setReview(true)}>Tinjau publikasi</Button>}
-        {review && <section className="space-y-3 rounded-lg border p-4" aria-label="Tinjauan publikasi"><h3 className="font-semibold">Konfirmasi publikasi</h3><p className="text-sm">Akun: {accountName}</p><p className="text-sm break-all">Video: {source === "url" ? videoUrl : file?.name}</p><p className="text-sm">{mode === "inbox" ? "Dikirim ke inbox; selesaikan posting di TikTok." : `Visibilitas: ${({PUBLIC_TO_EVERYONE:"Semua orang",FOLLOWER_OF_CREATOR:"Pengikut",MUTUAL_FOLLOW_FRIENDS:"Teman",SELF_ONLY:"Hanya saya"} as Record<string,string>)[privacy] ?? privacy}`}</p>
+        {review && <section className="space-y-3 rounded-xl border border-indigo-200 bg-indigo-50/40 p-4" aria-label="Tinjauan publikasi"><h3 className="font-semibold">Konfirmasi publikasi</h3><p className="text-sm">Akun: {accountName}</p><p className="text-sm break-all">Video: {source === "url" ? videoUrl : file?.name}</p><p className="text-sm">{mode === "inbox" ? "Dikirim ke inbox; selesaikan posting di TikTok." : `Visibilitas: ${({PUBLIC_TO_EVERYONE:"Semua orang",FOLLOWER_OF_CREATOR:"Pengikut",MUTUAL_FOLLOW_FRIENDS:"Teman",SELF_ONLY:"Hanya saya"} as Record<string,string>)[privacy] ?? privacy}`}</p>
         {mode === "profile" && <p className="text-sm whitespace-pre-wrap break-words">Keterangan: {caption || "(tanpa caption)"}</p>}
         {mode === "profile" && <p className="text-sm">Dengan memposting, Anda menyetujui <a className="underline" href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noreferrer">ketentuan penggunaan musik TikTok</a>{commercial && brandContent && <> dan <a className="underline" href="https://www.tiktok.com/legal/page/global/bc-policy/en" target="_blank" rel="noreferrer">kebijakan konten bermerek</a></>}. Konten mungkin memerlukan beberapa menit untuk diproses.</p>}
         {/* Consent */}

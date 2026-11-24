@@ -1,74 +1,15 @@
 "use client";
-
-
-import { useState } from "react";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatDate, formatNumber } from "@/lib/utils";
-
-interface VideoItem {
-  id: string;
-  title: string;
-  video_description?: string;
-  cover_image_url: string;
-  create_time: number | string;
-  share_url: string;
-  view_count: number;
-  like_count: number;
-  comment_count: number;
-  share_count: number;
-}
-
-export function VideoList({ videos }: { videos: VideoItem[] }) {
-  const [query, setQuery] = useState("");
-  const [sort, setSort] = useState("recent");
-  const filtered = [...videos].filter(v => ((v.title ?? "") + " " + (v.video_description ?? "")).toLowerCase().includes(query.toLowerCase())).sort((a,b) => sort === "views" ? b.view_count-a.view_count : sort === "likes" ? b.like_count-a.like_count : (typeof b.create_time === "number" ? b.create_time * 1000 : Number(b.create_time) ? Number(b.create_time) * 1000 : Date.parse(b.create_time)) - (typeof a.create_time === "number" ? a.create_time * 1000 : Number(a.create_time) ? Number(a.create_time) * 1000 : Date.parse(a.create_time)));
-  if (!videos || videos.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">Belum ada video yang tersedia.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4"><div className="flex flex-wrap gap-3"><label className="flex-1 text-sm">Cari video<input className="mt-1 block w-full rounded-md border bg-background p-2" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Cari judul atau keterangan"/></label><label className="text-sm">Urutkan<select className="mt-1 block rounded-md border bg-background p-2" value={sort} onChange={e=>setSort(e.target.value)}><option value="recent">Terbaru</option><option value="views">Tayangan</option><option value="likes">Suka</option></select></label></div><p className="text-sm text-muted-foreground">{filtered.length} dari {videos.length} video</p>{filtered.length===0 && <p className="py-6 text-center text-sm text-muted-foreground">Tidak ada video yang cocok.</p>}<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-      {filtered.map((video) => (
-        <Card key={video.id} className="overflow-hidden shadow-none">
-          <div className="relative aspect-[9/16] w-full bg-muted overflow-hidden">
-            {video.cover_image_url && <img src={video.cover_image_url} alt={video.title || "Sampul video"} className="absolute inset-0 h-full w-full object-cover" loading="lazy" referrerPolicy="no-referrer" onError={e=>{e.currentTarget.style.visibility="hidden";}}/>}
-            <div className="absolute bottom-1 right-1 bg-background/80 text-foreground text-xs px-1 py-0.5 rounded">
-              {formatDate(video.create_time)}
-            </div>
-          </div>
-          <CardContent className="p-2 pt-1">
-            <CardTitle className="text-xs font-medium line-clamp-2 text-foreground mb-1">
-              {video.title}
-            </CardTitle>
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1" aria-label={`Tayangan: ${formatNumber(video.view_count)}`}>
-                👁 {formatNumber(video.view_count)}
-              </span>
-              <span className="flex items-center gap-1" aria-label={`Suka: ${formatNumber(video.like_count)}`}>
-                ❤ {formatNumber(video.like_count)}
-              </span>
-              <span className="flex items-center gap-1" aria-label={`Komentar: ${formatNumber(video.comment_count)}`}>
-                💬 {formatNumber(video.comment_count)}
-              </span>
-              <span aria-label={`Bagikan: ${formatNumber(video.share_count)}`}>↗ {formatNumber(video.share_count)}</span>
-            </div>
-          </CardContent>
-          <CardFooter className="p-2 pt-0">
-            <a
-              href={video.share_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-primary underline font-medium block text-center"
-            >
-              Buka di TikTok →
-            </a>
-          </CardFooter>
-        </Card>
-      ))}
-    </div></div>
-  );
+import {useState,useMemo} from "react";
+import {Search,Grid2X2,List,Film,Eye,Heart,MessageCircle,Share2,ArrowUpRight} from "lucide-react";
+import {formatDate,formatNumber} from "@/lib/utils";
+import type {TikTokVideo} from "@/types/tiktok";
+const dateValue=(v:number|string)=>typeof v==="number"?v*1000:/^\d+$/.test(v)?Number(v)*1000:Date.parse(v);
+function Cover({video}:{video:TikTokVideo}){return <div className="relative aspect-[9/16] overflow-hidden rounded-lg bg-slate-100"><Film className="absolute inset-0 m-auto h-6 w-6 text-slate-400"/>{video.cover_image_url&&<img src={video.cover_image_url} alt={video.title||"Sampul video"} className="absolute inset-0 h-full w-full object-cover" loading="lazy" referrerPolicy="no-referrer" onError={e=>{e.currentTarget.style.visibility="hidden"}}/>}</div>}
+const metrics=[{key:"view_count",label:"Tayangan",Icon:Eye},{key:"like_count",label:"Suka",Icon:Heart},{key:"comment_count",label:"Komentar",Icon:MessageCircle},{key:"share_count",label:"Bagikan",Icon:Share2}] as const;
+export function VideoList({videos}:{videos:TikTokVideo[]}){
+ const [query,setQuery]=useState("");const [sort,setSort]=useState("recent");const [view,setView]=useState<"list"|"grid">("list");
+ const filtered=useMemo(()=>[...videos].filter(v=>((v.title||"")+" "+(v.video_description||"")).toLowerCase().includes(query.toLowerCase().trim())).sort((a,b)=>sort==="recent"?dateValue(b.create_time)-dateValue(a.create_time):Number(b[sort as "view_count"|"like_count"|"comment_count"|"share_count"]||0)-Number(a[sort as "view_count"|"like_count"|"comment_count"|"share_count"]||0)),[videos,query,sort]);
+ if(!videos.length)return <div className="rounded-2xl border border-dashed py-12 text-center text-slate-500"><Film className="mx-auto mb-3 h-8 w-8"/><p className="font-medium">Belum ada video yang tersedia.</p></div>;
+ return <div className="space-y-4"><div className="flex flex-wrap items-end gap-3"><label className="min-w-[160px] flex-1 text-xs font-medium">Cari video<div className="relative mt-1"><Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400"/><input aria-label="Cari video" className="h-10 w-full rounded-xl border bg-white pl-9 pr-3 text-sm" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Judul atau keterangan"/></div></label><label className="text-xs font-medium">Urutkan<select className="mt-1 block h-10 rounded-xl border bg-white px-3 text-sm" value={sort} onChange={e=>setSort(e.target.value)}><option value="recent">Terbaru</option><option value="view_count">Tayangan</option><option value="like_count">Suka</option><option value="comment_count">Komentar</option><option value="share_count">Bagikan</option></select></label><div role="group" aria-label="Tampilan konten" className="flex rounded-xl border bg-slate-50 p-1"><button aria-label="Tampilan daftar" aria-pressed={view==="list"} onClick={()=>setView("list")} className={"grid h-9 w-9 place-items-center rounded-lg "+(view==="list"?"bg-white text-indigo-700 shadow-sm":"text-slate-500")}><List className="h-4 w-4"/></button><button aria-label="Tampilan grid" aria-pressed={view==="grid"} onClick={()=>setView("grid")} className={"grid h-9 w-9 place-items-center rounded-lg "+(view==="grid"?"bg-white text-indigo-700 shadow-sm":"text-slate-500")}><Grid2X2 className="h-4 w-4"/></button></div></div><p className="text-xs text-slate-500">{filtered.length} dari {videos.length} video yang dimuat</p>
+ {!filtered.length?<p className="rounded-xl bg-slate-50 p-8 text-center text-sm text-slate-500">Tidak ada video yang cocok.</p>:view==="list"?<div className="overflow-hidden rounded-xl border"><div className="hidden bg-slate-50 px-4 py-3 text-xs font-medium text-slate-500 md:grid md:grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,.65fr))_32px] md:gap-3"><span>Video</span>{metrics.map(m=><span key={m.key}>{m.label}</span>)}<span/></div><div className="divide-y">{filtered.map(v=><article key={v.id} className="grid gap-3 p-3 md:grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,.65fr))_32px] md:items-center md:px-4"><div className="flex min-w-0 items-center gap-3"><div className="w-12 shrink-0"><Cover video={v}/></div><div className="min-w-0"><h3 className="line-clamp-2 text-sm font-semibold">{v.title||"Video tanpa judul"}</h3><p className="mt-1 text-xs text-slate-500">{formatDate(v.create_time)}</p></div></div><div className="grid grid-cols-4 gap-2 md:contents">{metrics.map(({key,label,Icon})=><div key={key} className="min-w-0 text-xs font-medium tabular-nums" title={label}><span className="mb-1 flex items-center gap-1 text-[10px] text-slate-500 md:hidden"><Icon className="h-3 w-3"/>{label}</span>{formatNumber(v[key])}</div>)}</div><a aria-label={"Buka di TikTok: "+(v.title||v.id)} href={v.share_url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center gap-1 text-xs font-semibold text-indigo-700"><span className="md:hidden">Buka di TikTok</span><ArrowUpRight className="h-4 w-4"/></a></article>)}</div></div>:<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">{filtered.map(v=><article key={v.id} className="min-w-0 rounded-xl border bg-white p-2"><Cover video={v}/><h3 className="mt-3 line-clamp-2 text-sm font-semibold">{v.title||"Video tanpa judul"}</h3><p className="mt-1 text-xs text-slate-500">{formatDate(v.create_time)}</p><div className="my-3 grid grid-cols-2 gap-2">{metrics.map(({key,label,Icon})=><span key={key} className="flex items-center gap-1 text-xs text-slate-600" aria-label={label+": "+formatNumber(v[key])}><Icon className="h-3.5 w-3.5"/>{formatNumber(v[key])}</span>)}</div><a href={v.share_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs font-semibold text-indigo-700">Buka di TikTok <ArrowUpRight className="h-3 w-3"/></a></article>)}</div>}</div>
 }
