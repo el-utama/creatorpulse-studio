@@ -205,7 +205,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
             value={privacy}
             onValueChange={setPrivacy}
           >
-            <SelectTrigger id="privacy" className="h-10">
+            <SelectTrigger id="privacy" className="h-11">
               <SelectValue placeholder="Pilih privacy" />
             </SelectTrigger>
             <SelectContent>
@@ -218,27 +218,33 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
         </div>
 
         {/* Interaction checkboxes - stack on mobile */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <label className="flex items-center gap-2 cursor-pointer text-xs leading-none">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <label className="flex items-center gap-2 cursor-pointer text-sm leading-none">
             <Checkbox
               checked={disableComment}
               onCheckedChange={(v) => setDisableComment(v === true)}
+              className="h-11 w-11"
             />
-            Disable Comment
+            <span className="sr-only">Disable Comment</span>
+            <span className="hidden sm:inline">Disable Comment</span>
           </label>
-          <label className="flex items-center gap-2 cursor-pointer text-xs leading-none">
+          <label className="flex items-center gap-2 cursor-pointer text-sm leading-none">
             <Checkbox
               checked={disableDuet}
               onCheckedChange={(v) => setDisableDuet(v === true)}
+              className="h-11 w-11"
             />
-            Disable Duet
+            <span className="sr-only">Disable Duet</span>
+            <span className="hidden sm:inline">Disable Duet</span>
           </label>
-          <label className="flex items-center gap-2 cursor-pointer text-xs leading-none">
+          <label className="flex items-center gap-2 cursor-pointer text-sm leading-none">
             <Checkbox
               checked={disableStitch}
               onCheckedChange={(v) => setDisableStitch(v === true)}
+              className="h-11 w-11"
             />
-            Disable Stitch
+            <span className="sr-only">Disable Stitch</span>
+            <span className="hidden sm:inline">Disable Stitch</span>
           </label>
         </div>
 
@@ -250,8 +256,9 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
             aria-required="true"
             aria-describedby="consent-hint"
             aria-label="Saya menyetujui ketentuan dan mengizinkan CreatorPulse Studio memposting video ini ke akun TikTok saya."
+            className="h-11 w-11"
           />
-          <label id="consent-hint" className="text-xs leading-relaxed">
+          <label id="consent-hint" className="text-sm leading-relaxed">
             Saya menyetujui ketentuan dan mengizinkan CreatorPulse Studio memposting video ini ke akun TikTok saya.
           </label>
         </div>
@@ -272,9 +279,10 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
             });
           }}
           disabled={!canPublish}
-          className="w-full py-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full py-2.5 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+          title={!canPublish ? "Centang persetujuan dan lengkapi semua input sebelum publish" : undefined}
         >
-          {canPublish ? "Publish to TikTok" : "Centang persetujuan dan lengkapi input"}
+          {canPublish ? "Publish to TikTok" : "Lengkapi persetujuan & input"}
         </Button>
         {!consent && (
           <p id="consent-hint" className="text-xs text-muted-foreground mt-2">
