@@ -180,6 +180,7 @@ export default function DashboardPage() {
             {/* Tab: Analytics */}
             <TabsContent value="analytics" className="mt-4 space-y-4">
               {/* Profile + Metrics */}
+              <h2 className="text-lg font-semibold text-foreground mb-4">Profil & Analitik</h2>
               {profile ? (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                   <div className="lg:col-span-4">
@@ -256,6 +257,7 @@ export default function DashboardPage() {
               )}
 
               {/* Video List */}
+              <h2 className="text-lg font-semibold text-foreground mb-4 mt-8">Daftar Video Terbaru</h2>
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-semibold">

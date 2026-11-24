@@ -224,27 +224,33 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
               checked={disableComment}
               onCheckedChange={(v) => setDisableComment(v === true)}
               className="h-11 w-11"
+              aria-label="Disable Comment"
             />
-            <span className="sr-only">Disable Comment</span>
-            <span className="hidden sm:inline">Disable Comment</span>
+            <span className="flex items-center gap-1 text-sm">
+              Disable Comment
+            </span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer text-sm leading-none">
             <Checkbox
               checked={disableDuet}
               onCheckedChange={(v) => setDisableDuet(v === true)}
               className="h-11 w-11"
+              aria-label="Disable Duet"
             />
-            <span className="sr-only">Disable Duet</span>
-            <span className="hidden sm:inline">Disable Duet</span>
+            <span className="flex items-center gap-1 text-sm">
+              Disable Duet
+            </span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer text-sm leading-none">
             <Checkbox
               checked={disableStitch}
               onCheckedChange={(v) => setDisableStitch(v === true)}
               className="h-11 w-11"
+              aria-label="Disable Stitch"
             />
-            <span className="sr-only">Disable Stitch</span>
-            <span className="hidden sm:inline">Disable Stitch</span>
+            <span className="flex items-center gap-1 text-sm">
+              Disable Stitch
+            </span>
           </label>
         </div>
 
