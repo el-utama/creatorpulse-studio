@@ -49,7 +49,8 @@ test('direct post requires account capabilities and explicit privacy', async ({p
   await page.locator('#privacy').click();
   await expect(page.getByRole('option',{name:'Semua orang'})).toHaveCount(0);
   await page.getByRole('option',{name:'Hanya saya'}).click();
-  await page.getByLabel('Pratinjau video').evaluate(video=>{video.removeAttribute('src');video.load();Object.defineProperty(video,'duration',{value:10,configurable:true});video.dispatchEvent(new Event('loadedmetadata'));});
+  await expect.poll(()=>page.getByLabel('Pratinjau video').evaluate(video=>!!video.error)).toBe(true);
+  await page.getByLabel('Pratinjau video').evaluate(video=>{Object.defineProperty(video,'duration',{value:10,configurable:true});video.dispatchEvent(new Event('loadedmetadata'));});
   await expect(page.getByRole('checkbox',{name:'Izinkan komentar'})).toBeDisabled();
   await page.getByRole('button',{name:'Tinjau publikasi'}).click();
   await page.locator('#publication-consent').click();
