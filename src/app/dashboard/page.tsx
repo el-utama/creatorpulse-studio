@@ -43,7 +43,17 @@ export default function DashboardPage() {
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
   const [publishId, setPublishId] = useState<string | null>(null);
-  const [publishStatus, setPublishStatus] = useState<string | null>(null);
+  const [history, setHistory] = useState<{ id: string; createdAt: string }[]>([]);
+  const accountId = profile?.open_id;
+  useEffect(() => {
+    setPublishId(null);
+    setHistory([]);
+    if (!accountId) return;
+    try {
+      const records = JSON.parse(localStorage.getItem(`creatorpulse:publications:${accountId}`) ?? "[]");
+      if (Array.isArray(records)) setHistory(records.filter((r) => typeof r?.id === "string" && typeof r?.createdAt === "string").slice(0, 50));
+    } catch { /* Storage can be unavailable. */ }
+  }, [accountId]);
 
   const fetchAnalytics = useCallback(async () => {
     setAnalyticsLoading(true);
@@ -104,7 +114,9 @@ export default function DashboardPage() {
       const data = await res.json();
       if (!data.publish_id) throw new Error("TikTok belum memberikan ID publikasi.");
       setPublishId(data.publish_id);
-      setPublishStatus("pending");
+      const nextHistory = [{ id: data.publish_id as string, createdAt: new Date().toISOString() }, ...history].slice(0, 50);
+      setHistory(nextHistory);
+      try { if (accountId) localStorage.setItem(`creatorpulse:publications:${accountId}`, JSON.stringify(nextHistory)); } catch { /* Keep in-memory history. */ }
       setActiveTab("status");
     } catch (err) {
       console.error("Publish error:", err);
@@ -324,7 +336,7 @@ export default function DashboardPage() {
                       <CardContent className="pt-3">
                         <ul className="text-xs text-muted-foreground space-y-1.5 list-disc pl-4">
                           <li>
-                            Batas upload langsung lewat serverless Vercel:~4.5 MB.
+                            Batas upload langsung lewat serverless Vercel:4 MB.
                           </li>
                           <li>
                             Untuk file lebih besar, gunakan metode PULL_FROM_URL.
@@ -357,19 +369,20 @@ export default function DashboardPage() {
                     Riwayat Publikasi
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    Periksa status publikasi video yang baru saja Anda unggah.
+                    Pilih publikasi untuk melihat status. Riwayat disimpan pada browser ini, khusus akun yang terhubung.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
+                  {history.length > 0 && <div className="mb-4 divide-y rounded-lg border">{history.map((record) => <button type="button" key={record.id} onClick={() => setPublishId(record.id)} aria-pressed={publishId === record.id} className="flex w-full min-w-0 items-center justify-between gap-3 p-3 text-left hover:bg-muted aria-pressed:bg-muted"><span className="min-w-0 truncate text-sm">{record.id}</span><span className="shrink-0 text-xs text-muted-foreground">{new Date(record.createdAt).toLocaleString("id-ID")}</span></button>)}</div>}
                   {publishId ? (
                     <PublishStatusChecker
                       publishId={publishId}
-                      onStatusChange={setPublishStatus}
+                      key={publishId}
                     />
                   ) : (
                     <div className="text-center py-8">
                       <p className="text-muted-foreground text-sm">
-                        Belum ada aktivitas publikasi terbaru.
+                        {history.length ? "Pilih publikasi untuk memeriksa status." : "Belum ada aktivitas publikasi di browser ini."}
                       </p>
                     </div>
                   )}
