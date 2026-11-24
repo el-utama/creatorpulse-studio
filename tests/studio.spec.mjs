@@ -213,3 +213,10 @@ test('legacy session migration preserves the original account and duplicate conn
  expect(invalid.status()).toBe(404);
  expect((await (await context.request.get('/api/auth/accounts')).json()).active).toBe(list.active);
 });
+
+test('unconfigured gateway is disabled without affecting browser authentication',async ({request})=>{
+ const health=await request.get('/api/gateway/v1/health');expect(health.ok()).toBe(true);expect((await health.json()).configured).toBe(false);
+ expect((await request.get('/api/gateway/v1/accounts')).status()).toBe(503);
+ expect((await request.post('/api/gateway/v1/trends',{data:{topic:'test'}})).status()).toBe(503);
+ expect((await request.post('/api/gateway/v1/enroll')).status()).toBe(503);
+});

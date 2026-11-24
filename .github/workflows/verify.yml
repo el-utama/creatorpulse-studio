@@ -2,7 +2,7 @@ name: Verify
 on:
   pull_request:
   push:
-    branches: [refactor/ui-ux-v2]
+    branches: [main, refactor/ui-ux-v2]
 permissions:
   contents: read
 jobs:
@@ -15,7 +15,13 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+      - run: python3 -m unittest discover -s local-bridge -p 'test_*.py'
+      - run: python3 -m venv /tmp/creatorpulse-onboarding-venv
+      - run: /tmp/creatorpulse-onboarding-venv/bin/pip install PyYAML==6.0.2
+      - run: /tmp/creatorpulse-onboarding-venv/bin/python -m unittest discover -s integrations/hermes -p 'test_*.py'
       - run: npm ci
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
       - run: npx tsc --noEmit
       - run: npm run build
         env:
@@ -25,6 +31,9 @@ jobs:
       - run: npx playwright test
         env:
           APP_URL: http://localhost:3000
+      - run: npx playwright test --config playwright.gateway.config.mjs
+        env:
+          GATEWAY_TEST: "1"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -31,7 +31,7 @@ export default function PrivacyPage() {
           </p>
 
           <h2 className="text-xl font-semibold mt-8 mb-3">2. Information We Collect</h2>
-          <p className="mb-4">We collect the following data solely through your explicit authorization via TikTok Login:</p>
+          <p className="mb-4">We collect the following TikTok data through your explicit authorization, and optional operational data you or your authorized agent submit:</p>
           <ul className="list-disc pl-6 mb-4 space-y-2">
             <li>
               <strong>TikTok profile data:</strong> open_id, union_id,
@@ -53,7 +53,7 @@ export default function PrivacyPage() {
             <li>
               <strong>OAuth tokens:</strong> access_token and refresh_token —
               obtained via the TikTok OAuth 2.0 authorization code flow and
-              stored in HTTP-only cookies for session management.
+              stored in HTTP-only cookies or, after explicit gateway enrollment, encrypted in your Local Bridge.
             </li>
           </ul>
 
@@ -69,8 +69,7 @@ export default function PrivacyPage() {
             </li>
             <li>
               To initiate video uploads and publishing to TikTok
-              (<strong>Content Posting API</strong>) only when you explicitly
-              click the "Publish to TikTok" button. This requires the
+              (<strong>Content Posting API</strong>) only after your explicit review and approval, whether through the manual publish form or the agent approval center. This requires the
               <code>video.upload</code> and <code>video.publish</code> scopes.
             </li>
             <li>
@@ -89,18 +88,16 @@ export default function PrivacyPage() {
           <h2 className="text-xl font-semibold mt-8 mb-3">5. Data Sharing and Sale</h2>
           <p className="mb-4">
             We <strong>do not sell your personal data to third parties</strong>.
-            We share data only with TikTok's APIs for the purposes described
-            above, and only as authorized by you through the OAuth flow.
+            We exchange data with TikTok's APIs and, if explicitly enrolled, your operator-controlled Local Bridge and authorized agent. Your agent may use its separately configured model or messaging providers; review their own privacy policies. OAuth tokens are not returned through agent tools.
           </p>
 
           <h2 className="text-xl font-semibold mt-8 mb-3">6. Data Storage and Security</h2>
           <ul className="list-disc pl-6 mb-4 space-y-2">
             <li>
-              Access and refresh tokens are stored in HTTP-only, Secure,
-              SameSite=Lax cookies. They are not accessible via JavaScript.
+              Unenrolled account tokens are stored in HTTP-only, Secure, SameSite=Lax cookies. Enrolled account credentials are encrypted at rest on your Local Bridge and decrypted by the server only as needed.
             </li>
             <li>
-              Account sessions are kept in this browser's HTTP-only cookies, with up to three separately authorized accounts. Publication IDs, timestamps and unresolved request markers are stored in browser local storage per account. If optional shared idempotency storage is enabled, hashed request keys and publication results are retained for up to 24 hours.
+              Account sessions are kept in this browser's HTTP-only cookies, with up to three separately authorized accounts. Publication IDs, timestamps and unresolved request markers are stored in browser local storage per account. If the optional agent gateway is enabled, account tokens and publication drafts are encrypted before storage in the operator-controlled SQLite Local Bridge. Trend observations and operational records are retained there; gateway enrollment is explicit. Shared manual idempotency records expire after 24 hours.
             </li>
             <li>
               All communication with TikTok APIs is conducted over HTTPS.
@@ -109,7 +106,7 @@ export default function PrivacyPage() {
 
           <h2 className="text-xl font-semibold mt-8 mb-3">7. Your Rights</h2>
           <p className="mb-4">
-            You may remove an account from this browser through the account manager or click "Logout" to clear all session cookies. This does not revoke TikTok authorization or clear browser-local publication history; clear site data to remove that history. You may also
+            You may remove an account from this browser through the account manager or click "Logout" to clear all session cookies. For enrolled accounts, logout does not disconnect the separate gateway vault; use the operator's disconnect action. This does not revoke TikTok authorization or clear browser-local publication history; clear site data to remove that history. You may also
             revoke TikTok's authorization for this app in your TikTok account
             settings.
           </p>

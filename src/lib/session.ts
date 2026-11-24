@@ -1,10 +1,14 @@
 import { cookies } from "next/headers";
-import { tokenNames } from "@/lib/accounts";
+import { bindingEpoch } from "@/lib/gateway/store";
+import { vaultToken } from "@/lib/gateway/vault";
+import { currentSlot, tokenNames } from "@/lib/accounts";
 import { refreshAccessToken } from "@/lib/tiktok";
 
 export async function sessionToken(forceRefresh = false): Promise<string | null> {
   const jar = await cookies();
-  const names=tokenNames(jar);
+  const names=tokenNames(jar),slot=currentSlot(jar);
+  const bound=slot?jar.get("creatorpulse_account_"+slot+"_v")?.value:undefined;
+  if(slot&&bound){const epoch=bindingEpoch(slot,bound);if(!epoch)return null;try{return await vaultToken(slot,forceRefresh,undefined,epoch);}catch{return null;}}
   const access = jar.get(names.access)?.value;
   if (access && !forceRefresh) return access;
   const refresh = jar.get(names.refresh)?.value;

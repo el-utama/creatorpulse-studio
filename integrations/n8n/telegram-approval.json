@@ -1,0 +1,356 @@
+{
+  "name": "CreatorPulse — Telegram human approval (inbox)",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false
+  },
+  "nodes": [
+    {
+      "id": "telegram-private-command",
+      "name": "Telegram private command",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      }
+    },
+    {
+      "id": "authorized-command",
+      "name": "Authorized command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Fail closed until the operator inserts their own numeric Telegram user ID.\nconst owner = 'SET_OWNER_TELEGRAM_ID';\nconst m = $json.message;\nif (!/^[0-9]+$/.test(owner) || !m || m.chat?.type !== 'private' || String(m.from?.id) !== owner || String(m.chat?.id) !== owner || m.from?.is_bot || m.forward_origin || m.forward_from) return [];\nconst match = /^\\/(review|approve|status|cancel) ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/.exec(String(m.text||'').trim());\nif (!match) return [];\nreturn [{json:{command:match[1],postId:match[2],chatId:m.chat.id}}];"
+      }
+    },
+    {
+      "id": "read-draft",
+      "name": "Read draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "timeout": 45000
+        },
+        "url": "=https://creatorpulse-studio-six.vercel.app/api/gateway/v1/posts/{{ $json.postId }}"
+      }
+    },
+    {
+      "id": "is-review",
+      "name": "Is review",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "review-check",
+              "leftValue": "={{ $('Authorized command').first().json.command }}",
+              "rightValue": "review",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "review-message",
+      "name": "Review message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -160
+      ],
+      "parameters": {
+        "jsCode": "const p=$json;\nconst cmd=$('Authorized command').first().json;\nif(p.mode!=='inbox')return [{json:{chatId:cmd.chatId,text:'Direct Post: tinjau dan setujui melalui dashboard CreatorPulse.'}}];\nreturn [{json:{chatId:cmd.chatId,text:('Rencana: '+p.id+'\\nAkun: '+p.accountName+'\\nTujuan: inbox TikTok\\nVideo: '+p.videoUrl+'\\nCaption (usulan): '+p.caption+'\\nStatus: '+p.state+'\\nTinjau video terlebih dahulu. Jika setuju, ketik /approve '+p.id+'\\nSelesaikan posting di aplikasi TikTok.').slice(0,3900)}}];"
+      }
+    },
+    {
+      "id": "is-approval",
+      "name": "Is approval",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        160
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "approve-check",
+              "leftValue": "={{ $('Authorized command').first().json.command }}",
+              "rightValue": "approve",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "approve-exact-draft",
+      "name": "Approve exact draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        80
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "timeout": 45000
+        },
+        "method": "POST",
+        "url": "=https://creatorpulse-studio-six.vercel.app/api/gateway/v1/posts/{{ $json.id }}/approve",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({confirm:true,accountId:$json.accountId,videoUrl:$json.videoUrl,caption:$json.caption,mode:'inbox'}) }}"
+      }
+    },
+    {
+      "id": "execute-approved-inbox",
+      "name": "Execute approved inbox",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        80
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "timeout": 45000
+        },
+        "method": "POST",
+        "url": "=https://creatorpulse-studio-six.vercel.app/api/gateway/v1/posts/{{ $json.id }}/execute"
+      }
+    },
+    {
+      "id": "status-or-cancel",
+      "name": "Status or cancel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        280
+      ],
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "timeout": 45000
+        },
+        "method": "POST",
+        "url": "=https://creatorpulse-studio-six.vercel.app/api/gateway/v1/posts/{{ $json.id }}/{{ $('Authorized command').first().json.command }}"
+      }
+    },
+    {
+      "id": "result-message",
+      "name": "Result message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        120
+      ],
+      "parameters": {
+        "jsCode": "const p=$json;const cmd=$('Authorized command').first().json;\nreturn [{json:{chatId:cmd.chatId,text:('Rencana: '+p.id+'\\nAkun: '+p.accountName+'\\nStatus: '+p.state+'\\nStatus TikTok: '+(p.status||'-')+'\\nPublish ID: '+(p.publishId||'-')+'\\n'+(p.error||'')+'\\nJangan kirim ulang jika hasil belum pasti.').slice(0,3900)}}];"
+      }
+    },
+    {
+      "id": "send-private-reply",
+      "name": "Send private reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1760,
+        0
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram private command": {
+      "main": [
+        [
+          {
+            "node": "Authorized command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Authorized command": {
+      "main": [
+        [
+          {
+            "node": "Read draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read draft": {
+      "main": [
+        [
+          {
+            "node": "Is review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is review": {
+      "main": [
+        [
+          {
+            "node": "Review message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Review message": {
+      "main": [
+        [
+          {
+            "node": "Send private reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is approval": {
+      "main": [
+        [
+          {
+            "node": "Approve exact draft",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Status or cancel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approve exact draft": {
+      "main": [
+        [
+          {
+            "node": "Execute approved inbox",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute approved inbox": {
+      "main": [
+        [
+          {
+            "node": "Result message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status or cancel": {
+      "main": [
+        [
+          {
+            "node": "Result message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Result message": {
+      "main": [
+        [
+          {
+            "node": "Send private reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

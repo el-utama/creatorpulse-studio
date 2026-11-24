@@ -1,0 +1,23 @@
+# Merge this entry into your existing Hermes profile config.yaml.
+# Do not overwrite other MCP servers. Set CREATORPULSE_AGENT_KEY in the profile's .env.
+mcp_servers:
+  creatorpulse:
+    url: https://creatorpulse-studio-six.vercel.app/api/mcp
+    headers:
+      Authorization: "Bearer ${CREATORPULSE_AGENT_KEY}"
+    skip_preflight: true
+    tools:
+      include:
+        - list_accounts
+        - get_analytics
+        - list_videos
+        - get_capabilities
+        - list_trends
+        - record_trend
+        - prepare_post
+        - list_posts
+        - get_post
+        - execute_approved_post
+        - get_publish_status
+      resources: false
+      prompts: false

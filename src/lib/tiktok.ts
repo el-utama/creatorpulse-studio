@@ -27,6 +27,7 @@ export async function exchangeCodeForToken(
   code: string
 ): Promise<TikTokTokenResponse> {
   const res = await fetch(APP_CONFIG.tiktokTokenUrl, {
+    signal: AbortSignal.timeout(10000),
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -54,6 +55,7 @@ export async function refreshAccessToken(
   refreshToken: string
 ): Promise<TikTokTokenResponse> {
   const res = await fetch(APP_CONFIG.tiktokTokenUrl, {
+    signal: AbortSignal.timeout(10000),
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -156,6 +158,7 @@ export async function initPublish(
   mode: "inbox" | "profile"
 ): Promise<TikTokPublishInitResponse> {
   const res = await fetch(mode === "inbox" ? APP_CONFIG.tiktokPublishInitInbox : APP_CONFIG.tiktokPublishInitProfile, {
+    signal: AbortSignal.timeout(15000),
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -174,6 +177,7 @@ export async function fetchPublishStatus(
   publishId: string
 ): Promise<TikTokPublishStatusResponse> {
   const res = await fetch(APP_CONFIG.tiktokPublishStatus, {
+    signal: AbortSignal.timeout(10000),
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -216,9 +220,9 @@ export interface CreatorCapabilities {
   max_video_post_duration_sec: number;
 }
 export async function getCreatorCapabilities(token: string): Promise<CreatorCapabilities> {
-  const res = await fetch("https://open.tiktokapis.com/v2/post/publish/creator_info/query/", {method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},cache:"no-store",body:"{}"});
+  const res = await fetch("https://open.tiktokapis.com/v2/post/publish/creator_info/query/", {method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},cache:"no-store",signal:AbortSignal.timeout(10000),body:"{}"});
   const data = await readTikTok<CreatorCapabilities>(res);
-  if (!Array.isArray(data.privacy_level_options)) throw new Error("Creator capabilities unavailable");
+  if (!Array.isArray(data.privacy_level_options)||typeof data.creator_nickname!=="string"||typeof data.creator_username!=="string"||!Number.isFinite(data.max_video_post_duration_sec)||data.max_video_post_duration_sec<=0||[data.comment_disabled,data.duet_disabled,data.stitch_disabled].some(v=>typeof v!=="boolean")) throw new Error("Creator capabilities unavailable");
   const options = data.privacy_level_options.filter((value: unknown) => typeof value === "string");
   return { ...data, privacy_level_options: process.env.TIKTOK_DIRECT_POST_AUDITED === "true" ? options : options.filter((value: string) => value === "SELF_ONLY") };
 }

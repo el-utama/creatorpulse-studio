@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { sameOrigin } from "@/lib/accounts";
 import { APP_CONFIG } from "@/config/app";
 import { publicationKey, reservePublication, finishPublication } from "@/lib/publication-idempotency";
 import { explainTikTok, isAuthError, TikTokApiError } from "@/lib/tiktok-errors";
@@ -7,6 +7,7 @@ import { sessionToken } from "@/lib/session";
 import { initPublish, uploadVideoChunk, getCreatorCapabilities } from "@/lib/tiktok";
 
 export async function POST(request: Request) {
+  if(!sameOrigin(request))return NextResponse.json({error:"Permintaan lintas situs ditolak."},{status:403});
   let accessToken = await sessionToken();
 
   if (!accessToken) {
