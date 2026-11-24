@@ -33,6 +33,7 @@ export interface PublishPayload {
 
 export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing = false, error }: UploadFormProps) {
   const [mode, setMode] = useState<"inbox" | "profile">("inbox");
+  const [source, setSource] = useState<"file" | "url">("url");
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
@@ -90,9 +91,9 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, [previewUrl]);
 
-  const isDirectUpload = mode === "profile" && !!file && previewUrl;
+  const hasFile = !!file && !!previewUrl;
   const validUrl = (() => { try { return new URL(videoUrl ?? "").protocol === "https:"; } catch { return false; } })();
-  const ready = mode === "profile" ? !!isDirectUpload && !!privacy && !!capabilities?.privacy_level_options.includes(privacy) : validUrl;
+  const ready = (source === "file" ? hasFile : validUrl) && (mode === "inbox" || (!!privacy && !!capabilities?.privacy_level_options.includes(privacy)));
   const canPublish = !publishing && consent && review && ready;
 
   return (
@@ -102,7 +103,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
           <Video className="h-5 w-5 text-tiktok-primary" aria-hidden="true" />
           Upload & Posting Video
         </CardTitle>
-        <CardDescription className="text-xs">
+        <CardDescription className="text-sm">
           Posting ke akun <strong>{accountName}</strong>. Pilih mode dan atur opsi sebelum menerbitkan.
         </CardDescription>
       </CardHeader>
@@ -142,8 +143,8 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
           </div>
         </div>
 
-        {/* Input Source */}
-        {mode === "inbox" ? (
+        <div className="space-y-2"><h3 className="text-sm font-medium">Sumber video</h3><div role="group" aria-label="Sumber video" className="flex gap-2"><Button type="button" variant={source === "url" ? "default" : "outline"} aria-pressed={source === "url"} disabled={publishing} onClick={() => {setSource("url");setConsent(false);setReview(false);}}>Tautan HTTPS</Button><Button type="button" variant={source === "file" ? "default" : "outline"} aria-pressed={source === "file"} disabled={publishing} onClick={() => {setSource("file");setConsent(false);setReview(false);}}>File perangkat</Button></div></div>
+        {source === "url" ? (
           <div className="space-y-2">
             <Label htmlFor="video-url" className="text-xs font-medium">
               Tautan video HTTPS
@@ -161,7 +162,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
           </div>
         ) : (
           <div className="space-y-2">
-            <Label htmlFor="video-file" className="flex items-center gap-2 cursor-pointer border border-dashed rounded-lg px-3 py-4 text-center text-sm text-muted-foreground hover:border-tiktok-primary/50 transition-colors">
+            <Label htmlFor="video-file" className="flex items-center gap-2 cursor-pointer focus-within:ring-2 focus-within:ring-ring border border-dashed rounded-lg px-3 py-4 text-center text-sm text-muted-foreground hover:border-tiktok-primary/50 transition-colors">
               <Upload className="h-4 w-4 text-tiktok-primary" aria-hidden="true" />
               <span>Pilih file video (.mp4 / .mov)</span>
               <input
@@ -197,7 +198,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
               </div>
             )}
             <p className="text-xs text-muted-foreground">
-              Batas upload langsung lewat serverless:~4 MB.
+              Maksimal 4 MB. Untuk video lebih besar, gunakan tautan HTTPS.
             </p>
           </div>
         )}
@@ -210,7 +211,9 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
           </Label>
           <Textarea
             id="caption"
-            rows={2}
+            rows={3}
+            maxLength={2200}
+            disabled={publishing}
             placeholder="Tulis caption video di sini..."
             value={caption}
             onChange={(e) => { setCaption(e.target.value); setConsent(false); setReview(false); }}
@@ -219,6 +222,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
 
         {/* Privacy */}
         <div className="space-y-1.5">
+          {capabilities && <p className="text-sm text-muted-foreground">Akun: {capabilities.creator_nickname} (@{capabilities.creator_username}) · Maks. {capabilities.max_video_post_duration_sec} detik</p>}
           <Label htmlFor="privacy" className="text-xs font-medium">
             Visibilitas video
           </Label>
@@ -279,7 +283,8 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
 
         </>}
         {!review && <Button type="button" variant="outline" disabled={!ready || publishing} onClick={() => setReview(true)}>Tinjau publikasi</Button>}
-        {review && <section className="space-y-3 rounded-lg border p-4" aria-label="Tinjauan publikasi"><h3 className="font-semibold">Konfirmasi publikasi</h3><p className="text-sm">Akun: {accountName}</p><p className="text-sm break-all">Video: {mode === "inbox" ? videoUrl : file?.name}</p><p className="text-sm">{mode === "inbox" ? "Dikirim ke inbox; selesaikan posting di TikTok." : `Visibilitas: ${({PUBLIC_TO_EVERYONE:"Semua orang",FOLLOWER_OF_CREATOR:"Pengikut",MUTUAL_FOLLOW_FRIENDS:"Teman",SELF_ONLY:"Hanya saya"} as Record<string,string>)[privacy] ?? privacy}`}</p>
+        {review && <section className="space-y-3 rounded-lg border p-4" aria-label="Tinjauan publikasi"><h3 className="font-semibold">Konfirmasi publikasi</h3><p className="text-sm">Akun: {accountName}</p><p className="text-sm break-all">Video: {source === "url" ? videoUrl : file?.name}</p><p className="text-sm">{mode === "inbox" ? "Dikirim ke inbox; selesaikan posting di TikTok." : `Visibilitas: ${({PUBLIC_TO_EVERYONE:"Semua orang",FOLLOWER_OF_CREATOR:"Pengikut",MUTUAL_FOLLOW_FRIENDS:"Teman",SELF_ONLY:"Hanya saya"} as Record<string,string>)[privacy] ?? privacy}`}</p>
+        {mode === "profile" && <p className="text-sm whitespace-pre-wrap break-words">Caption: {caption || "(tanpa caption)"}</p>}
         {/* Consent */}
         <div className="flex items-start gap-2 pt-2 border-t border-border">
           <Checkbox
@@ -302,8 +307,8 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
           onClick={() => {
             onPublish({
               mode,
-              file: mode === "profile" ? file : null,
-              videoUrl: mode === "inbox" ? videoUrl : null,
+              file: source === "file" ? file : null,
+              videoUrl: source === "url" ? videoUrl : null,
               caption,
               privacy,
               disableComment,
