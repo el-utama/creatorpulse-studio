@@ -14,8 +14,9 @@ export async function loadAccount(slot:string){
  return {account:decode(slot,raw),raw};
 }
 export async function listVault(){
- const slots=await redis<string[]>(["HKEYS",vaultHash]);
- return Promise.all(slots.slice(0,3).map(async slot=>{const {account:a}=await loadAccount(slot);return {id:a.slot,name:a.name,updatedAt:a.updatedAt,accessExpiresAt:new Date(a.expiresAt).toISOString()};}));
+ const entries=await redis<string[]>(["HGETALL",vaultHash]);
+ const accounts=[];for(let i=0;i+1<entries.length&&accounts.length<3;i+=2){const a=decode(entries[i],entries[i+1]);accounts.push({id:a.slot,name:a.name,updatedAt:a.updatedAt,accessExpiresAt:new Date(a.expiresAt).toISOString()});}
+ return accounts;
 }
 export async function saveAccount(a:VaultAccount){
  if(!validSlot(a.slot)||slotForId(a.openId)!==a.slot||!a.access||!a.refresh)throw new GatewayError(400,"Akun atau token tidak lengkap.");

@@ -1,0 +1,133 @@
+#!/usr/bin/env python3
+"""Local stdio MCP adapter. No background requests; only explicit tool calls reach Vercel."""
+import argparse
+import json
+import os
+import re
+import sys
+import urllib.error
+import urllib.request
+from pathlib import Path
+from urllib.parse import urlencode
+
+BASE = "https://creatorpulse-studio-six.vercel.app/api/gateway/v1"
+SLOT = re.compile(r"[a-f0-9]{32}")
+UUID = re.compile(r"[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}")
+VERSIONS = ("2025-03-26", "2025-06-18", "2025-11-25")
+STR = {"type": "string"}
+ID = {"type": "string", "format": "uuid"}
+ACCOUNT = {"type": "string", "pattern": "^[a-f0-9]{32}$"}
+def tool(name, description, properties=None, required=None):
+    return {"name": name, "description": description, "inputSchema": {"type":"object", "properties":properties or {}, "required":required or [], "additionalProperties":False}}
+TOOLS = [
+    tool("list_accounts","List enrolled TikTok accounts; no tokens."),
+    tool("get_analytics","Read account metrics.",{"accountId":ACCOUNT},["accountId"]),
+    tool("list_videos","Read one page of videos.",{"accountId":ACCOUNT,"cursor":{"type":"integer","minimum":0}},["accountId"]),
+    tool("get_capabilities","Read publication capabilities.",{"accountId":ACCOUNT},["accountId"]),
+    tool("list_trends","Read stored sourced observations, not verified live rankings.",{"region":STR,"days":{"type":"integer","minimum":1,"maximum":90}}),
+    tool("record_trend","Save real evidence from an authorized research source.",{"topic":STR,"type":{"enum":["topic","hashtag","music","video","keyword"]},"region":STR,"source":{"enum":["tiktok_creative_center","tiktok_discovery_api","google_trends","web_research","manual"]},"sourceUrl":STR,"observedAt":STR,"evidence":STR,"changePct":{"type":"number"},"metric":STR},["topic","type","region","source","sourceUrl","observedAt","evidence"]),
+    tool("prepare_post","Create immutable inbox draft; human approval required. Caption is only a suggestion.",{"requestId":ID,"accountId":ACCOUNT,"videoUrl":STR,"caption":STR,"mode":{"const":"inbox"}},["requestId","accountId","videoUrl","caption","mode"]),
+    tool("list_posts","Read publication queue."),
+    tool("get_post","Inspect exact draft and state.",{"postId":ID},["postId"]),
+    tool("execute_approved_post","Submit approved draft to inbox once; do not retry uncertain results.",{"postId":ID},["postId"]),
+    tool("get_publish_status","Check TikTok publication state.",{"postId":ID},["postId"]),
+]
+BY_NAME = {t["name"]:t for t in TOOLS}
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self,*args,**kwargs):
+        return None
+def key_from_env(path=None):
+    key = os.environ.get("CREATORPULSE_AGENT_KEY","")
+    if not key and path and Path(path).is_file():
+        for line in Path(path).read_text(encoding="utf-8").splitlines():
+            if line.startswith("CREATORPULSE_AGENT_KEY="):
+                key=line.partition("=")[2].strip().strip('"').strip("'")
+    if len(key)<32 or not re.fullmatch(r"[A-Za-z0-9_-]+",key):
+        raise ValueError("Agent credential missing or invalid. Set it locally; never paste into chat.")
+    return key
+def request(path, key=None, body=None, method="GET"):
+    headers={"Accept":"application/json"}
+    if key: headers["Authorization"]="Bearer "+key
+    if body is not None: headers["Content-Type"]="application/json"
+    data=json.dumps(body).encode() if body is not None else None
+    req=urllib.request.Request(BASE+path, data=data, method=method, headers=headers)
+    try:
+        with urllib.request.build_opener(NoRedirect()).open(req, timeout=40) as r:
+            raw=r.read(2_000_001)
+            if len(raw)>2_000_000: raise ValueError("Response too large.")
+            return json.loads(raw)
+    except urllib.error.HTTPError as exc:
+        # Avoid echoing upstream response bodies, which might contain sensitive data.
+        raise ValueError("Gateway HTTP "+str(exc.code)+". Check configuration, enrollment or approval.") from None
+    except (urllib.error.URLError, TimeoutError):
+        raise ValueError("Gateway unreachable or timed out. Do not retry uncertain publishing.") from None
+def identifier(value, pattern):
+    if not isinstance(value,str) or not pattern.fullmatch(value):
+        raise ValueError("Invalid account or post identifier.")
+    return value
+def call(name,a,key):
+    if name not in BY_NAME or not isinstance(a,dict):
+        raise ValueError("Unknown tool or invalid arguments.")
+    schema=BY_NAME[name]["inputSchema"]
+    if not set(schema["required"])<=set(a) or not set(a)<=set(schema["properties"]):
+        raise ValueError("Missing or unexpected arguments.")
+    if name=="list_accounts": return request("/accounts",key)
+    if name=="list_posts": return request("/posts",key)
+    if name in ("get_analytics","list_videos","get_capabilities"):
+        slot=identifier(a["accountId"],SLOT)
+        end={"get_analytics":"analytics","list_videos":"videos","get_capabilities":"capabilities"}[name]
+        query="?"+urlencode({"cursor":a.get("cursor",0)}) if name=="list_videos" else ""
+        return request("/accounts/"+slot+"/"+end+query,key)
+    if name=="list_trends":
+        return request("/trends?"+urlencode({"region":a.get("region","ID"),"days":a.get("days",7)}),key)
+    if name=="record_trend": return request("/trends",key,a,"POST")
+    if name=="prepare_post": return request("/posts",key,a,"POST")
+    post=identifier(a["postId"],UUID)
+    if name=="get_post": return request("/posts/"+post,key)
+    return request("/posts/"+post+("/execute" if name=="execute_approved_post" else "/status"),key,method="POST")
+def rpc(message, get_key):
+    if not isinstance(message,dict) or message.get("jsonrpc")!="2.0":
+        return {"jsonrpc":"2.0","id":None,"error":{"code":-32600,"message":"Invalid request"}}
+    if "id" not in message: return None
+    ident=message["id"];method=message.get("method");params=message.get("params") or {}
+    response={"jsonrpc":"2.0","id":ident}
+    if method=="initialize":
+        requested=params.get("protocolVersion")
+        response["result"]={"protocolVersion":requested if requested in VERSIONS else VERSIONS[-1],"capabilities":{"tools":{}},"serverInfo":{"name":"creatorpulse-local","version":"3.4.0"}}
+    elif method=="ping": response["result"]={}
+    elif method=="tools/list": response["result"]={"tools":TOOLS}
+    elif method=="tools/call":
+        try:
+            data=call(params.get("name"),params.get("arguments",{}),get_key())
+            response["result"]={"content":[{"type":"text","text":json.dumps(data,ensure_ascii=False)}],"isError":False}
+        except (ValueError,KeyError,TypeError) as exc:
+            response["result"]={"content":[{"type":"text","text":str(exc)}],"isError":True}
+    else: response["error"]={"code":-32601,"message":"Method not found"}
+    return response
+def main():
+    parser=argparse.ArgumentParser()
+    parser.add_argument("--env-file")
+    parser.add_argument("--call",choices=BY_NAME.keys())
+    parser.add_argument("--args",default="{}")
+    parser.add_argument("--check",action="store_true")
+    args=parser.parse_args()
+    get_key=lambda:key_from_env(args.env_file)
+    if args.check:
+        try:
+            health=request("/health")
+            if not health.get("configured"): raise ValueError("Gateway is not configured.")
+            accounts=request("/accounts",get_key()).get("accounts",[])
+            print(json.dumps({"gateway":"connected","accounts":len(accounts),"posting":"inbox_only","research":"agent_sourced"}))
+            return 0 if accounts else 2
+        except ValueError as e:
+            print(json.dumps({"gateway":"blocked","reason":str(e)}));return 1
+    if args.call:
+        try: print(json.dumps(call(args.call,json.loads(args.args),get_key()),ensure_ascii=False));return 0
+        except ValueError as e: print(json.dumps({"error":str(e)}));return 1
+    for line in sys.stdin:
+        try: response=rpc(json.loads(line),get_key)
+        except (ValueError,TypeError,AttributeError): response={"jsonrpc":"2.0","id":None,"error":{"code":-32700,"message":"Invalid JSON-RPC"}}
+        if response is not None: print(json.dumps(response,ensure_ascii=False),flush=True)
+    return 0
+if __name__=="__main__":
+    raise SystemExit(main())

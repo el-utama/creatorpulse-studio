@@ -33,8 +33,9 @@ export async function prepare(input:unknown){
 }
 export async function getPost(id:string){return (await load(id)).post;}
 export async function listPosts(){
- const ids=await redis<string[]>(["HKEYS",hash]);
- return (await Promise.all(ids.slice(0,100).map(getPost))).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
+ const entries=await redis<string[]>(["HGETALL",hash]);
+ const posts:Post[]=[];for(let i=0;i+1<entries.length&&posts.length<100;i+=2){if(uuid(entries[i]))posts.push(unseal<Post>(entries[i+1],"post:"+entries[i]));}
+ return posts.sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
 }
 export async function approve(id:string,input:unknown){
  const x=input as Record<string,unknown>|null;

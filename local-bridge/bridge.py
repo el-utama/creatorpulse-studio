@@ -72,6 +72,8 @@ class Store:
         if op == "HGET" and len(a) == 2 and field(*a):
             row = c.execute("SELECT value FROM records WHERE bucket=? AND field=?", a).fetchone()
             return row[0] if row else None
+        if op == "HGETALL" and len(a) == 1 and a[0] in (VAULT, POSTS):
+            return [v for row in c.execute("SELECT field,value FROM records WHERE bucket=? ORDER BY field", a) for v in row]
         if op == "HKEYS" and len(a) == 1 and a[0] in (VAULT, POSTS):
             return [r[0] for r in c.execute("SELECT field FROM records WHERE bucket=? ORDER BY field", a)]
         if op == "HDEL" and len(a) == 2 and a[0] == VAULT and field(*a):
