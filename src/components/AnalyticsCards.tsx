@@ -11,9 +11,9 @@ interface MetricCardProps {
   color?: string;
 }
 
-export function MetricCard({ title, value, icon: Icon, description, color = "text-tiktok-primary" }: MetricCardProps) {
+export function MetricCard({ title, value, icon: Icon, description, color = "text-foreground" }: MetricCardProps) {
   return (
-    <Card className="border-t-2 border-t-tiktok-primary">
+    <Card className="shadow-none">
       <CardHeader className="space-y-1">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
         <CardDescription className="text-xs">{description || ""}</CardDescription>
@@ -44,27 +44,27 @@ export function AnalyticsCards({
   videos: number;
 }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
       <MetricCard
-        title="Followers"
+        title="Pengikut"
         value={followers.toLocaleString("id-ID")}
         icon={User}
         description="Pengikut akun"
       />
       <MetricCard
-        title="Following"
+        title="Mengikuti"
         value={following.toLocaleString("id-ID")}
         icon={Users}
         description="Diikuti oleh akun"
       />
       <MetricCard
-        title="Total Likes"
+        title="Total suka"
         value={likes.toLocaleString("id-ID")}
         icon={Heart}
         description="Total suka pada video"
       />
       <MetricCard
-        title="Total Videos"
+        title="Total video"
         value={videos.toLocaleString("id-ID")}
         icon={Video}
         description="Jumlah video yang diunggah"
