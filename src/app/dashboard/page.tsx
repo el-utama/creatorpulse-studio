@@ -343,14 +343,14 @@ export default function DashboardPage() {
                       <CardContent className="pt-3">
                         <ul className="text-xs text-muted-foreground space-y-1.5 list-disc pl-4">
                           <li>
-                            Batas upload langsung lewat serverless Vercel:4 MB.
+                            File dari perangkat: maksimal 4 MB.
                           </li>
                           <li>
-                            Untuk file lebih besar, gunakan metode PULL_FROM_URL.
+                            Untuk video lebih besar, gunakan tautan HTTPS dari domain terverifikasi.
                           </li>
                           <li>Video tidak disimpan permanen di server kami.</li>
                           <li>
-                            Persetujuan eksplisit diperlukan sebelum publish.
+                            Tinjau akun, video, dan pengaturan sebelum mengirim.
                           </li>
                         </ul>
                       </CardContent>
