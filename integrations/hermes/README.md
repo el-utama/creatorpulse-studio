@@ -2,7 +2,7 @@
 Hermes handles conversation, messaging, native cron, research and tool orchestration. CreatorPulse handles the TikTok token vault, account monitoring, draft state, approvals and inbox publishing. n8n is optional.
 
 ## Prerequisites
-Deploy V3; configure persistent Redis and separate vault/operator/agent secrets; enroll up to three accounts in the dashboard. The gateway is disabled until configured. Real TikTok authorization remains required. No TikTok settings need to be changed by this integration. Hermes must have its own configured model and authorized research tools, and its gateway process must be running on an always-on host for scheduled tasks.
+Deploy V3; run the [SQLite Local Bridge](../../local-bridge/README.md) on the Hermes host and configure its HTTPS URL plus separate bridge/vault/operator/agent secrets; enroll up to three accounts in the dashboard. No cloud Redis or n8n is required. The gateway is disabled until configured. Real TikTok authorization remains required. No TikTok settings need to be changed by this integration. Hermes must have its own configured model and authorized research tools, and its gateway process must be running on an always-on host for scheduled tasks.
 
 ## Connect
 1. Merge config.example.yaml into the active Hermes profile config.yaml, keeping existing entries. Store only CREATORPULSE_AGENT_KEY in that profile's .env or secret scope. Never give Hermes the operator key.

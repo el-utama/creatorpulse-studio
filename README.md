@@ -1,5 +1,7 @@
 # CreatorPulse Studio
 
+**V3 local-first design (development):** [architecture and progress log](docs/ARCHITECTURE_LOCAL_FIRST.md) · [Local Bridge setup](local-bridge/README.md) · [Hermes integration](integrations/hermes/README.md). V2 manual dashboard remains supported. The V3 gateway is opt-in, with no Redis cloud requirement.
+
 Web fullstack lengkap menggunakan **Next.js (App Router)**, **TypeScript**, dan **Tailwind CSS**, siap di-deploy gratis ke **Vercel (Hobby Plan)** tanpa database berbayar, dirancang untuk memenuhi persyaratan teknis dan UX Guidelines App Review **TikTok for Developers** dengan 3 fitur utama:
 
 1. **TikTok Login** (Login Kit / OAuth 2.0)
@@ -109,7 +111,7 @@ npm run dev
 TIKTOK_CLIENT_KEY=your_tiktok_client_key
 TIKTOK_CLIENT_SECRET=your_tiktok_client_secret
 TIKTOK_REDIRECT_URI=https://your-app.vercel.app/api/auth/tiktok/callback
-NEXT_PUBLIC_APP_URL=https://your-app.vercel.app
+APP_URL=https://your-app.vercel.app
 ```
 
 ---
@@ -131,7 +133,7 @@ Di dashboard Vercel → project → **Settings → Environment Variables**, tamb
 - `TIKTOK_CLIENT_KEY`
 - `TIKTOK_CLIENT_SECRET`
 - `TIKTOK_REDIRECT_URI` (contoh: `https://creatorpulse.vercel.app/api/auth/tiktok/callback`)
-- `NEXT_PUBLIC_APP_URL` (contoh: `https://creatorpulse.vercel.app`)
+- `APP_URL` (contoh: `https://creatorpulse.vercel.app`)
 
 ### 4. Redeploy
 Setelah menambahkan env vars, klik **Redeploy** di deployment terbaru.

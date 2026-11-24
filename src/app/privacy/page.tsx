@@ -100,7 +100,7 @@ export default function PrivacyPage() {
               SameSite=Lax cookies. They are not accessible via JavaScript.
             </li>
             <li>
-              Account sessions are kept in this browser's HTTP-only cookies, with up to three separately authorized accounts. Publication IDs, timestamps and unresolved request markers are stored in browser local storage per account. If optional shared idempotency storage is enabled, hashed request keys and publication results are retained for up to 24 hours.
+              Account sessions are kept in this browser's HTTP-only cookies, with up to three separately authorized accounts. Publication IDs, timestamps and unresolved request markers are stored in browser local storage per account. If the optional agent gateway is enabled, account tokens and publication drafts are encrypted before storage in the operator-controlled SQLite Local Bridge. Trend observations and operational records are retained there; gateway enrollment is explicit. Shared manual idempotency records expire after 24 hours.
             </li>
             <li>
               All communication with TikTok APIs is conducted over HTTPS.
@@ -109,7 +109,7 @@ export default function PrivacyPage() {
 
           <h2 className="text-xl font-semibold mt-8 mb-3">7. Your Rights</h2>
           <p className="mb-4">
-            You may remove an account from this browser through the account manager or click "Logout" to clear all session cookies. This does not revoke TikTok authorization or clear browser-local publication history; clear site data to remove that history. You may also
+            You may remove an account from this browser through the account manager or click "Logout" to clear all session cookies. For enrolled accounts, logout does not disconnect the separate gateway vault; use the operator's disconnect action. This does not revoke TikTok authorization or clear browser-local publication history; clear site data to remove that history. You may also
             revoke TikTok's authorization for this app in your TikTok account
             settings.
           </p>
