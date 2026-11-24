@@ -4,6 +4,7 @@ import {APP_CONFIG} from "@/config/app";
 import {accounts,currentSlot,slotNames,sameOrigin} from "@/lib/accounts";
 import {authorize,GatewayError,config,binding} from "@/lib/gateway/store";
 import {listVault,readAccount,saveAccount,removeVault,profileIdentity,slotForId} from "@/lib/gateway/vault";
+import {prepare,approve,cancel,execute,checkStatus,getPost,listPosts} from "@/lib/gateway/posts";
 import {recordTrend,listTrends} from "@/lib/gateway/trends";
 import {readTikTok,explainTikTok,isAuthError} from "@/lib/tiktok-errors";
 import {getCreatorCapabilities} from "@/lib/tiktok";
@@ -15,9 +16,11 @@ function fail(error:unknown){return reply({error:error instanceof GatewayError?e
 function cursorOf(url:URL){const raw=url.searchParams.get("cursor")||"0",n=Number(raw);if(!/^\d+$/.test(raw)||!Number.isSafeInteger(n))throw new GatewayError(400,"Cursor tidak valid.");return n;}
 export async function GET(request:Request,ctx:Ctx){
  const p=(await ctx.params).path,url=new URL(request.url);
- if(p.join("/") === "health")return reply({version:"3.0-foundation",configured:!!config(),posting:"disabled",trends:"observations_only"});
+ if(p.join("/") === "health")return reply({version:"3.1-inbox",configured:!!config(),posting:config()?"approval_required_inbox":"disabled",trends:"observations_only"});
  try{
   authorize(request);
+  if(p.join("/") === "posts")return reply({posts:await listPosts()});
+  if(p[0]==="posts"&&p.length===2)return reply(await getPost(p[1]));
   if(p.join("/") === "accounts")return reply({accounts:await listVault(),limit:3});
   if(p[0]==="accounts"&&p.length===3){
    const slot=p[1];
@@ -53,8 +56,15 @@ export async function POST(request:Request,ctx:Ctx){
    return reply({success:true,id:slot,name:user.display_name});
   }
   authorize(request);
+  if(p.join("/") === "posts")return reply(await prepare(await request.json().catch(()=>null)),201);
+  if(p[0]==="posts"&&p.length===3){
+   if(p[2]==="approve"){authorize(request,true);return reply(await approve(p[1],await request.json().catch(()=>null)));}
+   if(p[2]==="cancel"){authorize(request,true);return reply(await cancel(p[1]));}
+   if(p[2]==="execute")return reply(await execute(p[1]));
+   if(p[2]==="status")return reply(await checkStatus(p[1]));
+  }
   if(p.join("/") === "trends"){const body=await request.json().catch(()=>null);return reply({observation:await recordTrend(body),provenance:"agent_submitted_unverified"},201);}
   if(p[0]==="accounts"&&p.length===3&&p[2]==="disconnect"){authorize(request,true);await removeVault(p[1]);return reply({success:true});}
-  return reply({error:"Endpoint tidak ditemukan. Publikasi agent belum diaktifkan."},404);
+  return reply({error:"Endpoint tidak ditemukan. Gunakan antrean posts."},404);
  }catch(e){return fail(e);}
 }
