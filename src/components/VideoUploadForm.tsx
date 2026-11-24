@@ -80,7 +80,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
     <Card className="overflow-hidden">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Video className="h-5 w-5 text-tiktok-primary" />
+          <Video className="h-5 w-5 text-tiktok-primary" aria-hidden="true" />
           Upload & Posting Video
         </CardTitle>
         <CardDescription className="text-xs">
@@ -93,9 +93,14 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
           <Label htmlFor="mode" className="text-xs font-medium text-muted-foreground">
             Mode Posting
           </Label>
-          <div className="flex items-center gap-2 border border-input rounded-md p-1">
+          <div
+            role="group"
+            aria-label="Mode posting"
+            className="flex items-center gap-2 border border-input rounded-md p-1"
+          >
             <button
               onClick={() => setMode("inbox")}
+              aria-pressed={mode === "inbox"}
               className={`flex-1 py-2 text-xs font-medium rounded-md transition-all ${
                 mode === "inbox"
                   ? "bg-background text-foreground shadow-sm border border-border"
@@ -106,6 +111,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
             </button>
             <button
               onClick={() => setMode("profile")}
+              aria-pressed={mode === "profile"}
               className={`flex-1 py-2 text-xs font-medium rounded-md transition-all ${
                 mode === "profile"
                   ? "bg-background text-foreground shadow-sm border border-border"
@@ -136,7 +142,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
         ) : (
           <div className="space-y-2">
             <Label htmlFor="video-file" className="flex items-center gap-2 cursor-pointer border border-dashed rounded-lg px-3 py-4 text-center text-sm text-muted-foreground hover:border-tiktok-primary/50 transition-colors">
-              <Upload className="h-4 w-4 text-tiktok-primary" />
+              <Upload className="h-4 w-4 text-tiktok-primary" aria-hidden="true" />
               <span>Pilih file video (.mp4 / .mov)</span>
               <input
                 id="video-file"
@@ -241,7 +247,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
           <Checkbox
             checked={consent}
             onCheckedChange={(v) => setConsent(v === true)}
-            aria-invalid={!consent}
+            aria-required="true"
             aria-describedby="consent-hint"
             aria-label="Saya menyetujui ketentuan dan mengizinkan CreatorPulse Studio memposting video ini ke akun TikTok saya."
           />
@@ -266,7 +272,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish }: UploadFor
             });
           }}
           disabled={!canPublish}
-          className="w-full bg-tiktok-primary text-white py-2.5 hover:bg-tiktok-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full py-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {canPublish ? "Publish to TikTok" : "Centang persetujuan dan lengkapi input"}
         </Button>

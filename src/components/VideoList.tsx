@@ -39,7 +39,7 @@ export function VideoList({ videos }: { videos: VideoItem[] }) {
               sizes="(max-width: 768px) 100vw, 50vw"
               loading="lazy"
             />
-            <div className="absolute bottom-1 right-1 bg-black/60 text-white text-xs px-1 py-0.5 rounded">
+            <div className="absolute bottom-1 right-1 bg-background/80 text-foreground text-xs px-1 py-0.5 rounded">
               {formatDate(video.create_time)}
             </div>
           </div>

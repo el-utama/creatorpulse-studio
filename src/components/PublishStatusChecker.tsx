@@ -73,11 +73,11 @@ export function PublishStatusChecker({ publishId, onStatusChange }: PublishStatu
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
         <CardTitle className="text-xs font-medium">Status Publikasi</CardTitle>
         {loading ? (
-          <Loader2 className="h-3 w-3 animate-spin" />
+          <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
         ) : status === "PUBLISH_COMPLETE" || status === "SUCCESS" ? (
-          <CheckCircle className="h-3 w-3 text-primary" />
+          <CheckCircle className="h-3 w-3 text-primary" aria-hidden="true" />
         ) : status === "FAILED" || status === "ERROR" ? (
-          <XCircle className="h-3 w-3 text-destructive" />
+          <XCircle className="h-3 w-3 text-destructive" aria-hidden="true" />
         ) : null}
       </CardHeader>
       <CardContent className="pt-0">
