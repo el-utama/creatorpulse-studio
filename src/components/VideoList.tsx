@@ -27,10 +27,10 @@ export function VideoList({ videos }: { videos: VideoItem[] }) {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
       {videos.map((video) => (
-        <Card key={video.id} className="cursor-pointer hover:border-tiktok-primary/50 transition-colors">
-          <div className="relative aspect-video w-full bg-muted overflow-hidden">
+        <Card key={video.id} className="overflow-hidden shadow-none">
+          <div className="relative aspect-[9/16] w-full bg-muted overflow-hidden">
             <Image
               src={video.cover_image_url}
               alt={video.title}
@@ -47,7 +47,7 @@ export function VideoList({ videos }: { videos: VideoItem[] }) {
             <CardTitle className="text-xs font-medium line-clamp-2 text-foreground mb-1">
               {video.title}
             </CardTitle>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span className="flex items-center gap-1" aria-label={`Views: ${formatNumber(video.view_count)}`}>
                 👁 {formatNumber(video.view_count)}
               </span>
@@ -57,6 +57,7 @@ export function VideoList({ videos }: { videos: VideoItem[] }) {
               <span className="flex items-center gap-1" aria-label={`Comments: ${formatNumber(video.comment_count)}`}>
                 💬 {formatNumber(video.comment_count)}
               </span>
+              <span aria-label={`Bagikan: ${formatNumber(video.share_count)}`}>↗ {formatNumber(video.share_count)}</span>
             </div>
           </CardContent>
           <CardFooter className="p-2 pt-0">
@@ -64,7 +65,7 @@ export function VideoList({ videos }: { videos: VideoItem[] }) {
               href={video.share_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-tiktok-primary hover:underline font-medium block text-center"
+              className="text-xs text-primary underline font-medium block text-center"
             >
               Buka di TikTok →
             </a>
