@@ -25,6 +25,14 @@ class BridgeTests(unittest.TestCase):
         with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
             results = list(pool.map(lambda i:self.s.run(["EVAL",CAS,1,POSTS,id,"draft",str(i)]),range(8)))
         self.assertEqual(sum(results),1)
+    def test_archive_retains_identity(self):
+        id = "00000000-0000-4000-8000-000000000002"
+        self.assertEqual(self.s.run(["EVAL",CREATE,1,POSTS,id,"done"]),1)
+        self.assertEqual(self.s.run(["ARCHIVE_POST",id,"wrong"]),0)
+        self.assertEqual(self.s.run(["ARCHIVE_POST",id,"done"]),1)
+        self.assertEqual(self.s.run(["HKEYS",POSTS]),[])
+        self.assertEqual(self.s.run(["HGET",POSTS+":archived",id]),"done")
+        self.assertEqual(self.s.run(["EVAL",CREATE,1,POSTS,id,"new"]),2)
     def test_lock_and_idempotency(self):
         lock = "creatorpulse:v3:lock:"+"a"*32
         key = "creatorpulse:publish:v1:"+"b"*64

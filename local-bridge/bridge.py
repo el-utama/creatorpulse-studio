@@ -13,6 +13,7 @@ from pathlib import Path
 
 VAULT = "creatorpulse:v3:vault"
 POSTS = "creatorpulse:v3:posts"
+ARCHIVED = "creatorpulse:v3:posts:archived"
 TRENDS = "creatorpulse:v3:trends"
 LOCK = re.compile(r"creatorpulse:v3:lock:[a-f0-9]{32}")
 PUBLISH = re.compile(r"creatorpulse:publish:v1:[a-f0-9]{64}")
@@ -30,7 +31,7 @@ def require(condition):
         raise ValueError("Unsupported storage operation")
 
 def field(table, key):
-    return isinstance(key, str) and ((table == VAULT and SLOT.fullmatch(key)) or (table == POSTS and UUID.fullmatch(key)))
+    return isinstance(key, str) and ((table == VAULT and SLOT.fullmatch(key)) or (table in (POSTS, ARCHIVED) and UUID.fullmatch(key)))
 
 def bounded(value, limit=65536):
     return isinstance(value, str) and 0 < len(value.encode("utf-8")) <= limit
@@ -69,6 +70,12 @@ class Store:
         op, *a = cmd
         if op == "PING" and not a:
             return "PONG"
+        if op == "ARCHIVE_POST" and len(a) == 2 and field(POSTS,a[0]) and bounded(a[1]):
+            row=c.execute("SELECT value FROM records WHERE bucket=? AND field=?", (POSTS,a[0])).fetchone()
+            if not row or row[0] != a[1]: return 0
+            c.execute("INSERT INTO records VALUES(?,?,?)",(ARCHIVED,a[0],a[1]))
+            c.execute("DELETE FROM records WHERE bucket=? AND field=?",(POSTS,a[0]))
+            return 1
         if op == "HGET" and len(a) == 2 and field(*a):
             row = c.execute("SELECT value FROM records WHERE bucket=? AND field=?", a).fetchone()
             return row[0] if row else None
@@ -127,13 +134,13 @@ class Store:
         require(all(bounded(v) for v in values))
         row = c.execute("SELECT value FROM records WHERE bucket=? AND field=?", (bucket, key)).fetchone()
         if script == CAS:
-            require(len(values) == 2)
+            require(bucket in (VAULT,POSTS) and len(values) == 2)
             if not row or row[0] != values[0]:
                 return 0
             c.execute("UPDATE records SET value=? WHERE bucket=? AND field=?", (values[1], bucket, key))
             return 1
         require(len(values) == 1 and ((script == ENROLL and bucket == VAULT) or (script == CREATE and bucket == POSTS)))
-        if script == CREATE and row:
+        if script == CREATE and (row or c.execute("SELECT 1 FROM records WHERE bucket=? AND field=?",(ARCHIVED,key)).fetchone()):
             return 2
         limit = 3 if bucket == VAULT else 100
         if not row and c.execute("SELECT COUNT(*) FROM records WHERE bucket=?", (bucket,)).fetchone()[0] >= limit:

@@ -4,7 +4,7 @@ import {APP_CONFIG} from "@/config/app";
 import {accounts,currentSlot,slotNames,sameOrigin} from "@/lib/accounts";
 import {authorize,GatewayError,config,binding} from "@/lib/gateway/store";
 import {listVault,readAccount,saveAccount,removeVault,profileIdentity,slotForId} from "@/lib/gateway/vault";
-import {prepare,approve,cancel,execute,checkStatus,getPost,listPosts} from "@/lib/gateway/posts";
+import {prepare,approve,cancel,execute,checkStatus,getPost,listPosts,archive} from "@/lib/gateway/posts";
 import {recordTrend,listTrends} from "@/lib/gateway/trends";
 import {readTikTok,explainTikTok,isAuthError} from "@/lib/tiktok-errors";
 import {getCreatorCapabilities} from "@/lib/tiktok";
@@ -59,6 +59,7 @@ export async function POST(request:Request,ctx:Ctx){
   if(p.join("/") === "posts")return reply(await prepare(await request.json().catch(()=>null)),201);
   if(p[0]==="posts"&&p.length===3){
    if(p[2]==="approve"){authorize(request,true);return reply(await approve(p[1],await request.json().catch(()=>null)));}
+   if(p[2]==="archive"){authorize(request,true);return reply(await archive(p[1]));}
    if(p[2]==="cancel"){authorize(request,true);return reply(await cancel(p[1]));}
    if(p[2]==="execute")return reply(await execute(p[1]));
    if(p[2]==="status")return reply(await checkStatus(p[1]));

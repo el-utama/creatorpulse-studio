@@ -9,9 +9,10 @@ type State="draft"|"approved"|"sending"|"submitted"|"uncertain"|"cancelled";
 type Post={id:string;accountId:string;accountName:string;videoUrl:string;caption:string;mode:"inbox"|"profile";duration?:number;direct?:DirectSettings;approvedCaption?:string;state:State;createdAt:string;updatedAt:string;approvedUntil?:number;publishId?:string;status?:string;error?:string;events:{action:string;at:string;actor:string}[]};
 async function load(id:string){
  if(!uuid(id))throw new GatewayError(400,"ID publikasi tidak valid.");
- const raw=await redis<string|null>(["HGET",hash,id]);
+ const active=await redis<string|null>(["HGET",hash,id]);
+ const raw=active??await redis<string|null>(["HGET",hash+":archived",id]);
  if(!raw)throw new GatewayError(404,"Rencana publikasi tidak ditemukan.");
- return {post:unseal<Post>(raw,"post:"+id),raw};
+ return {post:unseal<Post>(raw,"post:"+id),raw,archived:!active};
 }
 async function change(post:Post,raw:string,patch:Partial<Post>,action:string,actor:string){
  const at=new Date().toISOString();
@@ -29,11 +30,11 @@ export async function prepare(input:unknown){
  const at=new Date().toISOString();
  const post:Post={id:x.requestId,accountId:account.slot,accountName:account.name,videoUrl:url.href,caption:x.caption,mode:x.mode as "inbox"|"profile",...(x.mode==="profile"?{duration:x.duration as number}:{}),state:"draft",createdAt:at,updatedAt:at,events:[{action:"prepared",at,actor:"agent"}]};
  const result=await redis<number>(["EVAL","-- post_create\nif redis.call('HEXISTS',KEYS[1],ARGV[1])==1 then return 2 end if redis.call('HLEN',KEYS[1])>=100 then return 0 end redis.call('HSET',KEYS[1],ARGV[1],ARGV[2]) return 1",1,hash,post.id,seal(post,"post:"+post.id)]);
- if(result===0)throw new GatewayError(409,"Antrean mencapai kapasitas 100 rencana; hubungi operator.");
+ if(result===0)throw new GatewayError(409,"Antrean mencapai kapasitas 100 rencana aktif; arsipkan rencana terminal.");
  if(result===2){const {post:old}=await load(post.id);if(old.accountId!==post.accountId||old.videoUrl!==post.videoUrl||old.caption!==post.caption||old.mode!==post.mode||old.duration!==post.duration)throw new GatewayError(409,"ID permintaan sudah digunakan untuk payload berbeda.");return old;}
  return post;
 }
-export async function getPost(id:string){return (await load(id)).post;}
+export async function getPost(id:string){const {post,archived}=await load(id);return {...post,archived};}
 export async function listPosts(){
  const entries=await redis<string[]>(["HGETALL",hash]);
  const posts:Post[]=[];for(let i=0;i+1<entries.length&&posts.length<100;i+=2){if(uuid(entries[i]))posts.push(unseal<Post>(entries[i+1],"post:"+entries[i]));}
@@ -59,8 +60,9 @@ export async function cancel(id:string){
  return change(post,raw,{state:"cancelled"},"cancelled","operator");
 }
 export async function execute(id:string){
- const {post,raw}=await load(id);
+ const {post,raw,archived}=await load(id);
  if(post.state==="submitted")return post;
+ if(archived)throw new GatewayError(409,"Rencana telah diarsipkan.");
  if(post.state!=="approved"||(post.approvedUntil||0)<=Date.now())throw new GatewayError(409,"Persetujuan tidak tersedia atau kedaluwarsa. Jangan mengulang permintaan yang belum pasti.");
  const token=await vaultToken(post.accountId),{account}=await loadAccount(post.accountId);
  const identity=await profileIdentity(token);
@@ -81,8 +83,18 @@ export async function execute(id:string){
  }
 }
 export async function checkStatus(id:string){
- const {post,raw}=await load(id);
- if(!post.publishId||!["submitted","uncertain"].includes(post.state))return post;
+ const {post,raw,archived}=await load(id);
+ if(archived||!post.publishId||!["submitted","uncertain"].includes(post.state))return post;
  const result=await readAccount(post.accountId,t=>fetchPublishStatus(t,post.publishId!));
+ if(post.status===result.status&&post.error===(result.status==="FAILED"?explainFailure(result.fail_reason):undefined))return post;
  return change(post,raw,{status:result.status,error:result.status==="FAILED"?explainFailure(result.fail_reason):undefined},"status_checked","agent");
+}
+
+export async function archive(id:string){
+ const {post,raw,archived}=await load(id);
+ if(archived)return {id,archived:true};
+ if(post.state!=="cancelled"&&!(post.state==="submitted"&&["PUBLISH_COMPLETE","FAILED","SEND_TO_USER_INBOX"].includes(post.status||"")))throw new GatewayError(409,"Hanya rencana batal atau terminal yang dapat diarsipkan.");
+ const ok=await redis<number>(["ARCHIVE_POST",id,raw]);
+ if(ok!==1)throw new GatewayError(409,"Status berubah, muat ulang.");
+ return {id,archived:true};
 }

@@ -87,3 +87,17 @@ test('direct mode requires human settings, validates visibility and sends exact 
  const sent=await (await request.post(url+'/execute',{headers:agent})).json();expect(sent.state).toBe('submitted');expect(sent.publishId).toMatch(/^server-direct-/);expect(sent.direct.privacy).toBe('SELF_ONLY');
  const repeated=await (await request.post(url+'/execute',{headers:agent})).json();expect(repeated.publishId).toBe(sent.publishId);
 });
+
+test('terminal archival frees active queue but never permits reusing an executed id',async ({request})=>{
+ const accounts=await (await request.get('/api/gateway/v1/accounts',{headers:agent})).json();const accountId=accounts.accounts[0].id;
+ const base='/api/gateway/v1/posts',data={requestId:crypto.randomUUID(),accountId,videoUrl:'https://example.com/archive.mp4',caption:'Archive',mode:'inbox'};
+ const draft=await (await request.post(base,{headers:agent,data})).json();const url=base+'/'+draft.id;
+ expect((await request.post(url+'/archive',{headers:operator})).status()).toBe(409);
+ expect((await request.post(url+'/cancel',{headers:operator})).ok()).toBe(true);
+ expect((await request.post(url+'/archive',{headers:agent})).status()).toBe(403);
+ expect((await request.post(url+'/archive',{headers:operator})).ok()).toBe(true);
+ const old=await (await request.get(url,{headers:agent})).json();expect(old.archived).toBe(true);expect(old.state).toBe('cancelled');
+ const list=await (await request.get(base,{headers:agent})).json();expect(list.posts.some(p=>p.id===draft.id)).toBe(false);
+ expect((await request.post(base,{headers:agent,data:{...data,caption:'different'}})).status()).toBe(409);
+ expect((await request.post(url+'/execute',{headers:agent})).status()).toBe(409);
+});
