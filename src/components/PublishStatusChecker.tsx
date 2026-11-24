@@ -10,12 +10,15 @@ interface PublishStatusCheckerProps {
 }
 
 export function PublishStatusChecker({ publishId, onStatusChange }: PublishStatusCheckerProps) {
+  const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!publishId) return;
+    setError(null);
+    setStatus(null);
 
     const abortController = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
@@ -31,6 +34,7 @@ export function PublishStatusChecker({ publishId, onStatusChange }: PublishStatu
           body: JSON.stringify({ publish_ids: [publishId] }),
           signal: abortController.signal,
         });
+        if (res.status === 401) { isTerminal = true; setLoading(false); throw new Error("Sesi berakhir. Hubungkan kembali akun TikTok."); }
         if (!res.ok) throw new Error("Gagal memeriksa status");
         const data = await res.json();
         const videoStatus = data.data?.status ?? data.data?.[0]?.status ?? data.status ?? "unknown";
@@ -71,7 +75,7 @@ export function PublishStatusChecker({ publishId, onStatusChange }: PublishStatu
       abortController.abort();
       clearTimeout(timer);
     };
-  }, [publishId, onStatusChange]);
+  }, [publishId, onStatusChange, attempt]);
 
   if (!publishId) return null;
 
@@ -107,8 +111,9 @@ export function PublishStatusChecker({ publishId, onStatusChange }: PublishStatu
           </span>
         </div>
         {error && (
-          <div className="mt-1 text-xs text-destructive">{error}</div>
+          <div role="alert" className="mt-1 text-sm text-destructive">{error}</div>
         )}
+        <button type="button" className="mt-3 min-h-11 rounded-md border px-3 text-sm" disabled={loading} onClick={() => setAttempt(v => v+1)}>Periksa ulang</button>
       </CardContent>
     </Card>
   );
