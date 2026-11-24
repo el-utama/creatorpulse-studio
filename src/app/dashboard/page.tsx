@@ -270,7 +270,7 @@ export default function DashboardPage() {
                       Coba Lagi
                     </Button>
                     <p className="text-xs text-muted-foreground">
-                      Jika masalah berlanjut, hubungkan kembali akun TikTok Anda.
+                      Jika masalah berlanjut, <a href="/api/auth/tiktok" className="underline font-medium">hubungkan kembali akun TikTok</a>.
                     </p>
                   </CardContent>
                 </Card>
@@ -279,7 +279,7 @@ export default function DashboardPage() {
             </TabsContent>
             <TabsContent value="content" className="mt-4 space-y-4 lg:mt-0">
               {/* Video List */}
-              <h2 className="text-lg font-semibold text-foreground mb-4 mt-8">Daftar Video Terbaru</h2>
+              <h2 className="text-lg font-semibold text-foreground mb-4">Perpustakaan Konten</h2>
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-semibold">
