@@ -16,7 +16,7 @@ function fail(error:unknown){return reply({error:error instanceof GatewayError?e
 function cursorOf(url:URL){const raw=url.searchParams.get("cursor")||"0",n=Number(raw);if(!/^\d+$/.test(raw)||!Number.isSafeInteger(n))throw new GatewayError(400,"Cursor tidak valid.");return n;}
 export async function GET(request:Request,ctx:Ctx){
  const p=(await ctx.params).path,url=new URL(request.url);
- if(p.join("/") === "health")return reply({version:"3.3-local-first",storage:"local_bridge",configured:!!config(),posting:config()?"approval_required_inbox":"disabled",trends:"observations_only"});
+ if(p.join("/") === "health")return reply({version:"3.5-dual-post",storage:"local_bridge",directPublicEnabled:process.env.TIKTOK_DIRECT_POST_AUDITED==="true",configured:!!config(),posting:config()?"approval_required_inbox_and_direct":"disabled",trends:"observations_only"});
  try{
   authorize(request);
   if(p.join("/") === "posts")return reply({posts:await listPosts()});

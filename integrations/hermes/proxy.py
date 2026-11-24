@@ -26,10 +26,10 @@ TOOLS = [
     tool("get_capabilities","Read publication capabilities.",{"accountId":ACCOUNT},["accountId"]),
     tool("list_trends","Read stored sourced observations, not verified live rankings.",{"region":STR,"days":{"type":"integer","minimum":1,"maximum":90}}),
     tool("record_trend","Save real evidence from an authorized research source.",{"topic":STR,"type":{"enum":["topic","hashtag","music","video","keyword"]},"region":STR,"source":{"enum":["tiktok_creative_center","tiktok_discovery_api","google_trends","web_research","manual"]},"sourceUrl":STR,"observedAt":STR,"evidence":STR,"changePct":{"type":"number"},"metric":STR},["topic","type","region","source","sourceUrl","observedAt","evidence"]),
-    tool("prepare_post","Create immutable inbox draft; human approval required. Caption is only a suggestion.",{"requestId":ID,"accountId":ACCOUNT,"videoUrl":STR,"caption":STR,"mode":{"const":"inbox"}},["requestId","accountId","videoUrl","caption","mode"]),
+    tool("prepare_post","Create inbox or Direct Post draft; profile requires duration in seconds. Human selects final settings.",{"requestId":ID,"accountId":ACCOUNT,"videoUrl":STR,"caption":STR,"mode":{"enum":["inbox","profile"]},"duration":{"type":"number","exclusiveMinimum":0}},["requestId","accountId","videoUrl","caption","mode"]),
     tool("list_posts","Read publication queue."),
     tool("get_post","Inspect exact draft and state.",{"postId":ID},["postId"]),
-    tool("execute_approved_post","Submit approved draft to inbox once; do not retry uncertain results.",{"postId":ID},["postId"]),
+    tool("execute_approved_post","Submit approved draft to TikTok once; do not retry uncertain results.",{"postId":ID},["postId"]),
     tool("get_publish_status","Check TikTok publication state.",{"postId":ID},["postId"]),
 ]
 BY_NAME = {t["name"]:t for t in TOOLS}
@@ -117,7 +117,7 @@ def main():
             health=request("/health")
             if not health.get("configured"): raise ValueError("Gateway is not configured.")
             accounts=request("/accounts",get_key()).get("accounts",[])
-            print(json.dumps({"gateway":"connected","accounts":len(accounts),"posting":"inbox_only","research":"agent_sourced"}))
+            print(json.dumps({"gateway":"connected","accounts":len(accounts),"posting":health.get("posting","unknown"),"research":"agent_sourced"}))
             return 0 if accounts else 2
         except ValueError as e:
             print(json.dumps({"gateway":"blocked","reason":str(e)}));return 1

@@ -10,11 +10,11 @@ const definitions=[
  {name:"get_capabilities",description:"Read TikTok account publication capabilities.",inputSchema:object({accountId:slot},["accountId"])},
  {name:"list_trends",description:"Read stored agent-submitted observations; not a verified live ranking.",inputSchema:object({region,days})},
  {name:"record_trend",description:"Record a sourced observation from research. Never invent metrics; identify evidence and observation time.",inputSchema:object({topic:{type:"string"},type:{enum:["topic","hashtag","music","video","keyword"]},region,source:{enum:["tiktok_creative_center","tiktok_discovery_api","google_trends","web_research","manual"]},sourceUrl:{type:"string",format:"uri"},observedAt:{type:"string",format:"date-time"},evidence:{type:"string"},changePct:{type:"number"},metric:{type:"string"}},["topic","type","region","source","sourceUrl","observedAt","evidence"])},
- {name:"prepare_post",description:"Create an immutable inbox draft. Requires a unique requestId. Caption is a suggestion; human completes posting in TikTok.",inputSchema:object({requestId:id,accountId:slot,videoUrl:{type:"string",format:"uri"},caption:{type:"string"},mode:{const:"inbox"}},["requestId","accountId","videoUrl","caption","mode"])},
+ {name:"prepare_post",description:"Create inbox or Direct Post draft. Unique requestId; duration in seconds required for profile. Operator chooses final caption, privacy and disclosures.",inputSchema:object({requestId:id,accountId:slot,videoUrl:{type:"string",format:"uri"},caption:{type:"string"},mode:{enum:["inbox","profile"]},duration:{type:"number",exclusiveMinimum:0}},["requestId","accountId","videoUrl","caption","mode"])},
  {name:"list_posts",description:"Inspect queue and approval state.",inputSchema:object({})},
  {name:"get_post",description:"Read exact draft and publication status.",inputSchema:object({postId:id},["postId"])},
- {name:"execute_approved_post",description:"Send approved draft to TikTok inbox once; cannot approve. Never retry uncertain outcomes.",inputSchema:object({postId:id},["postId"])},
- {name:"get_publish_status",description:"Check status of submitted inbox post.",inputSchema:object({postId:id},["postId"])}
+ {name:"execute_approved_post",description:"Send approved draft to TikTok once; cannot approve. Never retry uncertain outcomes.",inputSchema:object({postId:id},["postId"])},
+ {name:"get_publish_status",description:"Check status of submitted post.",inputSchema:object({postId:id},["postId"])}
 ];
 const headers={"Cache-Control":"no-store"};
 const result=(id:unknown,value:unknown)=>NextResponse.json({jsonrpc:"2.0",id,result:value},{headers});

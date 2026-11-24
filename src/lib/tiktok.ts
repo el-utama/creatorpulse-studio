@@ -55,6 +55,7 @@ export async function refreshAccessToken(
   refreshToken: string
 ): Promise<TikTokTokenResponse> {
   const res = await fetch(APP_CONFIG.tiktokTokenUrl, {
+    signal: AbortSignal.timeout(10000),
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -219,7 +220,7 @@ export interface CreatorCapabilities {
   max_video_post_duration_sec: number;
 }
 export async function getCreatorCapabilities(token: string): Promise<CreatorCapabilities> {
-  const res = await fetch("https://open.tiktokapis.com/v2/post/publish/creator_info/query/", {method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},cache:"no-store",body:"{}"});
+  const res = await fetch("https://open.tiktokapis.com/v2/post/publish/creator_info/query/", {method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},cache:"no-store",signal:AbortSignal.timeout(10000),body:"{}"});
   const data = await readTikTok<CreatorCapabilities>(res);
   if (!Array.isArray(data.privacy_level_options)) throw new Error("Creator capabilities unavailable");
   const options = data.privacy_level_options.filter((value: unknown) => typeof value === "string");
