@@ -71,9 +71,9 @@ export default function DashboardPage() {
         headers: { "Content-Type": "application/json" },
       });
 
-      if (res.status === 401) { setProfile(null); setVideos([]); throw new Error("Sesi berakhir. Hubungkan kembali akun TikTok."); }
-      if (!res.ok) throw new Error("Gagal memuat analitik");
+      if (res.status === 401) { setProfile(null); setVideos([]); setCursor(null); throw new Error("Sesi berakhir. Hubungkan kembali akun TikTok."); }
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal memuat analitik");
       setProfile(data.user_info ?? null);
       setVideos(data.videos?.data ?? []);
       setCursor(data.videos?.has_more && Number.isSafeInteger(data.videos.cursor) ? data.videos.cursor : null);
@@ -99,7 +99,7 @@ export default function DashboardPage() {
       if(!res.ok) throw new Error(data.error||"Gagal memuat video berikutnya.");
       const next=data.videos;
       if(!Array.isArray(next?.data)) throw new Error("Daftar video tidak valid.");
-      setVideos(old=>Array.from(new Map([...old,...next.data].map(v=>[v.id,v])).values()));
+      setVideos(old=>Array.from(new Map<string,import("@/types/tiktok").TikTokVideo>([...old,...(next.data as import("@/types/tiktok").TikTokVideo[])].map(v=>[v.id,v])).values()));
       setCursor(next.has_more && Number.isSafeInteger(next.cursor) && next.cursor!==cursor ? next.cursor:null);
     } catch(error) {setMoreError(error instanceof Error?error.message:"Gagal memuat video berikutnya.");}
     finally {moreLock.current=false;setMoreLoading(false);}
