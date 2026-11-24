@@ -157,6 +157,7 @@ export async function initPublish(
   mode: "inbox" | "profile"
 ): Promise<TikTokPublishInitResponse> {
   const res = await fetch(mode === "inbox" ? APP_CONFIG.tiktokPublishInitInbox : APP_CONFIG.tiktokPublishInitProfile, {
+    signal: AbortSignal.timeout(15000),
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -175,6 +176,7 @@ export async function fetchPublishStatus(
   publishId: string
 ): Promise<TikTokPublishStatusResponse> {
   const res = await fetch(APP_CONFIG.tiktokPublishStatus, {
+    signal: AbortSignal.timeout(10000),
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,

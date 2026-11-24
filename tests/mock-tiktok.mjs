@@ -15,7 +15,8 @@ globalThis.fetch = async (input, options) => {
     else if(cmd==='LRANGE')result=mockLists.get(a[0])||[];
     else if(cmd==='EVAL'){
       const [script,_,k,x,y,z]=a;
-      if(script.includes("redis.call('HEXISTS'")){const h=hash(k);if(!h.has(x)&&h.size>=3)result=0;else{h.set(x,y);result=1;}}
+      if(script.includes("post_create")){const h=hash(k);if(h.has(x))result=2;else if(h.size>=100)result=0;else{h.set(x,y);result=1;}}
+      else if(script.includes("redis.call('HEXISTS'")){const h=hash(k);if(!h.has(x)&&h.size>=3)result=0;else{h.set(x,y);result=1;}}
       else if(script.includes("redis.call('HGET'")){const h=hash(k);if(h.get(x)!==y)result=0;else{h.set(x,z);result=1;}}
       else if(script.includes("redis.call('LPUSH'")){mockLists.set(k,[x,...(mockLists.get(k)||[])].slice(0,500));result=1;}
       else if(script.includes("redis.call('DEL'")){result=mockKeys.get(k)===x?Number(mockKeys.delete(k)):0;}

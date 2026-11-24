@@ -24,3 +24,6 @@ https://developers.tiktok.com/docs/en/content-sharing-guidelines
 https://developers.tiktok.com/docs/en/oauth-user-access-token-management
 https://ads.tiktok.com/resources/help/article/marketing-api?lang=id
 https://ads.tiktok.com/resources/help/article/how-to-use-trends
+
+## V3.1 Inbox publication
+Agent creates immutable draft with UUID requestId, accountId, HTTPS media URL, suggested caption and mode inbox. Operator reviews exact payload, approves with independent operator credential (15 minutes), then agent executes once. Atomic compare-and-set claims prevent duplicate init across instances. Ambiguous response remains uncertain/sending, never automatically retried. Caption is a suggestion only; Inbox API does not apply it, human finishes in TikTok. Queue currently bounded to 100 records; no deletion/reset or direct posting endpoint. No durable scheduler yet; external workflow must poll status explicitly. Approval credential must be isolated from LLM/agent; trusted human-only UI or authenticated chat callback handles approval. No arbitrary URL fetch from gateway; TikTok verifies media ownership.

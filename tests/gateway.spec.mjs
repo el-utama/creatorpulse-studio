@@ -37,3 +37,29 @@ test('enroll and monitor without browser, separate credentials and sourced trend
  expect((await request.post('/api/gateway/v1/accounts/'+id+'/disconnect',{headers:operator})).status()).toBe(200);
  expect((await request.get('/api/gateway/v1/accounts/'+id+'/analytics',{headers:agent})).status()).toBe(404);
 });
+
+test('immutable inbox draft, operator approval and exactly one execution claim',async ({context,request})=>{
+ const start=await context.request.get('/api/auth/tiktok',{maxRedirects:0});
+ const state=new URL(start.headers().location).searchParams.get('state');
+ await context.request.get('/api/auth/tiktok/callback?code=account-b&state='+state,{maxRedirects:0});
+ const enrolled=await context.request.post('/api/gateway/v1/enroll',{headers:operator});
+ expect(enrolled.ok()).toBe(true);const accountId=(await enrolled.json()).id;
+ const base='/api/gateway/v1/posts',data={requestId:crypto.randomUUID(),accountId,videoUrl:'https://example.com/video.mp4',caption:'Mock caption',mode:'inbox'};
+ const created=await request.post(base,{headers:agent,data});expect(created.status()).toBe(201);
+ const draft=await created.json();const url=base+'/'+draft.id;
+ expect(draft.state).toBe('draft');
+ expect((await request.post(url+'/execute',{headers:agent})).status()).toBe(409);
+ expect((await request.post(url+'/approve',{headers:agent,data:{...data,confirm:true}})).status()).toBe(403);
+ expect((await request.post(url+'/approve',{headers:operator,data:{...data,caption:'changed',confirm:true}})).status()).toBe(400);
+ expect((await request.post(base,{headers:agent,data:{...data,caption:'changed'}})).status()).toBe(409);
+ expect((await request.post(url+'/approve',{headers:operator,data:{...data,confirm:true}})).ok()).toBe(true);
+ const results=await Promise.all([request.post(url+'/execute',{headers:agent}),request.post(url+'/execute',{headers:agent})]);
+ const accepted=await Promise.all(results.filter(r=>r.ok()).map(r=>r.json()));
+ expect(accepted.length).toBeGreaterThan(0);expect(new Set(accepted.map(x=>x.publishId)).size).toBe(1);
+ const again=await (await request.post(url+'/execute',{headers:agent})).json();expect(again.publishId).toBe(accepted[0].publishId);
+ expect(again.state).toBe('submitted');
+ expect((await request.post(url+'/cancel',{headers:operator})).status()).toBe(409);
+ const status=await (await request.post(url+'/status',{headers:agent})).json();expect(status.status).toBe('PUBLISH_COMPLETE');
+ expect(status.events.some(x=>x.action==='approved'&&x.actor==='operator')).toBe(true);
+ expect((await request.post(base,{headers:agent,data:{...data,requestId:crypto.randomUUID(),mode:'profile'}})).status()).toBe(400);
+});
