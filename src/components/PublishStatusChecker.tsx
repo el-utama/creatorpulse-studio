@@ -18,7 +18,8 @@ export function PublishStatusChecker({ publishId, onStatusChange }: PublishStatu
     if (!publishId) return;
 
     const abortController = new AbortController();
-    let interval: NodeJS.Timeout;
+    let timer: ReturnType<typeof setTimeout>;
+    const deadline = Date.now() + 5 * 60 * 1000;
 
     const checkStatus = async () => {
       setLoading(true);
@@ -48,23 +49,27 @@ export function PublishStatusChecker({ publishId, onStatusChange }: PublishStatu
           onStatusChange?.(videoStatus);
           if (isTerminal) {
             setLoading(false);
-            clearInterval(interval);
+            clearTimeout(timer);
           }
         }
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return;
         if (!abortController.signal.aborted) setError(err instanceof Error ? err.message : "Unknown error");
       } finally {
-        if (!abortController.signal.aborted && !isTerminal) setLoading(false);
+        if (!abortController.signal.aborted && !isTerminal) {
+          setLoading(false);
+          if (Date.now() < deadline) timer = setTimeout(checkStatus, 5000);
+          else setError("Pemeriksaan otomatis berhenti. Buka kembali publikasi ini untuk memeriksa status.");
+        }
       }
     };
 
     checkStatus();
-    interval = setInterval(checkStatus, 5000);
+
 
     return () => {
       abortController.abort();
-      clearInterval(interval);
+      clearTimeout(timer);
     };
   }, [publishId, onStatusChange]);
 
