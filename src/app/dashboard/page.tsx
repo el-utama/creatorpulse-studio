@@ -60,7 +60,7 @@ export default function DashboardPage() {
 
       if (!userRes.ok) throw new Error("Gagal memuat profil");
       const userData = await userRes.json();
-      setProfile(userData.user_info);
+      setProfile(userData.user_info ?? null);
 
       if (!videoRes.ok) throw new Error("Gagal memuat daftar video");
       const videoData = await videoRes.json();
@@ -192,8 +192,19 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <Card>
-                  <CardContent className="py-12 text-center">
-                    <p className="text-muted-foreground">Memuat profil...</p>
+                  <CardContent className="py-12 text-center space-y-3">
+                    <p className="text-muted-foreground">Profil tidak tersedia.</p>
+                    <Button
+                      onClick={fetchAnalytics}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Coba Lagi
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      Pastikan scope <code className="bg-muted px-1 py-0.5 rounded">user.info.profile</code> telah diizinkan di portal TikTok for Developers.
+                    </p>
                   </CardContent>
                 </Card>
               )}
