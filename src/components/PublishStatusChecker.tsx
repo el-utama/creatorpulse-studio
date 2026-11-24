@@ -27,21 +27,23 @@ export function PublishStatusChecker({ publishId, onStatusChange }: PublishStatu
         const res = await fetch("/api/tiktok/publish/status", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ publish_id: publishId }),
+          body: JSON.stringify({ publish_ids: [publishId] }),
           signal: abortController.signal,
         });
         if (!res.ok) throw new Error("Gagal memeriksa status");
         const data = await res.json();
-        const videoStatus = data.data?.[0]?.status ?? data.status ?? "unknown";
+        const videoStatus = data.data?.status ?? data.data?.[0]?.status ?? data.status ?? "unknown";
 
         // Stop polling once a terminal status is reached
         isTerminal =
           videoStatus === "PUBLISH_COMPLETE" ||
           videoStatus === "SUCCESS" ||
+          videoStatus === "SEND_TO_USER_INBOX" ||
           videoStatus === "FAILED" ||
           videoStatus === "ERROR";
 
         if (!abortController.signal.aborted) {
+          setError(null);
           setStatus(videoStatus);
           onStatusChange?.(videoStatus);
           if (isTerminal) {
@@ -69,7 +71,7 @@ export function PublishStatusChecker({ publishId, onStatusChange }: PublishStatu
   if (!publishId) return null;
 
   return (
-    <Card className="border-l-4 border-l-tiktok-primary">
+    <Card className="shadow-none" aria-live="polite">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
         <CardTitle className="text-xs font-medium">Status Publikasi</CardTitle>
         {loading ? (
@@ -96,7 +98,7 @@ export function PublishStatusChecker({ publishId, onStatusChange }: PublishStatu
                 : "text-muted-foreground"
             }`}
           >
-            {status || "Memeriksa..."}
+            {({ PUBLISH_COMPLETE: "Terpublikasi", SUCCESS: "Terpublikasi", SEND_TO_USER_INBOX: "Dikirim ke inbox TikTok", PROCESSING_UPLOAD: "Mengunggah video", PROCESSING_DOWNLOAD: "Mengambil video", FAILED: "Gagal", ERROR: "Gagal" } as Record<string,string>)[status ?? ""] ?? (status ? "Sedang diproses" : "Memeriksa…")}
           </span>
         </div>
         {error && (
