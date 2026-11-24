@@ -163,3 +163,33 @@ test('studio design overview and library views',async ({page,context})=>{
  for(const width of [1440,768,390,320]){await page.setViewportSize({width,height:900});await page.goto('/dashboard');await expect(page.getByRole('heading',{name:'Performa konten'})).toBeVisible();await expect(page.getByRole('heading',{name:'Video teratas'})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);await page.screenshot({path:'test-results/design-overview-'+width+'.png',fullPage:true});}
  await page.getByRole('tab',{name:'Konten',exact:true}).click();await page.getByRole('button',{name:'Tampilan grid'}).click();await expect(page.getByRole('button',{name:'Tampilan grid'})).toHaveAttribute('aria-pressed','true');await expect(page.getByText('Sample video',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Tampilan daftar'}).click();await expect(page.getByRole('button',{name:'Tampilan daftar'})).toHaveAttribute('aria-pressed','true');
 });
+
+test('multi-account OAuth, switch, isolation and removal',async ({page,context})=>{
+ const connect=async(code,add=false)=>{
+  const start=await context.request.get('/api/auth/tiktok'+(add?'?add=1':''),{maxRedirects:0});
+  const url=new URL(start.headers().location);
+  if(add)expect(url.searchParams.get('disable_auto_auth')).toBe('1');
+  const callback=await context.request.get('/api/auth/tiktok/callback?code='+code+'&state='+encodeURIComponent(url.searchParams.get('state')),{maxRedirects:0});
+  expect(callback.headers().location).toContain('/dashboard?account_changed=1');
+ };
+ await connect('account-a');
+ await connect('account-b',true);
+ const list=await (await context.request.get('/api/auth/accounts')).json();
+ expect(list.accounts).toHaveLength(2);
+ expect(JSON.stringify(list)).not.toContain('account-a-refresh');
+ const a=list.accounts.find(x=>x.name==='Account A');const b=list.accounts.find(x=>x.name==='Account B');
+ expect(list.active).toBe(b.slot);
+ const profile=async()=> (await (await context.request.get('/api/tiktok/analytics')).json()).user_info.open_id;
+ expect(await profile()).toBe('account-b');
+ const switchA=await context.request.post('/api/auth/accounts',{data:{action:'switch',slot:a.slot}});
+ expect(switchA.ok()).toBe(true);expect(await profile()).toBe('account-a');
+ const mismatch=await context.request.post('/api/tiktok/publish',{multipart:{accountId:'account-b',requestId:crypto.randomUUID(),mode:'inbox',consent:'true',videoUrl:'https://example.com/video.mp4'}});
+ expect(mismatch.status()).toBe(409);
+ await page.goto('/dashboard');await page.getByRole('button',{name:'Account A',exact:true}).click();await expect(page.getByRole('button',{name:'Account B',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Account B',exact:true}).click();await expect(page.getByRole('heading',{name:'Halo, Account B'})).toBeVisible();
+ const denied=await context.request.post('/api/auth/accounts',{headers:{Origin:'https://other.example'},data:{action:'remove',slot:b.slot}});expect(denied.status()).toBe(403);
+ expect((await context.request.post('/api/auth/accounts',{data:{action:'remove',slot:b.slot}})).ok()).toBe(true);expect(await profile()).toBe('account-a');
+ expect((await context.request.post('/api/auth/logout')).ok()).toBe(true);
+ expect((await (await context.request.get('/api/auth/accounts')).json()).accounts).toHaveLength(0);
+ await page.goto('/dashboard');await expect(page).toHaveURL(/\/$/);
+});

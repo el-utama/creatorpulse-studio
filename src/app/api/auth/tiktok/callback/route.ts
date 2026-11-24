@@ -1,105 +1,42 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { APP_CONFIG } from "@/config/app";
+import { accounts,activate,clearLegacy,currentSlot,identity,storeAccount,slotFor,ADD_COOKIE,MAX_ACCOUNTS } from "@/lib/accounts";
+import { sessionToken } from "@/lib/session";
+import { exchangeCodeForToken } from "@/lib/tiktok";
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const code = searchParams.get("code");
-  const state = searchParams.get("state");
-
-  if (!code || !state) {
-    return NextResponse.redirect(
-      new URL("/?error=missing_params", process.env.APP_URL || "http://localhost:3000")
-    );
-  }
-
-  // Validasi state dari cookie
-  const cookieStore = await cookies();
-  const stateCookie = cookieStore.get(APP_CONFIG.cookieNames.oauthState)?.value;
-
-  if (!stateCookie || stateCookie !== state) {
-    return NextResponse.redirect(
-      new URL("/?error=invalid_state", process.env.APP_URL || "http://localhost:3000")
-    );
-  }
-
-  try {
-    const tokenRes = await fetch(
-      "https://open.tiktokapis.com/v2/oauth/token/",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          client_key: process.env.TIKTOK_CLIENT_KEY!,
-          client_secret: process.env.TIKTOK_CLIENT_SECRET!,
-          code,
-          grant_type: "authorization_code",
-          redirect_uri: process.env.TIKTOK_REDIRECT_URI!,
-        }),
-      }
-    );
-
-    if (!tokenRes.ok) {
-      const errorText = await tokenRes.text();
-      console.error("TikTok token exchange failed:", tokenRes.status);
-      return NextResponse.redirect(
-        new URL(
-          "/?error=token_exchange_failed",
-          process.env.APP_URL || "http://localhost:3000"
-        )
-      );
+ const {searchParams}=new URL(request.url),jar=await cookies();
+ const code=searchParams.get("code"),state=searchParams.get("state");
+ const base=process.env.APP_URL||"http://localhost:3000";
+ const adding=jar.get(ADD_COOKIE)?.value==="1";
+ const fail=(error:string)=>NextResponse.redirect(new URL(adding?"/dashboard?account_error="+error:"/?error="+error,base));
+ if(!state||state!==jar.get(APP_CONFIG.cookieNames.oauthState)?.value)return fail("invalid_state");
+ jar.delete(APP_CONFIG.cookieNames.oauthState);jar.delete(ADD_COOKIE);
+ if(!code)return fail("authorization_cancelled");
+ try {
+  const tokens=await exchangeCodeForToken(code);
+  if(!tokens.access_token)return fail("token_exchange_failed");
+  const account=await identity(tokens.access_token).catch(()=>{
+    if(typeof tokens.open_id!=="string"||!tokens.open_id)throw Error("identity_unavailable");
+    return {slot:slotFor(tokens.open_id),name:"Akun TikTok"};
+  });
+  const legacy=!currentSlot(jar) && !!(jar.get(APP_CONFIG.cookieNames.accessToken)?.value||jar.get(APP_CONFIG.cookieNames.refreshToken)?.value);
+  if(legacy&&adding){
+    const oldToken=await sessionToken();
+    if(!oldToken)return fail("existing_session_expired");
+    const old=await identity(oldToken);
+    if(old.slot!==account.slot){
+      if(accounts(jar).length>=MAX_ACCOUNTS-1)return fail("account_limit");
+      storeAccount(jar,old,{access_token:oldToken,refresh_token:jar.get(APP_CONFIG.cookieNames.refreshToken)?.value,expires_in:60,refresh_expires_in:7*86400});
+      // Keep the old account usable if storing the new one fails.
+      activate(jar,old.slot);clearLegacy(jar);
     }
-
-    const tokens = await tokenRes.json();
-
-    if (!tokens.access_token) {
-      console.error("No access_token in TikTok response");
-      return NextResponse.redirect(
-        new URL(
-          "/?error=no_access_token",
-          process.env.APP_URL || "http://localhost:3000"
-        )
-      );
-    }
-
-    const maxAge = tokens.expires_in || 3600;
-    const refreshMaxAge = tokens.refresh_expires_in || 7 * 24 * 60 * 60;
-    const isProduction = process.env.NODE_ENV === "production";
-
-    const response = NextResponse.redirect(
-      new URL("/dashboard", process.env.APP_URL || "http://localhost:3000")
-    );
-
-    // Set cookies via NextResponse.cookies() for reliability
-    response.cookies.set(APP_CONFIG.cookieNames.accessToken, tokens.access_token, {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: "lax",
-      path: "/",
-      maxAge,
-    });
-
-    response.cookies.set(APP_CONFIG.cookieNames.refreshToken, tokens.refresh_token, {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: "lax",
-      path: "/",
-      maxAge: refreshMaxAge,
-    });
-
-    response.cookies.set(APP_CONFIG.cookieNames.oauthState, "", {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 0,
-    });
-
-    return response;
-  } catch (error) {
-    console.error("OAuth callback error:", error);
-    return NextResponse.redirect(
-      new URL("/?error=callback_exception", process.env.APP_URL || "http://localhost:3000")
-    );
   }
+  storeAccount(jar,account,tokens);activate(jar,account.slot);clearLegacy(jar);
+  return NextResponse.redirect(new URL("/dashboard?account_changed=1",base));
+ } catch(error) {
+  const reason=error instanceof Error?error.message:"";
+  return fail(reason==="account_limit"||reason==="cookie_limit"?reason:"connection_failed");
+ }
 }

@@ -25,3 +25,6 @@ Single-account, database-free CreatorPulse MVP. Responsive workspace, content se
 - Video library supports cursor pagination and searches loaded titles/descriptions.
 - TikTok errors and terminal failure reasons are shown with safe code labels. Read-only capability/status/analytics requests retry once after token refresh.
 - Account identity is checked at publication initialization. Browser pending marker survives reload and cross-tab Web Locks serialize submissions where supported. Clearing an uncertain request requires explicit user acknowledgement. Cross-instance server guarantees still require configured shared storage; browser protection is not a replacement.
+
+## Multi-account browser workspace
+Up to three separately authorized TikTok accounts in one browser, selected with an account switcher. HttpOnly/Secure/SameSite cookies hold per-account tokens; no new service or developer configuration. Active slot is captured from request cookies; refresh updates only that slot. Existing single-account sessions migrate when adding a different account. Local history remains keyed by open_id. Logout clears all account cookies. This is not a shared team workspace, cross-device sync, or durable server-side token vault. TikTok may require switching the signed-in account on its own authorization page. Live multi-account OAuth remains a real-account verification item.
