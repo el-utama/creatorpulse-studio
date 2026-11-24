@@ -63,3 +63,13 @@ test('immutable inbox draft, operator approval and exactly one execution claim',
  expect(status.events.some(x=>x.action==='approved'&&x.actor==='operator')).toBe(true);
  expect((await request.post(base,{headers:agent,data:{...data,requestId:crypto.randomUUID(),mode:'profile'}})).status()).toBe(400);
 });
+
+test('stateless MCP uses agent authentication and has no approval tool',async ({request})=>{
+ const rpc=(method,params={},headers=agent)=>request.post('/api/mcp',{headers:{...headers,Accept:'application/json, text/event-stream'},data:{jsonrpc:'2.0',id:1,method,params}});
+ expect((await rpc('tools/list',{},{})).status()).toBe(401);
+ const init=await (await rpc('initialize',{protocolVersion:'2025-11-25'})).json();expect(init.result.protocolVersion).toBe('2025-11-25');
+ const tools=await (await rpc('tools/list')).json();expect(tools.result.tools.some(t=>t.name==='prepare_post')).toBe(true);expect(tools.result.tools.some(t=>t.name.includes('approve')&&t.name!=='execute_approved_post')).toBe(false);
+ const accounts=await (await rpc('tools/call',{name:'list_accounts',arguments:{}})).json();expect(accounts.result.isError).toBe(false);
+ const forbidden=await (await rpc('tools/call',{name:'approve_post',arguments:{}})).json();expect(forbidden.error.code).toBe(-32602);
+ const bad=await (await rpc('tools/call',{name:'get_analytics',arguments:{accountId:'../accounts'}})).json();expect(bad.result.isError).toBe(true);
+});
