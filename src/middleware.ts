@@ -10,15 +10,16 @@ export async function middleware(request: NextRequest) {
   const accessToken=request.cookies.get(slot?"creatorpulse_account_"+slot+"_a":APP_CONFIG.cookieNames.accessToken)?.value;
   const refreshToken=request.cookies.get(slot?"creatorpulse_account_"+slot+"_r":APP_CONFIG.cookieNames.refreshToken)?.value;
 
+  const anotherAccount=request.cookies.getAll().some(c=>/^creatorpulse_account_[a-f0-9]{32}_[ar]$/.test(c.name)&&!!c.value);
   // Protect dashboard routes
   if (pathname.startsWith("/dashboard")) {
-    if (!accessToken && !refreshToken) {
+    if (!accessToken && !refreshToken && !anotherAccount) {
       return NextResponse.redirect(new URL("/", request.url));
     }
   }
 
   // Redirect authenticated users away from landing page
-  if (pathname === "/" && (accessToken||refreshToken) && !request.nextUrl.searchParams.has("error")) {
+  if (pathname === "/" && (accessToken||refreshToken||anotherAccount) && !request.nextUrl.searchParams.has("error")) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 

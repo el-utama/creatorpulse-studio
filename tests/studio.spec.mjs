@@ -193,3 +193,23 @@ test('multi-account OAuth, switch, isolation and removal',async ({page,context})
  expect((await (await context.request.get('/api/auth/accounts')).json()).accounts).toHaveLength(0);
  await page.goto('/dashboard');await expect(page).toHaveURL(/\/$/);
 });
+
+test('legacy session migration preserves the original account and duplicate connections do not add slots',async ({context})=>{
+ await context.addCookies([{name:'creatorpulse_access_token',value:'mock-only',url:'http://localhost:3000'}]);
+ const connect=async(code)=>{
+  const start=await context.request.get('/api/auth/tiktok?add=1',{maxRedirects:0});
+  const state=new URL(start.headers().location).searchParams.get('state');
+  const callback=await context.request.get('/api/auth/tiktok/callback?code='+code+'&state='+state,{maxRedirects:0});
+  expect(callback.headers().location).toContain('/dashboard?account_changed=1');
+ };
+ await connect('account-a');await connect('account-a');
+ const data=await (await context.request.get('/api/auth/accounts')).json();
+ expect(data.accounts).toHaveLength(2);expect(data.legacy).toBe(false);
+ expect(data.accounts.map(a=>a.name)).toContain('Mock Creator');
+ await connect('account-b');
+ expect((await (await context.request.get('/api/auth/accounts')).json()).accounts).toHaveLength(3);
+ const list=await (await context.request.get('/api/auth/accounts')).json();
+ const invalid=await context.request.post('/api/auth/accounts',{data:{action:'switch',slot:'a'.repeat(32)}});
+ expect(invalid.status()).toBe(404);
+ expect((await (await context.request.get('/api/auth/accounts')).json()).active).toBe(list.active);
+});
