@@ -219,3 +219,18 @@ export async function uploadVideoChunk(
   if (!response.ok) throw new Error(`Video transfer failed: ${response.status}`);
   return response;
 }
+export interface CreatorCapabilities {
+  creator_nickname: string;
+  creator_username: string;
+  privacy_level_options: string[];
+  comment_disabled: boolean;
+  duet_disabled: boolean;
+  stitch_disabled: boolean;
+  max_video_post_duration_sec: number;
+}
+export async function getCreatorCapabilities(token: string): Promise<CreatorCapabilities> {
+  const res = await fetch("https://open.tiktokapis.com/v2/post/publish/creator_info/query/", {method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},cache:"no-store",body:"{}"});
+  const result = await res.json();
+  if (!res.ok || result.error?.code !== "ok" || !Array.isArray(result.data?.privacy_level_options)) throw new Error("Creator capabilities unavailable");
+  return result.data;
+}
