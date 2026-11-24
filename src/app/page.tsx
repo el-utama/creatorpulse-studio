@@ -3,22 +3,24 @@ import { TikTokConnectButton } from "@/components/TikTokConnectButton";
 import { Navbar } from "@/components/Navbar";
 import { ArrowRight, Play, BarChart, Upload } from "lucide-react";
 
-export default function HomePage() {
+export default async function HomePage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  const { error } = await searchParams;
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
 
       <main className="flex-1" id="main-content">
+        {error && <div role="alert" className="mx-auto mt-6 max-w-2xl rounded-lg border border-destructive p-4 text-sm">Koneksi TikTok belum berhasil. Silakan coba hubungkan kembali akun Anda.</div>}
         {/* Hero */}
         <section className="relative px-4 py-12 sm:px-6 lg:px-8">
           <div className="max-w-5xl mx-auto text-center">
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight text-foreground mb-6 sm:mb-8">
-              Kelola Konten TikTok Anda
+              Satu Workspace untuk Konten TikTok Anda
             </h1>
             <p className="text-base md:text-lg text-muted-foreground mb-8 sm:mb-10 max-w-2xl mx-auto leading-relaxed">
               CreatorPulse Studio membantu kreator TikTok masuk dengan satu klik,
               unggah video langsung ke platform, dan pantau analitik performa
-              video secara real-time.
+              video langsung dari TikTok.
             </p>
             <TikTokConnectButton />
           </div>
@@ -34,19 +36,19 @@ export default function HomePage() {
               <FeatureCard
                 icon={Play}
                 iconColor="bg-secondary text-secondary-foreground"
-                title="One-Click TikTok OAuth Login"
+                title="Hubungkan Akun TikTok"
                 description="Masuk dengan akun TikTok melalui OAuth 2.0 standar. Token disimpan aman dalam cookie HTTP-only."
               />
               <FeatureCard
                 icon={Upload}
                 iconColor="bg-secondary text-secondary-foreground"
-                title="Content Posting & Draft Uploader"
+                title="Siapkan dan Publikasikan Konten"
                 description="Unggah video lokal atau lewat URL, atur privacy, dan publikasi langsung ke profil atau draft TikTok."
               />
               <FeatureCard
                 icon={BarChart}
                 iconColor="bg-accent text-accent-foreground"
-                title="Video Performance Analytics"
+                title="Pantau Performa Konten"
                 description="Pantau followers, likes, views, dan daftar video terbaru dengan analitik dari Display API."
               />
             </div>
@@ -58,14 +60,14 @@ export default function HomePage() {
           <div className="max-w-3xl mx-auto bg-card border rounded-2xl p-6 sm:p-8 text-center shadow-sm">
             <h2 className="text-xl md:text-2xl font-bold text-foreground mb-4">Siap memulai?</h2>
             <p className="text-sm md:text-base text-muted-foreground mb-6 sm:mb-8">
-              Gabungkan ribuan kreator yang mengelola konten TikTok mereka dengan CreatorPulse Studio.
+              Hubungkan akun TikTok untuk mulai mengelola konten Anda.
             </p>
             <Link
               href="/api/auth/tiktok"
               className="inline-flex items-center justify-center gap-2 bg-tiktok-primary text-white px-6 py-3 sm:px-8 sm:py-4 rounded-lg font-medium hover:bg-tiktok-primary/90 transition-colors w-full sm:w-auto"
             >
               <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
-              Connect with TikTok
+              Hubungkan TikTok
             </Link>
           </div>
         </section>
