@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "CreatorPulse Agent Gateway",
-    "version": "3.2.0",
-    "description": "Single workspace, max three accounts. Inbox submission only. No autonomous direct posting. Agent-supplied trend observations are not verified live rankings."
+    "version": "3.5.0",
+    "description": "Single workspace, max three accounts. Inbox and human-approved Direct Post according to TikTok permissions. Agent-supplied trend observations are not verified live rankings."
   },
   "servers": [
     {
@@ -476,7 +476,7 @@
       },
       "post": {
         "operationId": "preparePost",
-        "summary": "Create immutable inbox draft",
+        "summary": "Create immutable inbox or Direct Post draft",
         "requestBody": {
           "required": true,
           "content": {
@@ -503,8 +503,14 @@
                   "mode": {
                     "type": "string",
                     "enum": [
-                      "inbox"
+                      "inbox",
+                      "profile"
                     ]
+                  },
+                  "duration": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "description": "Required for profile; seconds"
                   }
                 },
                 "required": [
@@ -513,6 +519,22 @@
                   "videoUrl",
                   "caption",
                   "mode"
+                ],
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "mode": {
+                          "const": "profile"
+                        }
+                      }
+                    },
+                    "then": {
+                      "required": [
+                        "duration"
+                      ]
+                    }
+                  }
                 ]
               }
             }
@@ -646,12 +668,69 @@
                   "mode": {
                     "type": "string",
                     "enum": [
-                      "inbox"
+                      "inbox",
+                      "profile"
                     ]
                   },
                   "confirm": {
                     "type": "boolean",
                     "const": true
+                  },
+                  "duration": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "approvedCaption": {
+                    "type": "string",
+                    "maxLength": 2200
+                  },
+                  "direct": {
+                    "type": "object",
+                    "properties": {
+                      "privacy": {
+                        "enum": [
+                          "SELF_ONLY",
+                          "PUBLIC_TO_EVERYONE",
+                          "FOLLOWER_OF_CREATOR",
+                          "MUTUAL_FOLLOW_FRIENDS"
+                        ]
+                      },
+                      "musicConsent": {
+                        "const": true
+                      },
+                      "policyConsent": {
+                        "const": true
+                      },
+                      "disableComment": {
+                        "type": "boolean"
+                      },
+                      "disableDuet": {
+                        "type": "boolean"
+                      },
+                      "disableStitch": {
+                        "type": "boolean"
+                      },
+                      "brandOrganic": {
+                        "type": "boolean"
+                      },
+                      "brandContent": {
+                        "type": "boolean"
+                      },
+                      "isAigc": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "privacy",
+                      "musicConsent",
+                      "policyConsent",
+                      "disableComment",
+                      "disableDuet",
+                      "disableStitch",
+                      "brandOrganic",
+                      "brandContent",
+                      "isAigc"
+                    ]
                   }
                 },
                 "required": [
@@ -660,6 +739,24 @@
                   "caption",
                   "mode",
                   "confirm"
+                ],
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "mode": {
+                          "const": "profile"
+                        }
+                      }
+                    },
+                    "then": {
+                      "required": [
+                        "duration",
+                        "approvedCaption",
+                        "direct"
+                      ]
+                    }
+                  }
                 ]
               }
             }
@@ -760,7 +857,7 @@
     "/posts/{postId}/execute": {
       "post": {
         "operationId": "executeApprovedPost",
-        "summary": "Send approved draft to TikTok inbox once",
+        "summary": "Send approved draft to TikTok once",
         "parameters": [
           {
             "name": "postId",

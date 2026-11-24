@@ -222,7 +222,7 @@ export interface CreatorCapabilities {
 export async function getCreatorCapabilities(token: string): Promise<CreatorCapabilities> {
   const res = await fetch("https://open.tiktokapis.com/v2/post/publish/creator_info/query/", {method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},cache:"no-store",signal:AbortSignal.timeout(10000),body:"{}"});
   const data = await readTikTok<CreatorCapabilities>(res);
-  if (!Array.isArray(data.privacy_level_options)) throw new Error("Creator capabilities unavailable");
+  if (!Array.isArray(data.privacy_level_options)||typeof data.creator_nickname!=="string"||typeof data.creator_username!=="string"||!Number.isFinite(data.max_video_post_duration_sec)||data.max_video_post_duration_sec<=0||[data.comment_disabled,data.duet_disabled,data.stitch_disabled].some(v=>typeof v!=="boolean")) throw new Error("Creator capabilities unavailable");
   const options = data.privacy_level_options.filter((value: unknown) => typeof value === "string");
   return { ...data, privacy_level_options: process.env.TIKTOK_DIRECT_POST_AUDITED === "true" ? options : options.filter((value: string) => value === "SELF_ONLY") };
 }

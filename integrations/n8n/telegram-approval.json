@@ -98,7 +98,7 @@
         -160
       ],
       "parameters": {
-        "jsCode": "const p=$json;\nconst cmd=$('Authorized command').first().json;\nreturn [{json:{chatId:cmd.chatId,text:('Rencana: '+p.id+'\\nAkun: '+p.accountName+'\\nTujuan: inbox TikTok\\nVideo: '+p.videoUrl+'\\nCaption (usulan): '+p.caption+'\\nStatus: '+p.state+'\\nTinjau video terlebih dahulu. Jika setuju, ketik /approve '+p.id+'\\nSelesaikan posting di aplikasi TikTok.').slice(0,3900)}}];"
+        "jsCode": "const p=$json;\nconst cmd=$('Authorized command').first().json;\nif(p.mode!=='inbox')return [{json:{chatId:cmd.chatId,text:'Direct Post: tinjau dan setujui melalui dashboard CreatorPulse.'}}];\nreturn [{json:{chatId:cmd.chatId,text:('Rencana: '+p.id+'\\nAkun: '+p.accountName+'\\nTujuan: inbox TikTok\\nVideo: '+p.videoUrl+'\\nCaption (usulan): '+p.caption+'\\nStatus: '+p.state+'\\nTinjau video terlebih dahulu. Jika setuju, ketik /approve '+p.id+'\\nSelesaikan posting di aplikasi TikTok.').slice(0,3900)}}];"
       }
     },
     {

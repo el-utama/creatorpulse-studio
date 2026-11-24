@@ -9,9 +9,9 @@ export function DirectReview({post,load,onApprove,busy}:{post:{accountId:string;
  const branded=commercial==="brand"||commercial==="both",organic=commercial==="own"||commercial==="both";
  const options=(c?.privacy_level_options||[]).filter(p=>names[p]&&(!branded||["PUBLIC_TO_EVERYONE","MUTUAL_FOLLOW_FRIENDS"].includes(p)));
  const validDuration=actualDuration!==null&&Number.isFinite(actualDuration)&&post.duration!==undefined&&Math.abs(actualDuration-post.duration)<=1&&actualDuration<=(c?.max_video_post_duration_sec||0)&&post.duration<=(c?.max_video_post_duration_sec||0);
- const ready=!!c&&options.includes(privacy)&&commercial!==""&&aigc!==""&&music&&policy&&reviewed&&validDuration&&!busy;
+ const ready=!!c&&options.includes(privacy)&&commercial!==""&&aigc!==""&&music&&policy&&reviewed&&validDuration&&!error&&!busy;
  return <div className="space-y-3 rounded-lg border p-3 text-sm"><h4 className="font-semibold">Tinjau Direct Post</h4>{error&&<p role="alert" className="text-red-700">{error}</p>}
- <video controls preload="metadata" src={post.videoUrl} onLoadedMetadata={e=>setActualDuration(e.currentTarget.duration)} onError={()=>setError("Pratinjau video tidak dapat dimuat; Direct Post diblokir.")} className="max-h-64 w-full rounded bg-black"/>
+ <video controls preload="metadata" src={post.videoUrl} onLoadedMetadata={e=>setActualDuration(e.currentTarget.duration)} onError={()=>{setActualDuration(null);setReviewed(false);setError("Pratinjau video tidak dapat dimuat; Direct Post diblokir.")}} className="max-h-64 w-full rounded bg-black"/>
  {c?<p className="text-xs text-slate-600">Tujuan: {c.creator_nickname} (@{c.creator_username}) · Batas {c.max_video_post_duration_sec} detik · Durasi rencana {post.duration} detik</p>:<p>Memuat pengaturan akun…</p>}
  {!validDuration&&<p className="text-xs text-amber-800">Durasi pratinjau belum terverifikasi atau tidak sesuai rencana/batas akun.</p>}
  <label className="block">Caption akhir<textarea maxLength={2200} value={caption} onChange={e=>{setCaption(e.target.value);setReviewed(false)}} className="mt-1 block w-full rounded border p-2"/></label>
