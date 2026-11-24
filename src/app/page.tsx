@@ -37,19 +37,19 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                 icon={Play}
                 iconColor="bg-secondary text-secondary-foreground"
                 title="Hubungkan Akun TikTok"
-                description="Masuk dengan akun TikTok melalui OAuth 2.0 standar. Token disimpan aman dalam cookie HTTP-only."
+                description="Hubungkan akun secara langsung melalui TikTok untuk mengakses konten dan profil Anda."
               />
               <FeatureCard
                 icon={Upload}
                 iconColor="bg-secondary text-secondary-foreground"
                 title="Siapkan dan Publikasikan Konten"
-                description="Unggah video lokal atau lewat URL, atur privacy, dan publikasi langsung ke profil atau draft TikTok."
+                description="Tinjau video, tentukan visibilitas, lalu kirim ke profil atau inbox TikTok sesuai izin akun."
               />
               <FeatureCard
                 icon={BarChart}
                 iconColor="bg-accent text-accent-foreground"
                 title="Pantau Performa Konten"
-                description="Pantau followers, likes, views, dan daftar video terbaru dengan analitik dari Display API."
+                description="Lihat pengikut, suka, tayangan, dan video terbaru dari akun yang terhubung."
               />
             </div>
           </div>
@@ -63,7 +63,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
               Hubungkan akun TikTok untuk mulai mengelola konten Anda.
             </p>
             <Link
-              href="/api/auth/tiktok"
+              href="/api/auth/tiktok" prefetch={false}
               className="inline-flex items-center justify-center gap-2 bg-slate-900 text-white px-6 py-3 sm:px-8 sm:py-4 rounded-lg font-medium hover:bg-slate-800 transition-colors w-full sm:w-auto"
             >
               <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -78,10 +78,10 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           <p>© {new Date().getFullYear()} CreatorPulse Studio. All rights reserved.</p>
           <div className="flex sm:gap-6 gap-4">
             <Link href="/privacy" className="hover:text-foreground transition-colors">
-              Privacy Policy
+              Kebijakan Privasi
             </Link>
             <Link href="/terms" className="hover:text-foreground transition-colors">
-              Terms of Service
+              Ketentuan Layanan
             </Link>
           </div>
         </div>
