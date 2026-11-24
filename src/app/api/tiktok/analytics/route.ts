@@ -86,7 +86,7 @@ export async function GET() {
     ]);
 
     return NextResponse.json({
-      user_info: userInfo.user_info,
+      user_info: userInfo.data?.user_info ?? userInfo.user_info ?? null,
       videos: {
         data: videos.videos?.data ?? [],
         total: videos.videos?.data?.length ?? 0,
