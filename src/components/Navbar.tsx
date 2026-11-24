@@ -52,7 +52,7 @@ export function Navbar() {
         {/* Desktop auth actions */}
         <div className="hidden md:flex items-center gap-3">
           {pathname !== "/dashboard" ? (
-            <a href="/api/auth/tiktok" className="inline-flex items-center gap-2 bg-tiktok-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-tiktok-primary/90 transition-colors">
+            <a href="/api/auth/tiktok" className="inline-flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors">
               <Play className="h-4 w-4" aria-hidden="true" />
               Connect
             </a>
@@ -132,7 +132,7 @@ export function Navbar() {
               {pathname !== "/dashboard" ? (
                 <a
                   href="/api/auth/tiktok"
-                  className="block w-full px-4 py-2 text-sm font-medium text-center bg-tiktok-primary text-white rounded-lg hover:bg-tiktok-primary/90 transition-colors"
+                  className="block w-full px-4 py-2 text-sm font-medium text-center bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
                 >
                   Hubungkan TikTok
                 </a>
