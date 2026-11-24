@@ -11,23 +11,16 @@ interface MetricCardProps {
   color?: string;
 }
 
-export function MetricCard({ title, value, icon: Icon, description, color = "text-tiktok-primary" }: MetricCardProps) {
+export function MetricCard({ title, value, icon: Icon, description, color = "text-foreground" }: MetricCardProps) {
   return (
-    <Card className="border-t-2 border-t-tiktok-primary">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <CardDescription className="text-xs">{description || ""}</CardDescription>
+    <Card className="min-w-0 shadow-none border-slate-200 rounded-2xl bg-white">
+      <CardHeader className="space-y-1 p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-1"><CardTitle className="text-sm font-medium">{title}</CardTitle><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-indigo-50"><Icon className="h-4 w-4 text-indigo-700" aria-hidden="true"/></span></div>
       </CardHeader>
-      <CardContent>
-        <div className="flex items-end gap-2">
-          <span className={`text-2xl font-bold ${color}`}>{value}</span>
-        </div>
+      <CardContent className="p-4 pt-0 sm:p-5 sm:pt-0">
+        <div className={`break-words text-2xl sm:text-3xl font-semibold tracking-tight tabular-nums ${color}`}>{value}</div>
+        {description && <p className="mt-1 text-xs text-muted-foreground">{description}</p>}
       </CardContent>
-      <CardFooter>
-        <div className="flex items-center justify-between">
-          <Icon className="h-4 w-4 text-muted-foreground" />
-        </div>
-      </CardFooter>
     </Card>
   );
 }
@@ -44,28 +37,28 @@ export function AnalyticsCards({
   videos: number;
 }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       <MetricCard
-        title="Followers"
-        value={followers.toLocaleString("id-ID")}
+        title="Pengikut"
+        value={Number.isFinite(followers) ? followers.toLocaleString("id-ID") : "—"}
         icon={User}
         description="Pengikut akun"
       />
       <MetricCard
-        title="Following"
-        value={following.toLocaleString("id-ID")}
+        title="Mengikuti"
+        value={Number.isFinite(following) ? following.toLocaleString("id-ID") : "—"}
         icon={Users}
         description="Diikuti oleh akun"
       />
       <MetricCard
-        title="Total Likes"
-        value={likes.toLocaleString("id-ID")}
+        title="Total suka"
+        value={Number.isFinite(likes) ? likes.toLocaleString("id-ID") : "—"}
         icon={Heart}
         description="Total suka pada video"
       />
       <MetricCard
-        title="Total Videos"
-        value={videos.toLocaleString("id-ID")}
+        title="Total video"
+        value={Number.isFinite(videos) ? videos.toLocaleString("id-ID") : "—"}
         icon={Video}
         description="Jumlah video yang diunggah"
       />

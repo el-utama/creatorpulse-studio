@@ -9,9 +9,7 @@ const COOKIE_OPTIONS = {
 };
 
 export async function POST() {
-  const response = NextResponse.redirect(
-    new URL("/", process.env.APP_URL || "http://localhost:3000")
-  );
+  const response = NextResponse.json({ success: true }, { headers: { "Cache-Control": "no-store" } });
 
   // Hapus semua cookie sesi
   response.cookies.set(APP_CONFIG.cookieNames.accessToken, "", {

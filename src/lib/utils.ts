@@ -1,8 +1,9 @@
-export function cn(...classes: (string | undefined | null | false)[]): string {
-  return classes.filter(Boolean).join(" ");
-}
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+export function cn(...classes: ClassValue[]): string { return twMerge(clsx(classes)); }
 
 export function formatNumber(num: number): string {
+  if (!Number.isFinite(num)) return "—";
   if (num >= 1_000_000) {
     return (num / 1_000_000).toFixed(1) + "M";
   }
@@ -12,8 +13,8 @@ export function formatNumber(num: number): string {
   return num.toString();
 }
 
-export function formatDate(isoString: string): string {
-  return new Date(isoString).toLocaleDateString("id-ID", {
+export function formatDate(isoString: string | number): string {
+  return new Date(typeof isoString === "number" || /^\d+$/.test(isoString) ? Number(isoString) * 1000 : isoString).toLocaleDateString("id-ID", {
     day: "numeric",
     month: "short",
     year: "numeric",

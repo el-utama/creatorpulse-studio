@@ -1,102 +1,30 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { sessionRead } from "@/lib/session";
 import { APP_CONFIG } from "@/config/app";
-
-export async function GET() {
-  const cookieStore = await cookies();
-  const accessToken = cookieStore.get(APP_CONFIG.cookieNames.accessToken)?.value;
-  const refreshToken = cookieStore.get(APP_CONFIG.cookieNames.refreshToken)?.value;
-
-  if (!accessToken) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const token = accessToken;
-
-  async function fetchWithRefresh<T>(
-    fn: (token: string) => Promise<T>
-  ): Promise<T> {
-    try {
-      return await fn(token);
-    } catch (err: any) {
-      if (refreshToken && err.message.includes("401")) {
-        const res = await fetch(
-          "https://open.tiktokapis.com/v2/oauth/token/",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({
-              client_key: process.env.TIKTOK_CLIENT_KEY!,
-              client_secret: process.env.TIKTOK_CLIENT_SECRET!,
-              refresh_token: refreshToken,
-              grant_type: "refresh_token",
-            }),
-          }
-        );
-        if (!res.ok) {
-          const errText = await res.text();
-          throw new Error(`Refresh failed: ${res.status} ${errText}`);
-        }
-        const data = await res.json();
-        return fn(data.access_token);
-      }
-      throw err;
-    }
-  }
-
+import { readTikTok, explainTikTok, isAuthError } from "@/lib/tiktok-errors";
+import type { TikTokUserInfo, TikTokVideo } from "@/types/tiktok";
+const headers = {"Cache-Control":"no-store"};
+type VideoPage = {videos:TikTokVideo[];cursor:number;has_more:boolean};
+async function videoPage(token:string,cursor:number) {
+  const res=await fetch(APP_CONFIG.tiktokVideoListUrl+"?fields=id,title,video_description,cover_image_url,create_time,share_url,view_count,like_count,comment_count,share_count",
+    {method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({max_count:20,...(cursor?{cursor}:{})}),cache:"no-store"});
+  const data=await readTikTok<VideoPage>(res);
+  if(!Array.isArray(data.videos)) throw new Error("Invalid video list");
+  return {data:data.videos,total:data.videos.length,cursor: data.cursor,has_more:data.has_more===true && Number.isSafeInteger(data.cursor) && data.cursor>0 && data.cursor!==cursor};
+}
+export async function GET(request:Request) {
+  const raw=new URL(request.url).searchParams.get("cursor");
+  const cursor=raw===null?0:Number(raw);
+  if(!Number.isSafeInteger(cursor)||cursor<0||(raw!==null&&!/^\d+$/.test(raw))) return NextResponse.json({error:"Halaman video tidak valid."},{status:400,headers});
   try {
-    const [userInfo, videos] = await Promise.all([
-      fetchWithRefresh((token) =>
-        fetch(
-          `${APP_CONFIG.tiktokUserInfoUrl}?fields=open_id,union_id,avatar_url,display_name,bio_description,follower_count,following_count,likes_count,video_count`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-            cache: "no-store",
-          }
-        ).then(async (r) => {
-          if (!r.ok) {
-            const t = await r.text();
-            throw new Error(`User info failed: ${r.status} ${t}`);
-          }
-          return r.json();
-        })
-      ),
-      fetchWithRefresh((token) =>
-        fetch(
-          `${APP_CONFIG.tiktokVideoListUrl}?fields=id,title,video_description,cover_image_url,create_time,share_url,view_count,like_count,comment_count,share_count`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              max_count: 20,
-            }),
-            cache: "no-store",
-          }
-        ).then(async (r) => {
-          if (!r.ok) {
-            const t = await r.text();
-            throw new Error(`Video list failed: ${r.status} ${t}`);
-          }
-          return r.json();
-        })
-      ),
-    ]);
-
-    return NextResponse.json({
-      user_info: userInfo.data?.user_info ?? userInfo.data?.user ?? userInfo.user_info ?? userInfo.user ?? null,
-      videos: {
-        data: videos.data?.videos ?? [],
-        total: videos.data?.videos?.length ?? 0,
-      },
+    if(raw!==null) return NextResponse.json({videos:await sessionRead(token=>videoPage(token,cursor))},{headers});
+    const profile=await sessionRead(async token=>{
+      const response=await fetch(APP_CONFIG.tiktokUserInfoUrl+"?fields=open_id,union_id,avatar_url,display_name,bio_description,follower_count,following_count,likes_count,video_count",{headers:{Authorization:`Bearer ${token}`},cache:"no-store"});
+      return readTikTok<{user:TikTokUserInfo}>(response);
     });
-  } catch (error) {
-    console.error("Analytics error:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 }
-    );
-  }
+    if(!profile.user?.open_id) throw new Error("Missing user");
+    let videos;let video_error:null|string=null;
+    try {videos=await sessionRead(token=>videoPage(token,0));} catch(error) {video_error=explainTikTok(error,"Daftar video belum dapat dimuat.");videos={data:[],total:0,cursor:0,has_more:false};}
+    return NextResponse.json({user_info:profile.user,videos,video_error},{headers});
+  } catch(error) {return NextResponse.json({error:explainTikTok(error,"Analitik TikTok belum dapat dimuat.")},{status:isAuthError(error)?401:502,headers});}
 }

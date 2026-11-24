@@ -41,10 +41,10 @@ export async function GET(request: Request) {
 
     if (!tokenRes.ok) {
       const errorText = await tokenRes.text();
-      console.error("TikTok token exchange failed:", tokenRes.status, errorText);
+      console.error("TikTok token exchange failed:", tokenRes.status);
       return NextResponse.redirect(
         new URL(
-          `/?error=token_exchange_failed&detail=${encodeURIComponent(errorText.slice(0, 200))}`,
+          "/?error=token_exchange_failed",
           process.env.APP_URL || "http://localhost:3000"
         )
       );
@@ -53,7 +53,7 @@ export async function GET(request: Request) {
     const tokens = await tokenRes.json();
 
     if (!tokens.access_token) {
-      console.error("No access_token in TikTok response:", tokens);
+      console.error("No access_token in TikTok response");
       return NextResponse.redirect(
         new URL(
           "/?error=no_access_token",
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
     }
 
     const maxAge = tokens.expires_in || 3600;
-    const refreshMaxAge = 7 * 24 * 60 * 60;
+    const refreshMaxAge = tokens.refresh_expires_in || 7 * 24 * 60 * 60;
     const isProduction = process.env.NODE_ENV === "production";
 
     const response = NextResponse.redirect(

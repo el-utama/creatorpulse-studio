@@ -1,101 +1,14 @@
 import Link from "next/link";
-import { TikTokConnectButton } from "@/components/TikTokConnectButton";
 import { Navbar } from "@/components/Navbar";
-import { ArrowRight, Play, BarChart, Upload } from "lucide-react";
-
-export default function HomePage() {
-  return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar />
-
-      <main className="flex-1" id="main-content">
-        {/* Hero */}
-        <section className="relative px-4 py-12 sm:px-6 lg:px-8">
-          <div className="max-w-5xl mx-auto text-center">
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight text-foreground mb-6 sm:mb-8">
-              Kelola Konten TikTok Anda
-            </h1>
-            <p className="text-base md:text-lg text-muted-foreground mb-8 sm:mb-10 max-w-2xl mx-auto leading-relaxed">
-              CreatorPulse Studio membantu kreator TikTok masuk dengan satu klik,
-              unggah video langsung ke platform, dan pantau analitik performa
-              video secara real-time.
-            </p>
-            <TikTokConnectButton />
-          </div>
-        </section>
-
-        {/* Features */}
-        <section className="px-4 py-12 sm:px-6 lg:px-8">
-          <div className="max-w-5xl mx-auto">
-            <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-8 sm:mb-12 text-center">
-              Fitur Utama
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              <FeatureCard
-                icon={Play}
-                iconColor="bg-secondary text-secondary-foreground"
-                title="One-Click TikTok OAuth Login"
-                description="Masuk dengan akun TikTok melalui OAuth 2.0 standar. Token disimpan aman dalam cookie HTTP-only."
-              />
-              <FeatureCard
-                icon={Upload}
-                iconColor="bg-secondary text-secondary-foreground"
-                title="Content Posting & Draft Uploader"
-                description="Unggah video lokal atau lewat URL, atur privacy, dan publikasi langsung ke profil atau draft TikTok."
-              />
-              <FeatureCard
-                icon={BarChart}
-                iconColor="bg-accent text-accent-foreground"
-                title="Video Performance Analytics"
-                description="Pantau followers, likes, views, dan daftar video terbaru dengan analitik dari Display API."
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* CTA */}
-        <section className="px-4 py-12 sm:px-6 lg:px-8">
-          <div className="max-w-3xl mx-auto bg-card border rounded-2xl p-6 sm:p-8 text-center shadow-sm">
-            <h2 className="text-xl md:text-2xl font-bold text-foreground mb-4">Siap memulai?</h2>
-            <p className="text-sm md:text-base text-muted-foreground mb-6 sm:mb-8">
-              Gabungkan ribuan kreator yang mengelola konten TikTok mereka dengan CreatorPulse Studio.
-            </p>
-            <Link
-              href="/api/auth/tiktok"
-              className="inline-flex items-center justify-center gap-2 bg-tiktok-primary text-white px-6 py-3 sm:px-8 sm:py-4 rounded-lg font-medium hover:bg-tiktok-primary/90 transition-colors w-full sm:w-auto"
-            >
-              <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
-              Connect with TikTok
-            </Link>
-          </div>
-        </section>
-      </main>
-
-      <footer className="border-t border-border bg-muted/50 py-6 sm:py-8 px-4">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4 text-sm sm:text-base text-muted-foreground">
-          <p>© {new Date().getFullYear()} CreatorPulse Studio. All rights reserved.</p>
-          <div className="flex sm:gap-6 gap-4">
-            <Link href="/privacy" className="hover:text-foreground transition-colors">
-              Privacy Policy
-            </Link>
-            <Link href="/terms" className="hover:text-foreground transition-colors">
-              Terms of Service
-            </Link>
-          </div>
-        </div>
-      </footer>
-    </div>
-  );
-}
-
-function FeatureCard({ icon: Icon, iconColor, title, description }: { icon: React.ElementType; iconColor: string; title: string; description: string }) {
-  return (
-    <div className="p-4 sm:p-6 rounded-xl border border-border bg-background hover:border-tiktok-primary/50 transition-colors">
-      <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg ${iconColor} flex items-center justify-center mb-3 sm:mb-4`}>
-        <Icon className="h-5 sm:h-6 w-5 sm:w-6" />
-      </div>
-      <h3 className="text-base sm:text-lg font-semibold text-foreground mb-2">{title}</h3>
-      <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
-    </div>
-  );
+import { ArrowUpRight, BarChart3, Film, ShieldCheck, Plus, LayoutDashboard, Eye, Heart, Clock } from "lucide-react";
+export default async function HomePage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+ const {error}=await searchParams;
+ return <div className="min-h-screen bg-slate-50"><Navbar/><main id="main-content" className="mx-auto max-w-7xl px-5 sm:px-8">
+ {error&&<p role="alert" className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">Koneksi TikTok belum berhasil. Silakan hubungkan kembali akun.</p>}
+ <section className="grid items-center gap-10 py-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:py-24">
+ <div><div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-800"><span className="h-2 w-2 rounded-full bg-indigo-500"/> Workspace kreator TikTok</div><h1 className="mt-6 max-w-xl text-4xl font-semibold leading-tight tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">Kelola konten.<br/><span className="text-indigo-700">Pahami performa.</span></h1><p className="mt-5 max-w-md text-base leading-relaxed text-slate-600 sm:text-lg">Satu studio untuk melihat analitik akun, menemukan video terbaik, dan mempersiapkan publikasi TikTok dengan kendali penuh.</p><a href="/api/auth/tiktok" className="mt-7 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-indigo-700 px-6 text-sm font-semibold text-white hover:bg-indigo-800">Hubungkan TikTok <ArrowUpRight className="h-4 w-4"/></a><p className="mt-3 flex items-center gap-2 text-xs text-slate-500"><ShieldCheck className="h-4 w-4"/> Masuk melalui TikTok. Publikasi memerlukan persetujuan.</p></div>
+ <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white p-3 shadow-xl shadow-slate-200/60 sm:p-4" aria-label="Ilustrasi tampilan studio, bukan data akun nyata"><div className="flex items-center justify-between border-b pb-3 text-xs text-slate-500"><div className="flex gap-1.5">{[0,1,2].map(i=><span key={i} className="h-2 w-2 rounded-full bg-slate-300"/>)}</div><span>Ilustrasi studio</span></div><div className="grid grid-cols-[36px_minmax(0,1fr)] gap-3 pt-4 sm:grid-cols-[100px_minmax(0,1fr)]"><div className="space-y-3 rounded-xl bg-slate-50 p-2"><div className="rounded-lg bg-indigo-100 p-2 text-indigo-700"><LayoutDashboard className="h-4 w-4"/><span className="hidden sm:block text-[10px] mt-1">Ringkasan</span></div>{[Film,Plus,Clock].map((Icon,i)=><div key={i} className="p-2 text-slate-400"><Icon className="h-4 w-4"/></div>)}</div><div className="min-w-0 space-y-3"><div className="rounded-xl bg-slate-900 p-4 text-white"><div className="text-[10px] uppercase tracking-widest text-indigo-200">Studio kreator</div><div className="mt-2 text-lg font-semibold">Ringkasan konten</div><div className="mt-3 h-2 w-24 rounded bg-white/20"/></div><div className="grid grid-cols-2 gap-2">{[{Icon:Eye,label:"Tayangan"},{Icon:Heart,label:"Suka"}].map(({Icon,label})=><div key={label} className="rounded-xl border p-3"><Icon className="h-4 w-4 text-indigo-500"/><p className="mt-2 text-xs text-slate-500">{label}</p><p className="mt-1 text-xl font-semibold">—</p></div>)}</div><div className="rounded-xl border p-3"><p className="text-xs font-semibold">Video teratas</p>{[84,58,39].map((w,i)=><div key={i} className="mt-3 flex items-center gap-2"><span className="h-8 w-5 rounded bg-slate-200"/><span className="h-2 flex-1 rounded bg-slate-100"><span className="block h-full rounded bg-indigo-400" style={{width:w+"%"}}/></span></div>)}</div></div></div></div>
+ </section>
+ <section className="border-t py-10 sm:py-14"><p className="text-xs font-semibold uppercase tracking-widest text-indigo-700">Fitur studio</p><h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">Alur kerja lebih terarah</h2><div className="mt-6 grid gap-4 md:grid-cols-3">{[{Icon:BarChart3,title:"Analitik akun",description:"Pantau pengikut, suka, tayangan, dan performa video yang dimuat."},{Icon:Film,title:"Perpustakaan konten",description:"Temukan video, urutkan performa, dan buka konten asli di TikTok."},{Icon:ShieldCheck,title:"Publikasi terkendali",description:"Tinjau video, pilih visibilitas sesuai izin akun, dan periksa status pengiriman."}].map(({Icon,title,description})=><article key={title} className="rounded-2xl border bg-white p-6"><div className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-50 text-indigo-700"><Icon className="h-5 w-5"/></div><h3 className="mt-4 font-semibold">{title}</h3><p className="mt-2 text-sm leading-relaxed text-slate-600">{description}</p></article>)}</div></section></main>
+ <footer className="border-t bg-white"><div className="mx-auto flex max-w-7xl flex-wrap justify-between gap-4 px-5 py-6 text-xs text-slate-500 sm:px-8"><span>© {new Date().getFullYear()} CreatorPulse Studio</span><div className="flex gap-5"><Link href="/privacy">Kebijakan Privasi</Link><Link href="/terms">Ketentuan Layanan</Link></div></div></footer></div>;
 }

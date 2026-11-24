@@ -2,7 +2,7 @@ export const APP_CONFIG = {
   name: "CreatorPulse Studio",
   description:
     "Manajemen konten dan analitik kreator TikTok: login, posting video, dan analitik performa.",
-  contactEmail: "hello@example.com",
+  contactEmail: process.env.NEXT_PUBLIC_CONTACT_EMAIL || "",
   scopes: [
     "user.info.basic",
     "user.info.profile",
@@ -26,7 +26,7 @@ export const APP_CONFIG = {
     refreshToken: "creatorpulse_refresh_token",
     oauthState: "creatorpulse_oauth_state",
   },
-  maxDirectUploadMB: 4.5,
+  maxDirectUploadMB: 4,
 } as const;
 
 export type Scopes = (typeof APP_CONFIG.scopes)[number];

@@ -1,3 +1,4 @@
+import { readTikTok } from "@/lib/tiktok-errors";
 import { APP_CONFIG } from "@/config/app";
 import type {
   TikTokTokenResponse,
@@ -151,9 +152,10 @@ export async function getVideoList(
 
 export async function initPublish(
   accessToken: string,
-  body: Record<string, unknown>
+  body: Record<string, unknown>,
+  mode: "inbox" | "profile"
 ): Promise<TikTokPublishInitResponse> {
-  const res = await fetch(APP_CONFIG.tiktokPublishInitProfile, {
+  const res = await fetch(mode === "inbox" ? APP_CONFIG.tiktokPublishInitInbox : APP_CONFIG.tiktokPublishInitProfile, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -162,14 +164,9 @@ export async function initPublish(
     body: JSON.stringify(body),
   });
 
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(
-      `TikTok publish init failed: ${res.status} ${errorText}`
-    );
-  }
-
-  return res.json();
+  const result = await readTikTok<TikTokPublishInitResponse>(res);
+  if (!result.publish_id) throw new Error("Missing publication ID");
+  return result;
 }
 
 export async function fetchPublishStatus(
@@ -183,18 +180,13 @@ export async function fetchPublishStatus(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      publish_ids: [publishId],
+      publish_id: publishId,
     }),
   });
 
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(
-      `TikTok publish status fetch failed: ${res.status} ${errorText}`
-    );
-  }
-
-  return res.json();
+  const result = await readTikTok<TikTokPublishStatusResponse>(res);
+  if (!result.status) throw new Error("Missing publication status");
+  return result;
 }
 
 export async function uploadVideoChunk(
@@ -202,12 +194,31 @@ export async function uploadVideoChunk(
   fileBuffer: Uint8Array,
   contentType: string
 ): Promise<Response> {
-  return fetch(uploadUrl, {
-    method: "POST",
+  const response = await fetch(uploadUrl, {
+    method: "PUT",
     headers: {
       "Content-Type": contentType,
       "Content-Length": fileBuffer.length.toString(),
+      "Content-Range": `bytes 0-${fileBuffer.length - 1}/${fileBuffer.length}`,
     },
     body: fileBuffer as unknown as BodyInit,
   });
+  if (response.status !== 201) throw new Error(`Video transfer not confirmed: ${response.status}`);
+  return response;
+}
+export interface CreatorCapabilities {
+  creator_nickname: string;
+  creator_username: string;
+  privacy_level_options: string[];
+  comment_disabled: boolean;
+  duet_disabled: boolean;
+  stitch_disabled: boolean;
+  max_video_post_duration_sec: number;
+}
+export async function getCreatorCapabilities(token: string): Promise<CreatorCapabilities> {
+  const res = await fetch("https://open.tiktokapis.com/v2/post/publish/creator_info/query/", {method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},cache:"no-store",body:"{}"});
+  const data = await readTikTok<CreatorCapabilities>(res);
+  if (!Array.isArray(data.privacy_level_options)) throw new Error("Creator capabilities unavailable");
+  const options = data.privacy_level_options.filter((value: unknown) => typeof value === "string");
+  return { ...data, privacy_level_options: process.env.TIKTOK_DIRECT_POST_AUDITED === "true" ? options : options.filter((value: string) => value === "SELF_ONLY") };
 }
