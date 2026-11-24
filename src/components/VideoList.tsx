@@ -48,13 +48,13 @@ export function VideoList({ videos }: { videos: VideoItem[] }) {
               {video.title}
             </CardTitle>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1" aria-label={`Views: ${formatNumber(video.view_count)}`}>
                 👁 {formatNumber(video.view_count)}
               </span>
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1" aria-label={`Likes: ${formatNumber(video.like_count)}`}>
                 ❤ {formatNumber(video.like_count)}
               </span>
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1" aria-label={`Comments: ${formatNumber(video.comment_count)}`}>
                 💬 {formatNumber(video.comment_count)}
               </span>
             </div>

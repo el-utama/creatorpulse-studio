@@ -33,7 +33,7 @@ export default function HomePage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               <FeatureCard
                 icon={Play}
-                iconColor="bg-tiktok-primary/10 text-tiktok-primary"
+                iconColor="bg-secondary text-secondary-foreground"
                 title="One-Click TikTok OAuth Login"
                 description="Masuk dengan akun TikTok melalui OAuth 2.0 standar. Token disimpan aman dalam cookie HTTP-only."
               />
