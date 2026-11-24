@@ -88,8 +88,8 @@ export async function GET() {
     return NextResponse.json({
       user_info: userInfo.data?.user_info ?? userInfo.user_info ?? null,
       videos: {
-        data: videos.videos?.data ?? [],
-        total: videos.videos?.data?.length ?? 0,
+        data: videos.data?.videos ?? [],
+        total: videos.data?.videos?.length ?? 0,
       },
     });
   } catch (error) {
