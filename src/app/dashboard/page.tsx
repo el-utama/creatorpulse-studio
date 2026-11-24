@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Navbar } from "@/components/Navbar";
 import {
   Tabs,
@@ -20,7 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { AnalyticsCards } from "@/components/AnalyticsCards";
 import { VideoList } from "@/components/VideoList";
-import { VideoUploadForm } from "@/components/VideoUploadForm";
+import { VideoUploadForm, type PublishPayload } from "@/components/VideoUploadForm";
 import { PublishStatusChecker } from "@/components/PublishStatusChecker";
 import { RefreshCw, LogOut, ShieldAlert } from "lucide-react";
 
@@ -40,7 +40,7 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("analytics");
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [videos, setVideos] = useState<any[]>([]);
-  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
   const [publishId, setPublishId] = useState<string | null>(null);
   const [publishStatus, setPublishStatus] = useState<string | null>(null);
@@ -69,7 +69,14 @@ export default function DashboardPage() {
     fetchAnalytics();
   }, [fetchAnalytics]);
 
-  const handlePublish = async (payload: any) => {
+  const publishLock = useRef(false);
+  const [publishing, setPublishing] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const handlePublish = async (payload: PublishPayload) => {
+    if (publishLock.current) return;
+    publishLock.current = true;
+    setPublishing(true);
+    setPublishError(null);
     try {
       const formData = new FormData();
       formData.append("mode", payload.mode);
@@ -95,12 +102,16 @@ export default function DashboardPage() {
       }
 
       const data = await res.json();
+      if (!data.publish_id) throw new Error("TikTok belum memberikan ID publikasi.");
       setPublishId(data.publish_id);
       setPublishStatus("pending");
       setActiveTab("status");
     } catch (err) {
       console.error("Publish error:", err);
-      alert(err instanceof Error ? err.message : "Gagal memulai publikasi");
+      setPublishError(err instanceof Error ? err.message : "Gagal memulai publikasi");
+    } finally {
+      publishLock.current = false;
+      setPublishing(false);
     }
   };
 
@@ -109,12 +120,12 @@ export default function DashboardPage() {
       <Navbar />
 
       <main className="flex-1 px-3 sm:px-4 lg:px-6 py-4 sm:py-6" id="main-content">
-        <div className="max-w-xl sm:max-w-2xl lg:max-w-4xl mx-auto">
+        <div className="max-w-[1400px] mx-auto">
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-foreground">
-                Dasbor Creator
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+                Studio Kreator
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground">
                 Kelola profil, unggah video, dan pantau analitik TikTok Anda.
@@ -129,27 +140,14 @@ export default function DashboardPage() {
                 className="flex items-center gap-1.5 w-full sm:w-auto"
               >
                 <RefreshCw className="h-4 w-4" />
-                {analyticsLoading ? "Memuat..." : "Refresh"}
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() =>
-                  fetch("/api/auth/logout", { method: "POST" }).then(() => {
-                    window.location.href = "/";
-                  })
-                }
-                className="w-full sm:w-auto"
-              >
-                <LogOut className="h-4 w-4 mr-1" />
-                Keluar
+                {analyticsLoading ? "Memuat..." : "Muat ulang"}
               </Button>
             </div>
           </div>
 
           {analyticsError && (
             <Card
-              className="border-destructive bg-destructive/50"
+              className="border-destructive bg-destructive/5"
               role="alert"
               aria-live="polite"
             >
@@ -164,7 +162,7 @@ export default function DashboardPage() {
           )}
 
           {/* Tabs */}
-          <Tabs defaultValue="analytics" onValueChange={setActiveTab} className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="w-full overflow-x-auto scrollbar-hidden pb-1">
               <TabsTrigger value="analytics" className="text-xs sm:text-sm">
                 Profil & Analitik
@@ -197,7 +195,7 @@ export default function DashboardPage() {
                               {profile.display_name}
                             </CardTitle>
                             <p className="text-xs text-muted-foreground">
-                              @{profile.open_id}
+                              Akun TikTok terhubung
                             </p>
                           </div>
                         </div>
@@ -239,7 +237,7 @@ export default function DashboardPage() {
               ) : (
                 <Card>
                   <CardContent className="py-8 text-center space-y-3">
-                    <p className="text-muted-foreground">Profil tidak tersedia.</p>
+                    <p className="text-muted-foreground">{analyticsLoading ? "Memuat profil…" : "Profil tidak tersedia. Coba hubungkan kembali akun Anda."}</p>
                     <Button
                       onClick={fetchAnalytics}
                       variant="outline"
@@ -250,7 +248,7 @@ export default function DashboardPage() {
                       Coba Lagi
                     </Button>
                     <p className="text-xs text-muted-foreground">
-                      Pastikan scope <code className="bg-muted px-1 py-0 rounded">user.info.profile</code> telah diizinkan di portal TikTok for Developers.
+                      Jika masalah berlanjut, hubungkan kembali akun TikTok Anda.
                     </p>
                   </CardContent>
                 </Card>
@@ -264,7 +262,7 @@ export default function DashboardPage() {
                     Daftar Video Terbaru
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    Data dari TikTok Display API (video.list). Klik Refresh untuk memuat ulang.
+                    Video terbaru dari TikTok. Muat ulang untuk memperbarui data.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -282,15 +280,17 @@ export default function DashboardPage() {
             {/* Tab: Publish */}
             <TabsContent value="publish" className="mt-4 space-y-4">
               {profile ? (
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="order-2">
+                <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-4">
+                  <div className="order-2 lg:order-1">
                     <VideoUploadForm
                       accountName={profile.display_name}
                       avatarUrl={profile.avatar_url}
                       onPublish={handlePublish}
+                      publishing={publishing}
+                      error={publishError}
                     />
                   </div>
-                  <div className="order-1 lg:order-2">
+                  <div className="order-1 lg:order-2 space-y-4">
                     <Card>
                       <CardHeader>
                         <CardTitle className="text-sm font-semibold">
@@ -342,7 +342,7 @@ export default function DashboardPage() {
                 <Card>
                   <CardContent className="py-8 text-center">
                     <p className="text-muted-foreground text-sm">
-                      Memuat profil akun...
+                      {analyticsLoading ? "Memuat profil akun…" : "Profil tidak tersedia. Kembali ke ringkasan untuk mencoba lagi."}
                     </p>
                   </CardContent>
                 </Card>
@@ -381,7 +381,7 @@ export default function DashboardPage() {
       </main>
 
       <footer className="border-t border-border bg-muted/50 py-6 px-4">
-        <div className="max-w-xl sm:max-w-2xl lg:max-w-4xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3 text-xs sm:text-sm text-muted-foreground">
+        <div className="max-w-[1400px] mx-auto flex flex-col sm:flex-row justify-between items-center gap-3 text-xs sm:text-sm text-muted-foreground">
           <p>© {new Date().getFullYear()} CreatorPulse Studio. All rights reserved.</p>
           <div className="flex sm:gap-6 gap-3">
             <a href="/privacy" className="hover:text-foreground transition-colors">
