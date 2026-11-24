@@ -1,16 +1,22 @@
-# UI/UX V2 rollout
+# UI/UX V2 release gates
 
-This branch stabilizes the existing single-account MVP. Do not merge until verification passes.
+## Scope
+Single-account, database-free CreatorPulse MVP. Responsive workspace, content search/sort, guided publishing, independent upload source and destination, creator capability-based privacy and interaction settings, duration/preview checks, commercial and AI disclosure, account-scoped browser history, session recovery and status retry.
 
-## Implemented
-- Controlled tabs, client-side publish lock, inline errors, explicit direct-post privacy, mobile labels, account-scoped local history, bounded polling, honest landing copy, wider workspace and portrait content.
-- Separate TikTok inbox/direct endpoints, normalized response data, single-file PUT transfer and server validation.
+## Verified
+- CI run 45417827395 (commit 546d1187): npm ci, TypeScript, production build, three Chromium smoke tests passed. Vercel status successful.
+- Later commits correct the TikTok source_info.source field, extend disclosures and add upstream contract tests. Require green CI on the final commit; earlier results do not certify later changes.
 
-## Release gates (not yet verified)
-- npm ci; npx tsc --noEmit; npm run build.
-- Test login cancellation, expired session, analytics failure, 320/390/768/1440px layouts, keyboard and screen reader access.
-- Test inbox and direct post against authorized TikTok sandbox accounts, verified URL ownership, privacy capabilities, upload failure, duplicate clicks, status polling and page reload. Never test public posting without explicit consent.
-- Confirm API schemas against official TikTok documentation; implement creator-info capability query and server-side idempotency before production.
+## Official API references
+- https://developers.tiktok.com/docs/en/content-posting-api-reference-direct-post
+- https://developers.tiktok.com/docs/en/content-posting-api-reference-upload-video
+- https://developers.tiktok.com/docs/en/content-posting-api-media-transfer-guide
+- https://developers.tiktok.com/docs/en/content-sharing-guidelines
 
-## Remaining scope
-- Dedicated workspace shell and guided review screen, sortable and paginated library, multi-account architecture, durable shared history, session refresh persistence, partial analytics recovery, automated browser tests. Local history contains up to 50 IDs per account per browser and is not cross-device storage.
+## Release blockers
+- Confirm real OAuth scopes, verified media URL ownership and actual TikTok upload/status with an authorized sandbox account; mocked tests do not prove upstream integration. Test private visibility only until TikTok approves public posting.
+- Confirm TikTok app audit status and intended-use eligibility: private/internal team account-management utilities are not an acceptable use case for Direct Post approval.
+- Client metadata duration is validated against creator settings, not independently measured on the server; TikTok also validates the media itself.
+- Verify keyboard/screen reader accessibility and visual layout on real devices.
+- Browser history is limited to 50 entries per account per browser. Server-side cross-instance idempotency and multi-account/shared history need a durable store and a session architecture decision. Until then, do not claim production-grade agency functionality.
+- Do not merge until the release owner accepts these limits and confirms live checks.
