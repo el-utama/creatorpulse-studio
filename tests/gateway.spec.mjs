@@ -73,3 +73,17 @@ test('stateless MCP uses agent authentication and has no approval tool',async ({
  const forbidden=await (await rpc('tools/call',{name:'approve_post',arguments:{}})).json();expect(forbidden.error.code).toBe(-32602);
  const bad=await (await rpc('tools/call',{name:'get_analytics',arguments:{accountId:'../accounts'}})).json();expect(bad.result.isError).toBe(true);
 });
+
+test('direct mode requires human settings, validates visibility and sends exact final payload',async ({request})=>{
+ const accounts=await (await request.get('/api/gateway/v1/accounts',{headers:agent})).json();const accountId=accounts.accounts[0].id;
+ const base='/api/gateway/v1/posts',data={requestId:crypto.randomUUID(),accountId,videoUrl:'https://example.com/direct.mp4',caption:'Draft',mode:'profile',duration:20};
+ const created=await request.post(base,{headers:agent,data});expect(created.status()).toBe(201);const post=await created.json();const url=base+'/'+post.id;
+ const direct={privacy:'SELF_ONLY',disableComment:true,disableDuet:true,disableStitch:true,brandOrganic:false,brandContent:false,isAigc:true,musicConsent:true,policyConsent:true};
+ const approval={...data,confirm:true,approvedCaption:'Edited by human',direct};
+ expect((await request.post(url+'/approve',{headers:agent,data:approval})).status()).toBe(403);
+ expect((await request.post(url+'/execute',{headers:agent})).status()).toBe(409);
+ for(const invalid of [{...approval,direct:undefined},{...approval,direct:{...direct,privacy:'PUBLIC_TO_EVERYONE'}},{...approval,direct:{...direct,disableComment:false}},{...approval,direct:{...direct,brandContent:true}},{...approval,direct:{...direct,musicConsent:false}},{...approval,duration:21}]) expect((await request.post(url+'/approve',{headers:operator,data:invalid})).status()).toBe(400);
+ const approved=await request.post(url+'/approve',{headers:operator,data:approval});expect(approved.status()).toBe(200);expect((await approved.json()).approvedCaption).toBe('Edited by human');
+ const sent=await (await request.post(url+'/execute',{headers:agent})).json();expect(sent.state).toBe('submitted');expect(sent.publishId).toMatch(/^server-direct-/);expect(sent.direct.privacy).toBe('SELF_ONLY');
+ const repeated=await (await request.post(url+'/execute',{headers:agent})).json();expect(repeated.publishId).toBe(sent.publishId);
+});

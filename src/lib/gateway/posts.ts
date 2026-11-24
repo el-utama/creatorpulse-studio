@@ -22,7 +22,7 @@ async function change(post:Post,raw:string,patch:Partial<Post>,action:string,act
 }
 export async function prepare(input:unknown){
  const x=input as Record<string,unknown>|null;
- if(!x||!uuid(x.requestId)||typeof x.accountId!=="string"||typeof x.videoUrl!=="string"||x.videoUrl.length>2000||typeof x.caption!=="string"||x.caption.length>2200||!["inbox","profile"].includes(String(x.mode)))throw new GatewayError(400,"ID permintaan, akun, URL, caption dan mode publikasi wajib valid.");
+ if(!x||!uuid(x.requestId)||typeof x.accountId!=="string"||typeof x.videoUrl!=="string"||x.videoUrl.length>2000||typeof x.caption!=="string"||x.caption.length>2200||(x.mode!=="inbox"&&x.mode!=="profile"))throw new GatewayError(400,"ID permintaan, akun, URL, caption dan mode publikasi wajib valid.");
  let url:URL;try{url=new URL(x.videoUrl);if(url.protocol!=="https:"||url.username||url.password||url.hash)throw Error();}catch{throw new GatewayError(400,"Gunakan URL HTTPS dari domain yang diverifikasi TikTok.");}
  if(x.mode==="profile"&&(typeof x.duration!=="number"||!Number.isFinite(x.duration)||x.duration<=0||x.duration>86400))throw new GatewayError(400,"Durasi video wajib valid untuk Direct Post.");
  const {account}=await loadAccount(x.accountId);
