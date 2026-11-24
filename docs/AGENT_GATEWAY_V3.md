@@ -32,3 +32,6 @@ Agent creates immutable draft with UUID requestId, accountId, HTTPS media URL, s
 
 ## V3.2 MCP
 Stateless Streamable HTTP endpoint /api/mcp, bearer credential, compatibility versions 2025-03-26, 2025-06-18, 2025-11-25. JSON responses only; GET/SSE and sessions are unsupported. Use the AGENT key; never expose the operator key to the model. Tools: list_accounts, get_analytics, list_videos, get_capabilities, list_trends, record_trend, prepare_post, list_posts, get_post, execute_approved_post, get_publish_status. Approval is deliberately absent. Client interoperability beyond JSON-RPC integration tests is not yet verified. MCP 2026-07-28 discovery is not yet supported.
+
+## V3.5 update (supersedes inbox-only descriptions above)
+Both inbox and profile modes supported. Profile duration required; operator approval supplies approvedCaption and direct settings. Agent cannot approve or alter the approved payload. Creator capability checks are repeated before execution. Unaudited client remains SELF_ONLY on private accounts; existing TikTok Developer settings are unchanged. Terminal records can be archived (100 active records; encrypted archive retained). See OpenAPI and local-first architecture.

@@ -1,4 +1,4 @@
-import {GatewayError,redis,seal,unseal} from "./store";
+import {GatewayError,redis,seal,unseal,withSlotLock} from "./store";
 import {loadAccount,readAccount,profileIdentity,vaultToken} from "./vault";
 import {directSettings,verifyDirect,directPayload,type DirectSettings} from "./direct";
 import {initPublish,fetchPublishStatus,getCreatorCapabilities} from "@/lib/tiktok";
@@ -69,6 +69,10 @@ export async function execute(id:string){
  if(identity.open_id!==account.openId)throw new GatewayError(409,"Identitas akun tidak cocok.");
  if(post.mode==="profile"){const settings=directSettings(post.direct);verifyDirect(settings,post.duration,await getCreatorCapabilities(token));}
  if((post.approvedUntil||0)<=Date.now())throw new GatewayError(409,"Persetujuan kedaluwarsa.");
+ return withSlotLock(post.accountId,async()=>{
+ const latest=await loadAccount(post.accountId);
+ if(latest.account.access!==token)throw new GatewayError(409,"Sesi akun berubah; periksa kembali sebelum mengirim.");
+ if((post.approvedUntil||0)<=Date.now())throw new GatewayError(409,"Persetujuan kedaluwarsa.");
  const sending=await change(post,raw,{state:"sending"},"execution_claimed","agent");
  const claimed=await load(id);
  if(claimed.post.state!=="sending")throw new GatewayError(409,"Status eksekusi berubah.");
@@ -81,6 +85,7 @@ export async function execute(id:string){
   const message=explainTikTok(error,"Hasil pengiriman belum pasti. Jangan kirim ulang.");
   try{return await change(claimed.post,claimed.raw,{state:"uncertain",publishId,error:message},"execution_uncertain","agent");}catch{throw new GatewayError(503,"Hasil belum pasti; periksa TikTok sebelum tindakan berikutnya.");}
  }
+ });
 }
 export async function checkStatus(id:string){
  const {post,raw,archived}=await load(id);

@@ -46,6 +46,7 @@ globalThis.fetch = async (input, options) => {
       if (source.source === 'FILE_UPLOAD' && (source.video_size !== source.chunk_size || source.total_chunk_count !== 1)) return Response.json({error:{code:'invalid_param'}},{status:400});
       const inbox = url.pathname.includes('/inbox/');
       if (inbox ? !!body.post_info : (body.post_info?.privacy_level !== 'SELF_ONLY' || typeof body.post_info?.brand_content_toggle !== 'boolean')) return Response.json({error:{code:'invalid_param'}},{status:400});
+      if(!inbox&&source?.video_url?.endsWith('/direct.mp4')&&(body.post_info?.title!=='Edited by human'||body.post_info?.is_aigc!==true||body.post_info?.disable_comment!==true))return Response.json({error:{code:'invalid_param'}},{status:400});
       return reply({publish_id:(inbox?'server-inbox-':'server-direct-')+(++initCount),...(source.source==='FILE_UPLOAD'?{upload_url:'https://open-upload.tiktokapis.com/video/?test=1'}:{})});
     }
     if (url.pathname.endsWith('/status/fetch/')) return body.publish_id ? reply(body.publish_id==='failed-test'?{status:'FAILED',fail_reason:'video_pull_failed'}:{status:'PUBLISH_COMPLETE'}) : Response.json({error:{code:'invalid_param'}},{status:400});

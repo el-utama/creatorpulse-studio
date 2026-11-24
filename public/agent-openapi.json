@@ -955,6 +955,118 @@
           }
         }
       }
+    },
+    "/posts/{postId}/archive": {
+      "post": {
+        "operationId": "archivePost",
+        "summary": "Archive terminal draft; preserve encrypted record and request ID",
+        "security": [
+          {
+            "operatorBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required or TikTok session expired"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict or approval required"
+          },
+          "502": {
+            "description": "Upstream failure"
+          },
+          "503": {
+            "description": "Gateway not configured or storage unavailable"
+          }
+        }
+      }
+    },
+    "/accounts/{accountId}/disconnect": {
+      "post": {
+        "operationId": "disconnectAccount",
+        "summary": "Disconnect gateway account; does not revoke TikTok authorization",
+        "security": [
+          {
+            "operatorBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Authentication required or TikTok session expired"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflict or approval required"
+          },
+          "502": {
+            "description": "Upstream failure"
+          },
+          "503": {
+            "description": "Gateway not configured or storage unavailable"
+          }
+        }
+      }
     }
   }
 }
