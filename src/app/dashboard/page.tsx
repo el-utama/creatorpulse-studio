@@ -102,6 +102,10 @@ export default function DashboardPage() {
       formData.append("disableComment", String(payload.disableComment));
       formData.append("disableDuet", String(payload.disableDuet));
       formData.append("disableStitch", String(payload.disableStitch));
+      formData.append("duration", String(payload.duration ?? 0));
+      formData.append("brandOrganic", String(payload.brandOrganic));
+      formData.append("brandContent", String(payload.brandContent));
+      formData.append("isAigc", String(payload.isAigc));
       formData.append("consent", String(payload.consent));
       if (payload.file) {
         formData.append("file", payload.file);
