@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { AccountManager } from "@/components/AccountManager";
 import { GatewayPanel } from "@/components/GatewayPanel";
 import { VideoUploadForm, type PublishPayload } from "@/components/VideoUploadForm";
-import { PublishStatusChecker } from "@/components/PublishStatusChecker";
 import { RefreshCw, LayoutDashboard, Film, PlusSquare, ListChecks, Bot, Users, Plus, ArrowLeft, LogOut, AudioLines } from "lucide-react";
 
 interface UserProfile {
@@ -149,9 +148,9 @@ export default function DashboardPage() {
         <div className="mb-5 flex min-w-0 items-center justify-between gap-3 lg:mb-7"><h1 className="min-w-0 text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1><div className="flex shrink-0 items-center gap-2">
         <button aria-label="Refresh workspace" title={lastUpdated||"Refresh"} onClick={refresh} disabled={publishing||analyticsLoading} className="hidden h-10 w-10 place-items-center rounded-md border bg-white text-slate-600 disabled:opacity-50 lg:grid"><RefreshCw className={"h-4 w-4 "+(analyticsLoading?"animate-spin":"")}/></button>
         {activeTab==="analytics"||activeTab==="publish"||activeTab==="status"||activeTab==="review"?<button onClick={newPost} disabled={publishing} className="inline-flex min-h-11 items-center gap-1.5 rounded-md bg-slate-900 px-3 text-xs font-medium text-white disabled:opacity-50 sm:text-sm"><Plus className="h-4 w-4"/>New post</button>:null}</div></div>
-        <WorkspaceData view={activeTab} onNavigate={setActiveTab} disabled={publishing} revision={revision} onActive={receiveActive} onLoading={setAnalyticsLoading}/>
         {activeTab==="accounts"&&<div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t pt-4"><div className="flex gap-4 text-xs text-slate-500"><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div><button onClick={logout} disabled={publishing} className="inline-flex min-h-11 items-center gap-2 text-sm text-slate-600"><LogOut className="h-4 w-4"/>Sign out</button>{logoutError&&<p role="alert" className="text-sm text-red-700">Sign out failed. Try again.</p>}</div>}
         {inPublishing&&<nav aria-label="Publishing views" className="mb-4 flex gap-4 border-b text-sm font-medium text-slate-500">{[{id:"publish",label:"Queue"},{id:"review",label:"Review"},{id:"status",label:"History"}].map(t=><button key={t.id} onClick={()=>setActiveTab(t.id)} className={"min-h-11 border-b-2 px-1 "+(activeTab===t.id?"border-slate-900 text-slate-900":"border-transparent")}>{t.label}</button>)}</nav>}
+        <WorkspaceData view={activeTab} onNavigate={setActiveTab} disabled={publishing} revision={revision} onActive={receiveActive} onLoading={setAnalyticsLoading} latestPublication={publishId}/>
         {activeTab==="compose"&&<div className="mb-4 space-y-3"><button onClick={()=>setActiveTab("publish")} className="inline-flex min-h-10 items-center gap-2 text-xs font-medium text-slate-600"><ArrowLeft className="h-4 w-4"/>Back to queue</button><TargetPicker disabled={publishing} onReady={setTargetReady} accountName={profile?.display_name}/>{analyticsError&&<p role="alert" className="text-sm text-red-700">{analyticsError}</p>}</div>}
         <div hidden={activeTab!=="compose"||!targetReady} className="max-w-[760px]">
           {profile&&targetReady?<div className="min-w-0">
@@ -167,23 +166,7 @@ export default function DashboardPage() {
 
           </div>:null}
         </div>
-        {activeTab==="status"&&<section className="space-y-3 rounded-lg border bg-white p-4"><div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-sm font-semibold">Manual history</h2><div className="w-40"><AccountManager name={profile?.display_name} disabled={publishing}/></div></div><p className="text-xs text-slate-500">Selected account · this browser</p>
-                  {publishWarning && <p role="alert" className="mb-3 rounded-md border border-amber-500 p-3 text-sm">{publishWarning}</p>}
-                  {history.length > 0 && <div className="mb-4 divide-y rounded-lg border">{history.map((record) => <button type="button" key={record.id} onClick={() => setPublishId(record.id)} aria-pressed={publishId === record.id} className="flex w-full min-w-0 items-center justify-between gap-3 p-3 text-left hover:bg-muted aria-pressed:bg-muted"><span className="min-w-0 truncate text-sm">{record.id}</span><span className="shrink-0 text-xs text-muted-foreground">{new Date(record.createdAt).toLocaleString("id-ID")}</span></button>)}</div>}
-                  {publishId ? (
-                    <PublishStatusChecker
-                      publishId={publishId}
-                      key={publishId}
-                    />
-                  ) : (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground text-sm">
-                        {history.length ? "Pilih publikasi untuk memeriksa status." : "Belum ada aktivitas publikasi di browser ini."}
-                      </p>
-                    </div>
-                  )}
-
-        </section>}
+        {activeTab==="status"&&publishWarning&&<p role="alert" className="mt-3 rounded-md border border-amber-500 p-3 text-sm">{publishWarning}</p>}
         {["agent","review","publish"].includes(activeTab)&&<div>
           {activeTab==="agent"&&<div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500"><span>Account for enrollment</span><div className="w-48"><AccountManager name={profile?.display_name} disabled={publishing}/></div></div>}
           <GatewayPanel accountName={profile?.display_name} view={activeTab==="review"?"review":activeTab==="publish"?"queue":"agent"}/>
