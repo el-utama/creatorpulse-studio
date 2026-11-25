@@ -1,23 +1,11 @@
-# Merge this entry into your existing Hermes profile config.yaml.
-# Do not overwrite other MCP servers. Set CREATORPULSE_AGENT_KEY in the profile's .env.
+# Sandbox example: prefer bootstrap.py, which writes an absolute stdio adapter path.
+# Never copy agent credentials between profiles. Production has a separate profile.
 mcp_servers:
   creatorpulse:
-    url: https://creatorpulse-studio-six.vercel.app/api/mcp
-    headers:
-      Authorization: "Bearer ${CREATORPULSE_AGENT_KEY}"
-    skip_preflight: true
+    command: /absolute/path/to/hermes/python
+    args: ["/absolute/path/to/profiles/creatorpulse-sandbox/integrations/creatorpulse-local/proxy.py", "--environment", "sandbox", "--env-file", "/absolute/path/to/profiles/creatorpulse-sandbox/.env"]
+    enabled: true
+    timeout: 60
     tools:
-      include:
-        - list_accounts
-        - get_analytics
-        - list_videos
-        - get_capabilities
-        - list_trends
-        - record_trend
-        - prepare_post
-        - list_posts
-        - get_post
-        - execute_approved_post
-        - get_publish_status
       resources: false
       prompts: false

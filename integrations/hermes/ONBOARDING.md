@@ -1,49 +1,43 @@
-# CreatorPulse Hermes onboarding — model-independent
+# CreatorPulse Hermes onboarding — isolated profiles
 
-## Paste into existing Hermes chat
+Start with Sandbox, not Production. The dedicated profile names are `creatorpulse-sandbox` and `creatorpulse`. One repository, separate checkouts/branches and runtime state. Keep existing default Hermes and messaging untouched.
 
+## Copy-paste prompt — Sandbox
 ```text
-Hubungkan profil Hermes yang sedang aktif dengan CreatorPulse Studio. Jangan mengganti model/provider NVIDIA NIM, konfigurasi WhatsApp/Telegram, profil, atau toolset lain. Jangan hanya menjelaskan; gunakan terminal untuk menjalankan langkah aman yang tersedia.
-1. Ambil repository https://github.com/el-utama/creatorpulse-studio branch main ke direktori kerja baru (atau gunakan checkout yang sudah ada). Jangan menimpa pekerjaan lokal. Catat commit.
-2. Baca integrations/hermes/ONBOARDING.md. Jalankan python integrations/hermes/bootstrap.py tanpa --apply untuk rencana terlebih dahulu. Gunakan interpreter Python Hermes yang memiliki PyYAML. Pastikan HERMES_HOME adalah profil chat yang benar; jika ambigu, minta lokasi profil saja.
-3. Jalankan bootstrap.py --apply pada profil tersebut setelah rencana sesuai. Jika agent key belum tersedia, minta saya memasangnya secara lokal pada .env profil, atau menyediakan path file hermes.env yang hanya berisi agent key melalui --agent-env. JANGAN meminta saya mengirim key, token TikTok, operator key, bridge key, atau file .env melalui chat.
-4. Jalankan diagnosis adapter lokal (--check) sesuai dokumentasi dan hermes mcp test creatorpulse bila tersedia. Jika gateway belum dikonfigurasi, laporkan blocker yang tepat, jangan mengarang koneksi berhasil. Jangan mengubah konfigurasi TikTok Developer, mengaktifkan layanan berbayar, atau mengambil alih Vercel.
-5. Gunakan /reload-mcp atau sesi baru bila diperlukan; jangan restart gateway pesan tanpa persetujuan. Uji list_accounts dan analytics secara read-only. Jangan membuat atau menjalankan publikasi selama onboarding.
-6. Laporkan commit, profil, hasil health, jumlah akun, dan status uji MCP, tanpa secret. Setelah terhubung, gunakan skill creatorpulse dari chat WhatsApp/Telegram yang sudah ada. Jangan mengatur bot baru. Jika model gagal melakukan tool call, gunakan fallback CLI yang didokumentasikan.
+Siapkan profil Hermes khusus creatorpulse-sandbox (CreatorPulse Lab), hanya untuk sandbox. Jangan ubah profil default, provider/model existing, WhatsApp/Telegram, bot, jadwal atau koneksi lain. Jangan clone profil atau menyalin seluruh .env/memori. Jangan posting.
+1. Ambil repo https://github.com/el-utama/creatorpulse-studio branch sandbox ke direktori terpisah; jangan timpa pekerjaan lokal. Catat commit. Baca integrations/hermes/ONBOARDING.md.
+2. Periksa hermes profile create --help; buat profil bersih dengan --no-credentials --no-alias jika tersedia. Jangan jadikan default. Konfigurasikan hanya provider/model NVIDIA NIM yang sudah disetujui secara lokal pada profil baru; jika opsi tidak tersedia, berhenti dan laporkan.
+3. Gunakan path profil khusus yang benar. Jalankan python integrations/hermes/bootstrap.py --environment sandbox --hermes-home <path-profil> (dry-run). Owner menyiapkan Local Bridge sandbox, Vercel dan enrollment; jangan meminta secret di chat. Owner hanya memberikan path file hermes.env khusus sandbox atau memasang agent key secara lokal.
+4. Setelah rencana benar, ulangi dengan --apply dan opsional --agent-env <path-hermes.env>. Jangan memakai file vercel.env/bridge.env atau kredensial operator.
+5. Jalankan pemeriksaan adapter dan hermes -p creatorpulse-sandbox mcp test creatorpulse jika didukung. Uji list_accounts dan analytics read-only dalam sesi terminal profil khusus; jangan restart gateway pesan. Laporkan commit, environment, profil dan blocker tanpa secret. Jangan membuat atau menjalankan publikasi.
 ```
 
-## What bootstrap actually does
-Python 3.10+ with PyYAML in the existing Hermes environment. Default is dry-run. On apply, makes a timestamped backup of existing config and old CreatorPulse files; installs the skill and local stdio adapter; merges only the creatorpulse MCP entry into the selected profile; leaves all other configuration values (including model and WhatsApp/Telegram) unchanged. YAML comments and formatting may be normalized. Do not run concurrently with other config edits. Existing conflicting agent key or unrelated MCP entry is not overwritten. The optional --agent-env must refer to the agent-only credential file, not vercel.env or bridge.env.
+## Production (only after Sandbox acceptance)
+```text
+Siapkan profil Hermes khusus creatorpulse (CreatorPulse Director), hanya untuk production. Jangan ubah profil default, provider/model existing, WhatsApp/Telegram, bot, jadwal atau koneksi lain. Jangan clone profil atau menyalin seluruh .env/memori. Jangan posting.
+1. Ambil repo https://github.com/el-utama/creatorpulse-studio branch main ke direktori terpisah; jangan timpa pekerjaan lokal. Catat commit. Baca integrations/hermes/ONBOARDING.md.
+2. Periksa hermes profile create --help; buat profil bersih dengan --no-credentials --no-alias jika tersedia. Jangan jadikan default. Konfigurasikan hanya provider/model NVIDIA NIM yang sudah disetujui secara lokal pada profil baru; jika opsi tidak tersedia, berhenti dan laporkan.
+3. Gunakan path profil khusus yang benar. Jalankan python integrations/hermes/bootstrap.py --environment production --hermes-home <path-profil> (dry-run). Owner menyiapkan Local Bridge production, Vercel dan enrollment; jangan meminta secret di chat. Owner hanya memberikan path file hermes.env khusus production atau memasang agent key secara lokal.
+4. Setelah rencana benar, ulangi dengan --apply dan opsional --agent-env <path-hermes.env>. Jangan memakai file vercel.env/bridge.env atau kredensial operator.
+5. Jalankan pemeriksaan adapter dan hermes -p creatorpulse mcp test creatorpulse jika didukung. Uji list_accounts dan analytics read-only dalam sesi terminal profil khusus; jangan restart gateway pesan. Laporkan commit, environment, profil dan blocker tanpa secret. Jangan membuat atau menjalankan publikasi.
+```
 
-Run from repository root:
+## Owner prerequisites
+Use official Hermes [profile commands](https://hermes-agent.nousresearch.com/docs/reference/profile-commands/). Check installed CLI help first. Create a fresh named profile, not a clone; `hermes profile create creatorpulse-sandbox --no-credentials --no-alias`. On versions without these flags, stop rather than clone or copy the default credential file. Configure NVIDIA NIM provider/model only in that profile, locally; never send credentials to chat. Do not run profile use, start a new message gateway, or copy default memory. Verify the profile directory (typically ~/.hermes/profiles/creatorpulse-sandbox). OS profile separation alone is not a security sandbox.
+
+Follow ../../local-bridge/README.md. Owner creates isolated bridge, HTTPS routing, Vercel secrets and dashboard enrollment. The agent must only receive its environment-specific agent key. Never give it operator, vault, bridge or TikTok secrets. Keep private secret files outside the agent's OS access; only copy the agent-only file to its restricted profile. Do not grant agent elevated permissions.
+
+## Installer and check
+From the matching repo checkout, use Hermes's Python 3.10+ with PyYAML:
 ```sh
-python integrations/hermes/bootstrap.py
-python integrations/hermes/bootstrap.py --apply
-# If needed, provide explicit profile and an agent-only file path:
-python integrations/hermes/bootstrap.py --apply --hermes-home /path/to/active/profile --agent-env /private/path/hermes.env
+python integrations/hermes/bootstrap.py --environment sandbox --hermes-home /actual/profiles/creatorpulse-sandbox
+python integrations/hermes/bootstrap.py --environment sandbox --hermes-home /actual/profiles/creatorpulse-sandbox --agent-env /private/agent-only/hermes.env --apply
+python /actual/profiles/creatorpulse-sandbox/integrations/creatorpulse-local/proxy.py --environment sandbox --env-file /actual/profiles/creatorpulse-sandbox/.env --check
+hermes -p creatorpulse-sandbox mcp test creatorpulse
 ```
-On Windows use the Python interpreter from Hermes's installed environment (or py -3 when it has PyYAML). On Docker/SSH run the installer where the actual Hermes profile is mounted, not an unrelated sandbox. Never create a new profile to work around discovery. The script does not install dependencies or restart the gateway.
+The first command is dry run. The installer requires an existing dedicated profile and rejects mismatched names/keys, backs up config and installs only CreatorPulse adapter, environment allowlist, and rendered skill. It will not create a profile itself, edit other profiles, install dependencies, change model settings, or start/restart messaging. It refuses unrelated or legacy MCP entries rather than silently migrating them. CLI fallback: replace --check with --call list_accounts --args '{}'. Use explicit profile selection for chat and CLI; no default profile changes. For Production use production, profile creatorpulse and main checkout. Do not reuse credentials or clone a Sandbox profile.
 
-## Secure owner setup (not assigned to the LLM)
-The owner must first install Local Bridge as a separate restricted service/OS identity, configure a stable HTTPS tunnel or reverse proxy, set Vercel environment variables, verify the intended production release, and enroll real accounts. See ../../local-bridge/README.md. Hand Hermes only the agent credential via a local secret file or existing profile .env. The bootstrap script cannot grant itself administrator access, create a tunnel account, configure Vercel without authorization, or log into TikTok for you. Never put operator, vault or bridge keys in the agent profile or its accessible shell environment. Files with 0600 permissions still remain readable by the same OS user; use OS separation.
+The adapter's local discovery and ping do not make remote calls. All tool calls use a fixed allowlisted HTTPS endpoint, no redirects, explicit environment header and prefixed agent key read from the specified profile file (not inherited process env). Health must identify the environment; zero accounts is not completed enrollment. No actual Hermes host test is implied by CI.
 
-## Verification
-Use installed adapter via its actual path and profile .env:
-```sh
-python /path/to/profile/integrations/creatorpulse-local/proxy.py --env-file /path/to/profile/.env --check
-hermes mcp test creatorpulse
-```
-The adapter prints no credentials. A connected gateway with zero accounts means enrollment is still required; the installer must not report complete. Use /reload-mcp or a new session; if the installed Hermes version cannot reload, arrange a controlled gateway restart. Test via existing private WhatsApp/Telegram chat: "Tampilkan akun TikTok CreatorPulse dan statistiknya, jangan posting." If MCP works in terminal but not chat, check that chat is routed to the same profile and its MCP toolset is enabled. Do not regenerate the bot token or pair WhatsApp again. Keep allowed users restricted to the owner. No new messaging webhook is needed.
-
-## Nemotron / weaker model fallback
-The installer is ordinary code, not an LLM-generated configuration. Local stdio MCP tool discovery and ping never contact Vercel. If the model narrates instead of calling tools, use the skill's explicit instructions or the CLI fallback (requires terminal permission):
-```sh
-python /path/to/profile/integrations/creatorpulse-local/proxy.py --env-file /path/to/profile/.env --call list_accounts --args '{}'
-```
-Other tools use the same names and JSON argument shapes in the skill/OpenAPI. Only agent permissions are supported; no approval function exists. A local adapter does not guarantee the selected NIM model's actual tool-calling quality; test live with the existing model. Do not switch models or force global tool settings without owner consent. No network traffic is generated on MCP discovery or idle ping.
-
-## Publishing from chat
-Hermes can prepare a draft and return the exact account, media, caption suggestion and ID. Human approval remains in the dashboard (V4 baseline: Publishing > Review; V3: Agent Operations), then Hermes can execute the approved submission and report status. Inbox requires completion in TikTok. Direct Post requires duration, video preview, explicit operator-selected visibility, interaction settings, final caption and disclosure/policy confirmations; unaudited clients remain SELF_ONLY on private accounts. Direct chat approval needs a separate trusted callback verifying sender identity, with operator credentials isolated from the agent. Not implemented. No scheduled posting during installation. Research cron is optional and runs on Hermes; use modest cadence, e.g. once daily, no constant polling. 
-
-## Cost boundary
-No n8n, no Redis cloud, no AI model calls, cron, video generation, search/scraping, message gateway, or media hosting added to Vercel. Only explicit tool calls reach Vercel; SQLite stays on Hermes host. URL-based inbox submission avoids proxying large video bytes. Existing manual file upload remains capped at 4 MB. List accounts/posts use one storage request each. Actual Hobby quota consumption is not measured by these tests; review project usage in Vercel. Hobby is intended for personal/non-commercial use, not an unconditional free commercial hosting guarantee.
+## Publication and research
+Use Publishing > Review in the same environment; human approval is independent and expires. Agent cannot approve, must never retry uncertain publication, and cannot assume submission equals publication. Inbox requires completion in TikTok. No posting during installation, no unattended posting, no new chat gateway. Research is sourced evidence, not verified TikTok discovery. Keep cron disabled until live read-only verification and operator acceptance.

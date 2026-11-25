@@ -2,7 +2,7 @@ name: Verify
 on:
   pull_request:
   push:
-    branches: [main, refactor/ui-ux-v2]
+    branches: [main, sandbox, refactor/ui-ux-v2]
 permissions:
   contents: read
 jobs:

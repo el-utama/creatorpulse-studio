@@ -10,7 +10,8 @@ import urllib.request
 from pathlib import Path
 from urllib.parse import urlencode
 
-BASE = "https://creatorpulse-studio-six.vercel.app/api/gateway/v1"
+from environment import HOSTS, key_prefix
+ENVIRONMENT = None
 SLOT = re.compile(r"[a-f0-9]{32}")
 UUID = re.compile(r"[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}")
 VERSIONS = ("2025-03-26", "2025-06-18", "2025-11-25")
@@ -36,21 +37,22 @@ BY_NAME = {t["name"]:t for t in TOOLS}
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self,*args,**kwargs):
         return None
-def key_from_env(path=None):
-    key = os.environ.get("CREATORPULSE_AGENT_KEY","")
-    if not key and path and Path(path).is_file():
-        for line in Path(path).read_text(encoding="utf-8").splitlines():
-            if line.startswith("CREATORPULSE_AGENT_KEY="):
-                key=line.partition("=")[2].strip().strip('"').strip("'")
-    if len(key)<32 or not re.fullmatch(r"[A-Za-z0-9_-]+",key):
-        raise ValueError("Agent credential missing or invalid. Set it locally; never paste into chat.")
-    return key
+def key_from_env(path, environment):
+    if not path or not Path(path).is_file():
+        raise ValueError("Explicit profile credential file required.")
+    rows=[line.partition("=")[2].strip().strip('"').strip("'") for line in Path(path).read_text(encoding="utf-8").splitlines() if line.startswith("CREATORPULSE_AGENT_KEY=")]
+    prefix=key_prefix(environment)
+    if len(rows)!=1 or not rows[0].startswith(prefix) or not re.fullmatch(r"[A-Za-z0-9_-]{32,}", rows[0][len(prefix):]):
+        raise ValueError("Missing, invalid or wrong-environment agent credential.")
+    return rows[0]
 def request(path, key=None, body=None, method="GET"):
-    headers={"Accept":"application/json"}
+    if ENVIRONMENT not in HOSTS: raise ValueError("Explicit environment required.")
+    if key and not key.startswith(key_prefix(ENVIRONMENT)): raise ValueError("Wrong-environment credential.")
+    headers={"Accept":"application/json","X-CreatorPulse-Environment":ENVIRONMENT}
     if key: headers["Authorization"]="Bearer "+key
     if body is not None: headers["Content-Type"]="application/json"
     data=json.dumps(body).encode() if body is not None else None
-    req=urllib.request.Request(BASE+path, data=data, method=method, headers=headers)
+    req=urllib.request.Request(HOSTS[ENVIRONMENT]+"/api/gateway/v1"+path, data=data, method=method, headers=headers)
     try:
         with urllib.request.build_opener(NoRedirect()).open(req, timeout=40) as r:
             raw=r.read(2_000_001)
@@ -105,19 +107,23 @@ def rpc(message, get_key):
     else: response["error"]={"code":-32601,"message":"Method not found"}
     return response
 def main():
+    global ENVIRONMENT
     parser=argparse.ArgumentParser()
+    parser.add_argument("--environment",choices=HOSTS,required=True)
     parser.add_argument("--env-file")
     parser.add_argument("--call",choices=BY_NAME.keys())
     parser.add_argument("--args",default="{}")
     parser.add_argument("--check",action="store_true")
     args=parser.parse_args()
-    get_key=lambda:key_from_env(args.env_file)
+    ENVIRONMENT=args.environment
+    get_key=lambda:key_from_env(args.env_file,ENVIRONMENT)
     if args.check:
         try:
             health=request("/health")
+            if health.get("environment")!=ENVIRONMENT: raise ValueError("Gateway environment mismatch.")
             if not health.get("configured"): raise ValueError("Gateway is not configured.")
             accounts=request("/accounts",get_key()).get("accounts",[])
-            print(json.dumps({"gateway":"connected","accounts":len(accounts),"posting":health.get("posting","unknown"),"research":"agent_sourced"}))
+            print(json.dumps({"gateway":"connected","environment":ENVIRONMENT,"accounts":len(accounts),"posting":health.get("posting","unknown"),"research":"agent_sourced"}))
             return 0 if accounts else 2
         except ValueError as e:
             print(json.dumps({"gateway":"blocked","reason":str(e)}));return 1

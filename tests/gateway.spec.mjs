@@ -3,6 +3,7 @@ const enabled=process.env.GATEWAY_TEST==='1';
 test.skip(!enabled,'Requires isolated SQLite Local Bridge and mock TikTok');
 const operator={Authorization:'Bearer '+ 'o'.repeat(40)};
 const agent={Authorization:'Bearer '+ 'a'.repeat(40)};
+test('gateway rejects mismatched environment header',async({request})=>{const health=await (await request.get('/api/gateway/v1/health')).json();expect(health.environment).toBe('local');expect((await request.get('/api/gateway/v1/accounts',{headers:{...agent,'X-CreatorPulse-Environment':'sandbox'}})).status()).toBe(403);});
 test('enroll and monitor without browser, separate credentials and sourced trend data',async ({context,request})=>{
  const start=await context.request.get('/api/auth/tiktok',{maxRedirects:0});
  const state=new URL(start.headers().location).searchParams.get('state');

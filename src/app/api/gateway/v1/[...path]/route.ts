@@ -2,7 +2,7 @@ import {NextResponse} from "next/server";
 import {cookies} from "next/headers";
 import {APP_CONFIG} from "@/config/app";
 import {accounts,currentSlot,slotNames,sameOrigin} from "@/lib/accounts";
-import {authorize,GatewayError,config,binding,limitAgent} from "@/lib/gateway/store";
+import {authorize,GatewayError,config,binding,limitAgent,gatewayEnvironment} from "@/lib/gateway/store";
 import {listVault,readAccount,saveAccount,removeVault,profileIdentity,slotForId} from "@/lib/gateway/vault";
 import {prepare,approve,cancel,execute,checkStatus,getPost,listPosts,archive} from "@/lib/gateway/posts";
 import {recordTrend,listTrends} from "@/lib/gateway/trends";
@@ -16,7 +16,7 @@ function fail(error:unknown){return reply({error:error instanceof GatewayError?e
 function cursorOf(url:URL){const raw=url.searchParams.get("cursor")||"0",n=Number(raw);if(!/^\d+$/.test(raw)||!Number.isSafeInteger(n))throw new GatewayError(400,"Cursor tidak valid.");return n;}
 export async function GET(request:Request,ctx:Ctx){
  const p=(await ctx.params).path,url=new URL(request.url);
- if(p.join("/") === "health")return reply({version:"3.6-hardened",storage:"local_bridge",directPublicEnabled:process.env.TIKTOK_DIRECT_POST_AUDITED==="true",configured:!!config(),posting:config()?"approval_required_inbox_and_direct":"disabled",trends:"observations_only"});
+ if(p.join("/") === "health")return reply({version:"3.7-environment",environment:gatewayEnvironment(),storage:"local_bridge",directPublicEnabled:process.env.TIKTOK_DIRECT_POST_AUDITED==="true",configured:!!config(),posting:config()?"approval_required_inbox_and_direct":"disabled",trends:"observations_only"});
  try{
   authorize(request);await limitAgent(request);
   if(p.join("/") === "posts")return reply({posts:await listPosts()});

@@ -2,7 +2,7 @@
 
 Workspace operasional kreator TikTok untuk satu operator dengan maksimum tiga akun, menggunakan Next.js App Router, TypeScript dan Tailwind. Hermes adalah agent opsional; Local Bridge menyediakan penyimpanan SQLite lokal.
 
-**Status (2026-11-25):** V4 baseline multi-account sudah di main (6d9e1f2), CI pada revisi yang di-merge lulus ([run 45524478755](https://github.com/el-utama/creatorpulse-studio/actions/runs/45524478755)). Produksi terakhir diverifikasi masih pada V3 (60c9ae1), karena build-rate limit. Kualitas desain V4 belum diterima oleh owner; bukan rilis final. Lihat [status dan acceptance gate](docs/WORKSPACE_V4.md).
+**Status:** R1 merged to main (d3df911); canonical Sandbox Preview verified live by owner for OAuth/dashboard. Production deployment remains a separate release gate. Hermes environment-aware onboarding is under validation on sandbox; no live Bridge or Hermes enrollment implied.
 
 ## Dokumentasi aktif
 
@@ -11,7 +11,7 @@ Workspace operasional kreator TikTok untuk satu operator dengan maksimum tiga ak
 | [Workspace V4](docs/WORKSPACE_V4.md) | Target desain, baseline aktual, alur pengguna dan release gates |
 | [Local-first architecture](docs/ARCHITECTURE_LOCAL_FIRST.md) | Batas tanggung jawab, storage, keamanan |
 | [Local Bridge](local-bridge/README.md) | Setup host, HTTPS, secrets, enrollment dan backup |
-| [Hermes onboarding](integrations/hermes/ONBOARDING.md) | Bootstrap profil existing dan pengujian MCP/chat |
+| [Hermes onboarding](integrations/hermes/ONBOARDING.md) | Bootstrap profil khusus environment dan pengujian MCP terminal |
 | [Integrations](integrations/README.md) | REST/MCP, OpenAPI dan opsi n8n historis |
 | [Agent OpenAPI](public/agent-openapi.json) | Kontrak gateway v1 |
 | [Audit V3](docs/AUDIT_V3.md) | Temuan historis dan risiko yang masih terbuka |
@@ -33,7 +33,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Isi environment secara lokal sesuai `.env.example`; jangan commit secret. Pada Windows gunakan Copy-Item untuk menyalin file. APP_URL dan redirect harus sesuai environment yang benar-benar terdaftar di TikTok. Untuk project existing jangan ubah redirect atau kredensial TikTok hanya demi preview. Jangan menganggap preview memiliki OAuth yang berfungsi.
+Isi environment secara lokal sesuai `.env.example`; jangan commit secret. Pada Windows gunakan Copy-Item untuk menyalin file. APP_URL dan redirect harus sesuai environment yang benar-benar terdaftar di TikTok. Untuk project existing jangan ubah redirect atau kredensial TikTok hanya demi preview. Use canonical Sandbox Preview with separate TikTok Sandbox credentials. See Hermes onboarding; never share gateway keys between environments.
 
 ## Deployment
 

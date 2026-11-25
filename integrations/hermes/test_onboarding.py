@@ -24,17 +24,17 @@ class OnboardingTests(unittest.TestCase):
     def test_install_preserves_model_and_chat(self):
         import yaml
         with tempfile.TemporaryDirectory() as tmp:
-            home=Path(tmp)
+            home=Path(tmp)/"profiles"/"creatorpulse-sandbox";home.mkdir(parents=True)
             config={"model":{"model":"nemotron-super-120b-vl","provider":"nvidia"},"platforms":{"telegram":{"enabled":True},"whatsapp":{"enabled":True}},"mcp_servers":{"other":{"command":"example"}}}
             (home/"config.yaml").write_text(yaml.safe_dump(config))
             (home/".env").write_text("OTHER_KEY=preserved\n")
             before=(home/"config.yaml").read_text()
-            plan=bootstrap.install(home)
+            plan=bootstrap.install(home,environment="sandbox")
             self.assertEqual(plan["mode"],"plan")
             self.assertEqual((home/"config.yaml").read_text(),before)
-            env=home/"agent.env";env.write_text("CREATORPULSE_AGENT_KEY="+"a"*40+"\n")
+            env=home/"agent.env";env.write_text("CREATORPULSE_AGENT_KEY=cp_sandbox_agent_"+"a"*40+"\n")
             with patch.object(bootstrap.subprocess,"run",return_value=type("P",(),{"stdout":'{"gateway":"connected","accounts":1}'})()):
-                out=bootstrap.install(home,True,env)
+                out=bootstrap.install(home,True,env,environment="sandbox")
             self.assertEqual(out["connection"]["accounts"],1)
             after=yaml.safe_load((home/"config.yaml").read_text())
             self.assertEqual(after["model"],config["model"])
@@ -48,9 +48,31 @@ class OnboardingTests(unittest.TestCase):
     def test_existing_key_conflict(self):
         import yaml
         with tempfile.TemporaryDirectory() as tmp:
-            home=Path(tmp);(home/"config.yaml").write_text("model: existing\n")
-            (home/".env").write_text("CREATORPULSE_AGENT_KEY="+"a"*40+"\n")
-            env=home/"agent.env";env.write_text("CREATORPULSE_AGENT_KEY="+"b"*40+"\n")
-            with self.assertRaises(ValueError): bootstrap.install(home,True,env)
+            home=Path(tmp)/"profiles"/"creatorpulse-sandbox";home.mkdir(parents=True);(home/"config.yaml").write_text("model: existing\n")
+            (home/".env").write_text("CREATORPULSE_AGENT_KEY=cp_sandbox_agent_"+"a"*40+"\n")
+            env=home/"agent.env";env.write_text("CREATORPULSE_AGENT_KEY=cp_sandbox_agent_"+"b"*40+"\n")
+            with self.assertRaises(ValueError): bootstrap.install(home,True,env,environment="sandbox")
             self.assertEqual((home/"config.yaml").read_text(),"model: existing\n")
+    def test_wrong_profile_and_key_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            with self.assertRaises(ValueError): bootstrap.profile_home(root,"sandbox")
+            home=root/"profiles"/"creatorpulse-sandbox";home.mkdir(parents=True)
+            (home/"config.yaml").write_text("model: existing\n")
+            source=home/"agent.env";source.write_text("CREATORPULSE_AGENT_KEY=cp_production_agent_"+"p"*40+"\n")
+            with self.assertRaises(ValueError): bootstrap.install(home,True,source,environment="sandbox")
+            self.assertFalse((home/"integrations").exists())
+            with self.assertRaises(ValueError): proxy.key_from_env(source,"sandbox")
+            source.write_text("CREATORPULSE_AGENT_KEY=cp_sandbox_agent_"+"s"*40+"\n")
+            with patch.dict(os.environ,{"CREATORPULSE_AGENT_KEY":"cp_production_agent_"+"p"*40}):
+                self.assertEqual(proxy.key_from_env(source,"sandbox"),"cp_sandbox_agent_"+"s"*40)
+            with patch.object(proxy,"ENVIRONMENT","sandbox"),patch.object(proxy.urllib.request,"build_opener") as opener:
+                with self.assertRaises(ValueError): proxy.request("/accounts","cp_production_agent_"+"p"*40)
+                opener.assert_not_called()
+            with patch.object(proxy,"ENVIRONMENT","sandbox"),patch.object(proxy.urllib.request,"build_opener") as opener:
+                opener.return_value.open.side_effect=ValueError("stop")
+                with self.assertRaises(ValueError): proxy.request("/accounts","cp_sandbox_agent_"+"s"*40)
+                req=opener.return_value.open.call_args.args[0]
+                self.assertEqual(req.full_url,"https://creatorpulse-studio-git-sandbox-total-management1.vercel.app/api/gateway/v1/accounts")
+                self.assertEqual(req.get_header("X-creatorpulse-environment"),"sandbox")
 if __name__=="__main__": unittest.main()

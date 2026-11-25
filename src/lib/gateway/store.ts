@@ -2,10 +2,21 @@ import {createCipheriv,createDecipheriv,randomBytes,timingSafeEqual,createHmac} 
 export class GatewayError extends Error {constructor(public status:number,message:string){super(message)}}
 export const vaultHash="creatorpulse:v3:vault";
 export const trendList="creatorpulse:v3:trends";
+const hosts={sandbox:"https://creatorpulse-studio-git-sandbox-total-management1.vercel.app",production:"https://creatorpulse-studio-six.vercel.app"} as const;
+export function gatewayEnvironment(): "sandbox"|"production"|"local"|"unconfigured" {
+ const env=process.env.VERCEL_ENV;
+ if(!env)return "local";
+ const expected=env==="preview"?"sandbox":env==="production"?"production":null;
+ if(!expected||process.env.APP_URL!==hosts[expected]||process.env.TIKTOK_REDIRECT_URI!==hosts[expected]+"/api/auth/tiktok/callback")return "unconfigured";
+ return expected;
+}
 export function config(){
  const url=process.env.CREATORPULSE_BRIDGE_URL,token=process.env.CREATORPULSE_BRIDGE_TOKEN;
  const operator=process.env.CREATORPULSE_OPERATOR_KEY,agent=process.env.CREATORPULSE_AGENT_KEY;
  const key=Buffer.from(process.env.CREATORPULSE_VAULT_KEY||"","base64");
+ const environment=gatewayEnvironment();
+ if(environment==="unconfigured")return null;
+ if(environment!=="local"&&(!token?.startsWith("cp_"+environment+"_bridge_")||!operator?.startsWith("cp_"+environment+"_operator_")||!agent?.startsWith("cp_"+environment+"_agent_")))return null;
  if(!url||!token||token.length<32||!operator||!agent||operator.length<32||agent.length<32||operator===agent||key.length!==32)return null;
  try{const u=new URL(url);if(u.protocol!=="https:"||u.username||u.password||u.search||u.hash||u.pathname!=="/storage/v1")return null;}catch{return null;}
  return {url,token,operator,agent,key};
@@ -14,6 +25,7 @@ export function requiredConfig(){const c=config();if(!c)throw new GatewayError(5
 function equal(a:string,b:string){const x=Buffer.from(a),y=Buffer.from(b);return x.length===y.length&&timingSafeEqual(x,y);}
 export function authorize(request:Request,owner=false){
  const c=requiredConfig(),header=request.headers.get("authorization")||"";
+ const requested=request.headers.get("x-creatorpulse-environment");if(requested&&requested!==gatewayEnvironment())throw new GatewayError(403,"Environment mismatch.");
  if(!header.startsWith("Bearer "))throw new GatewayError(401,"Bearer credential diperlukan.");
  const value=header.slice(7);
  if(!equal(value,c.operator)&&(owner||!equal(value,c.agent)))throw new GatewayError(403,"Akses gateway ditolak.");
