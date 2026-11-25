@@ -301,7 +301,7 @@ export default function DashboardPage() {
             <TabsContent forceMount hidden={activeTab !== "publish"} value="publish" className="mt-4 space-y-4 lg:mt-0">
               {profile ? (
                 <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-4">
-                  <div className="order-2 lg:order-1">
+                  <div className="min-w-0">
                     {pending && !publishing && <div role="alert" className="mb-3 space-y-3 rounded-lg border border-destructive p-4 text-sm"><p>Publikasi sebelumnya belum terkonfirmasi. Jangan kirim ulang sebelum memeriksa profil atau inbox TikTok.</p><a className="underline" href="https://www.tiktok.com/" target="_blank" rel="noreferrer">Buka TikTok</a><label className="flex items-center gap-2"><input type="checkbox" checked={pendingAcknowledged} onChange={e=>setPendingAcknowledged(e.target.checked)}/> Saya sudah memeriksa TikTok dan memastikan aman untuk memulai publikasi baru.</label><Button type="button" variant="outline" disabled={!pendingAcknowledged} onClick={()=>{try{if(pendingKey)localStorage.removeItem(pendingKey);setPending(false);setPendingAcknowledged(false);setPublishError(null);setFormVersion(v=>v+1);}catch{setPublishError("Penyimpanan browser tidak tersedia.");}}}>Buka blokir publikasi</Button></div>}
                     <VideoUploadForm
                       key={`${profile.open_id}:${formVersion}`}
@@ -312,31 +312,8 @@ export default function DashboardPage() {
                       error={publishError}
                     />
                   </div>
-                  <div className="order-1 lg:order-2 space-y-4">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-sm font-semibold">
-                          Tujuan Posting
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="pt-3">
-                        <div className="flex items-center gap-2">
-                          <img
-                            src={profile.avatar_url}
-                            alt={profile.display_name}
-                            className="w-10 h-10 rounded-full border border-border"
-                          />
-                          <div>
-                            <p className="text-sm font-medium text-foreground">
-                              {profile.display_name}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Akun TikTok yang terhubung
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                  <div className="min-w-0 space-y-4">
+
                     <Card>
                       <CardHeader>
                         <CardTitle className="text-sm font-semibold">

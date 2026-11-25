@@ -78,7 +78,8 @@
 @layer components {
  .studio-shell { @apply bg-slate-50; }
  .studio-sidebar { @apply sticky top-14 z-20 rounded-xl border border-slate-200 bg-white p-1.5 lg:top-20 lg:p-2.5; }
- .studio-nav .studio-tab { @apply rounded-lg font-medium text-slate-600 shadow-none; }
+ .studio-nav .studio-tab { @apply rounded-lg font-medium text-slate-600 shadow-none; transition: none; }
+ .studio-nav .studio-tab[data-state=inactive] { @apply bg-transparent text-slate-600; }
  .studio-nav .studio-tab[data-state=inactive]:hover { @apply bg-slate-100 text-slate-900; }
  .studio-nav .studio-tab[data-state=active] { @apply bg-indigo-50 text-indigo-800 font-semibold shadow-none; }
  .studio-panel { @apply min-w-0 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6; }
