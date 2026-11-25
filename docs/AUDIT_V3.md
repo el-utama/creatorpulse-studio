@@ -1,5 +1,7 @@
 # Repository audit — V3.5 (2026-11-25)
-Scope: code review on feat/agent-gateway-v3, previously successful CI 45436178048, official TikTok developer documentation; no live TikTok or Hermes accounts used. Production remains V2 until release verification.
+
+> **Arsip historis — audit V3; follow-up V3.6 mengoreksi temuan session binding.** Untuk desain, fitur dan status terkini, baca [Workspace V4](WORKSPACE_V4.md) dan [Local-first architecture](ARCHITECTURE_LOCAL_FIRST.md). Bagian lama di bawah dipertahankan sebagai rekam keputusan, bukan instruksi aktif.
+Scope: code review on feat/agent-gateway-v3, previously successful CI 45436178048, official TikTok developer documentation; no live TikTok or Hermes accounts used. At the time of this audit production remained V2. For current production status see Workspace V4.
 ## Findings and remediation
 | Severity | Finding | Status |
 | --- | --- | --- |

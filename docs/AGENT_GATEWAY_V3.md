@@ -1,5 +1,7 @@
 # CreatorPulse Studio V3 — gateway foundation
 
+> **Arsip historis — rencana gateway awal dan evolusi kontrak.** Untuk desain, fitur dan status terkini, baca [Workspace V4](WORKSPACE_V4.md) dan [Local-first architecture](ARCHITECTURE_LOCAL_FIRST.md). Bagian lama di bawah dipertahankan sebagai rekam keputusan, bukan instruksi aktif.
+
 **Historical design:** the Redis-cloud plan below is superseded by [local-first architecture](ARCHITECTURE_LOCAL_FIRST.md) and [Local Bridge setup](../local-bridge/README.md). API contracts and publication constraints remain applicable.
 ## Accepted scope
 Single operator/workspace, maximum three separately authorized TikTok accounts. Human dashboard remains the control plane; n8n/Hermes/other agents use HTTPS API, later MCP. No changes to existing TikTok client key, secret, redirect URI or scopes. No paid service provisioned. This branch is a foundation, not a complete publishing platform.

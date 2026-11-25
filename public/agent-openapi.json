@@ -3,7 +3,7 @@
   "info": {
     "title": "CreatorPulse Agent Gateway",
     "version": "3.5.0",
-    "description": "Single workspace, max three accounts. Inbox and human-approved Direct Post according to TikTok permissions. Agent-supplied trend observations are not verified live rankings."
+    "description": "Single workspace, max three accounts. Inbox and human-approved Direct Post according to TikTok permissions. Agent-supplied trend observations are not verified live rankings. Gateway v1 is independent of the dashboard redesign. Health indicates configuration completeness, not storage reachability. Authenticated agent calls are limited to 60 per fixed minute; operator calls are exempt."
   },
   "servers": [
     {
@@ -31,7 +31,7 @@
     "/health": {
       "get": {
         "operationId": "health",
-        "summary": "Configuration state",
+        "summary": "Configuration completeness (not a connectivity probe)",
         "security": [],
         "responses": {
           "200": {
@@ -100,6 +100,9 @@
           "409": {
             "description": "Conflict or approval required"
           },
+          "429": {
+            "description": "Authenticated agent rate limit exceeded"
+          },
           "502": {
             "description": "Upstream failure"
           },
@@ -150,6 +153,9 @@
           },
           "409": {
             "description": "Conflict or approval required"
+          },
+          "429": {
+            "description": "Authenticated agent rate limit exceeded"
           },
           "502": {
             "description": "Upstream failure"
@@ -211,6 +217,9 @@
           "409": {
             "description": "Conflict or approval required"
           },
+          "429": {
+            "description": "Authenticated agent rate limit exceeded"
+          },
           "502": {
             "description": "Upstream failure"
           },
@@ -261,6 +270,9 @@
           },
           "409": {
             "description": "Conflict or approval required"
+          },
+          "429": {
+            "description": "Authenticated agent rate limit exceeded"
           },
           "502": {
             "description": "Upstream failure"
@@ -322,6 +334,9 @@
           },
           "409": {
             "description": "Conflict or approval required"
+          },
+          "429": {
+            "description": "Authenticated agent rate limit exceeded"
           },
           "502": {
             "description": "Upstream failure"
@@ -426,6 +441,9 @@
           "409": {
             "description": "Conflict or approval required"
           },
+          "429": {
+            "description": "Authenticated agent rate limit exceeded"
+          },
           "502": {
             "description": "Upstream failure"
           },
@@ -465,6 +483,9 @@
           },
           "409": {
             "description": "Conflict or approval required"
+          },
+          "429": {
+            "description": "Authenticated agent rate limit exceeded"
           },
           "502": {
             "description": "Upstream failure"
@@ -567,6 +588,9 @@
           "409": {
             "description": "Conflict or approval required"
           },
+          "429": {
+            "description": "Authenticated agent rate limit exceeded"
+          },
           "502": {
             "description": "Upstream failure"
           },
@@ -617,6 +641,9 @@
           },
           "409": {
             "description": "Conflict or approval required"
+          },
+          "429": {
+            "description": "Authenticated agent rate limit exceeded"
           },
           "502": {
             "description": "Upstream failure"
@@ -896,6 +923,9 @@
           "409": {
             "description": "Conflict or approval required"
           },
+          "429": {
+            "description": "Authenticated agent rate limit exceeded"
+          },
           "502": {
             "description": "Upstream failure"
           },
@@ -946,6 +976,9 @@
           },
           "409": {
             "description": "Conflict or approval required"
+          },
+          "429": {
+            "description": "Authenticated agent rate limit exceeded"
           },
           "502": {
             "description": "Upstream failure"
