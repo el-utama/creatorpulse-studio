@@ -17,6 +17,7 @@ interface UploadFormProps {
   onPublish: (payload: PublishPayload) => void;
   publishing?: boolean;
   error?: string | null;
+  onPreview?: (value:{mode:string;url:string|null;name:string|null})=>void;
 }
 
 export interface PublishPayload {
@@ -36,7 +37,7 @@ export interface PublishPayload {
   isAigc: boolean;
 }
 
-export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing = false, error }: UploadFormProps) {
+export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing = false, error, onPreview }: UploadFormProps) {
   const [mode, setMode] = useState<"inbox" | "profile">("inbox");
   const [duration, setDuration] = useState<number | null>(null);
   const [commercial, setCommercial] = useState(false);
@@ -108,14 +109,15 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
   const validUrl = (() => { try { const url = new URL(videoUrl ?? ""); return url.protocol === "https:" && !url.username && !url.password; } catch { return false; } })();
   const validDuration = duration !== null && Number.isFinite(duration) && duration > 0 && duration <= (capabilities?.max_video_post_duration_sec ?? 0);
   const ready = (source === "file" ? hasFile : validUrl) && (mode === "inbox" || (!!privacy && !!capabilities?.privacy_level_options.includes(privacy) && validDuration && (!commercial || brandOrganic || brandContent) && (!commercial || !brandContent || ["PUBLIC_TO_EVERYONE","MUTUAL_FOLLOW_FRIENDS"].includes(privacy))));
+  useEffect(()=>{onPreview?.({mode,url:source==="file"?previewUrl:validUrl?videoUrl:null,name:source==="file"?file?.name??null:null})},[mode,source,previewUrl,validUrl,videoUrl,file,onPreview]);
   const canPublish = !publishing && consent && review && ready;
 
   return (
     <Card className="overflow-hidden rounded-lg border-slate-200 shadow-none v4-editor">
-      <CardHeader className="border-b px-4 py-3 sm:px-5">
+      <CardHeader className="border-b px-4 py-4 sm:px-5">
         <CardTitle className="flex items-center gap-1.5 text-sm md:text-base">
           <Video className="h-4 w-4 shrink-0 text-indigo-700" aria-hidden="true" />
-          Upload & Publish
+          Post details
         </CardTitle>
         <CardDescription className="flex min-w-0 items-center gap-2 text-xs">{avatarUrl&&<img src={avatarUrl} alt="" referrerPolicy="no-referrer" className="h-6 w-6 shrink-0 rounded-full object-cover"/>}<strong className="min-w-0 truncate font-medium">{accountName}</strong><span className="shrink-0">· TikTok</span></CardDescription>
       </CardHeader>

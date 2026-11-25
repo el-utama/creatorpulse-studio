@@ -4,8 +4,11 @@ Updated 2026-11-25. This is the active source of truth for UX scope and acceptan
 ## Status
 - Source baseline: main 6d9e1f2 (PR #7 merged). Tested head 3d9a78b; [CI 45524478755](https://github.com/el-utama/creatorpulse-studio/actions/runs/45524478755) passed TypeScript, build, dependency audit, Chromium, gateway, Bridge and Hermes tests.
 - Production last checked 60c9ae1 (V3), READY; V4 production build blocked by Vercel build-rate limit. Preview V4 READY on the tested head. No paid plan or TikTok configuration changes.
-- Owner explicitly reports the V4 visual implementation still diverges substantially from the proposed workspace design. UX acceptance is OPEN. Do not call this a finished redesign.
+- Owner reported the V4 baseline diverges from the proposed design. R1 reference approved as implementation target; visual acceptance of the resulting live application is OPEN. Do not call this a finished redesign.
 - Fixture browser testing at 320/390/430/768/1440 px is not a live-account test. No actual Hermes host, HTTPS bridge, enrollment or chat tool calls validated.
+
+## Approved reference R1
+See [interactive HTML](design-r1/index.html) and [design specification](design-r1/DESIGN-SPEC.md). This is the approved target, not a production app. Owner delegated per-screen review to the implementer.
 
 ## Design target (not baseline)
 Single operator, maximum three accounts. A multi-account operations center, not a personal dashboard with a switcher. No enterprise org/role/billing features. Keep intentional workflow constraints, not legacy component shapes.

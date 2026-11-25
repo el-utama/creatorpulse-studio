@@ -2,6 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
+import "./reference.css";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { WorkspaceData } from "@/components/WorkspaceData";
 import { TargetPicker } from "@/components/TargetPicker";
@@ -9,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { AccountManager } from "@/components/AccountManager";
 import { GatewayPanel } from "@/components/GatewayPanel";
 import { VideoUploadForm, type PublishPayload } from "@/components/VideoUploadForm";
-import { RefreshCw, LayoutDashboard, Film, PlusSquare, ListChecks, Bot, Users, Plus, ArrowLeft, LogOut, AudioLines } from "lucide-react";
+import { ChevronRight, Lock, Send, RefreshCw, LayoutDashboard, Film, PlusSquare, ListChecks, Bot, Users, Plus, ArrowLeft, LogOut, AudioLines } from "lucide-react";
 
 interface UserProfile {
   open_id: string;
@@ -27,6 +28,9 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("analytics");
   const [revision,setRevision]=useState(0);
   const [targetReady,setTargetReady]=useState(false);
+  const [sidebarAccounts,setSidebarAccounts]=useState<{slot:string;name:string}[]>([]);
+  const [accountFilter,setAccountFilter]=useState("all");
+  const [preview,setPreview]=useState<{mode:string;url:string|null;name:string|null}>({mode:"inbox",url:null,name:null});
   const [logoutError,setLogoutError]=useState(false);
   useEffect(()=>{const params=new URLSearchParams(location.search);if(params.has("account_changed")){try{localStorage.setItem("creatorpulse:account-change",crypto.randomUUID());}catch{}params.delete("account_changed");window.history.replaceState(null,"","/dashboard"+(params.size?"?"+params.toString():""));}const v=params.get("view");if(v&&["analytics","accounts","content","publish","compose","status","agent","review"].includes(v))setActiveTab(v);const changed=(e:StorageEvent)=>{if(e.key==="creatorpulse:account-change")location.reload()};window.addEventListener("storage",changed);return()=>window.removeEventListener("storage",changed);},[]);
   useEffect(()=>{if(window.matchMedia("(max-width: 767px)").matches)window.scrollTo({top:0,behavior:"auto"});},[activeTab]);
@@ -127,32 +131,26 @@ export default function DashboardPage() {
     }
   };
 
-  const nav=[{id:"analytics",label:"Overview",mobile:"Home",Icon:LayoutDashboard},{id:"accounts",label:"Accounts",mobile:"Accounts",Icon:Users},{id:"content",label:"Content",mobile:"Content",Icon:Film},{id:"publish",label:"Publishing",mobile:"Publish",Icon:PlusSquare},{id:"agent",label:"AI Agent",mobile:"Agent",Icon:Bot}];
+  const nav=[{id:"analytics",label:"Overview",mobile:"Home",Icon:LayoutDashboard},{id:"accounts",label:"Accounts",mobile:"Accounts",Icon:Users},{id:"content",label:"Content",mobile:"Content",Icon:Film},{id:"publish",label:"Publishing",mobile:"Publish",Icon:Send},{id:"agent",label:"AI Agent",mobile:"Agent",Icon:Bot}];
   const inPublishing=["publish","compose","status","review"].includes(activeTab);
   const selected=inPublishing?"publish":activeTab;
   const title=activeTab==="compose"?"New post":nav.find(n=>n.id===selected)?.label||"Overview";
   const newPost=()=>{if(activeTab==="compose")return;setTargetReady(false);setPublishError(null);setActiveTab("compose");};
   const refresh=()=>{setRevision(r=>r+1);};
   async function logout(){if(publishing)return;setLogoutError(false);try{const r=await fetch("/api/auth/logout",{method:"POST"});if(!r.ok)throw Error();try{localStorage.setItem("creatorpulse:account-change",crypto.randomUUID())}catch{}location.assign("/");}catch{setLogoutError(true);}}
-  return <div className="v4-shell min-h-screen bg-[#f7f8fa] text-slate-900">
-    <header className="v4-mobile-header sticky top-0 z-40 flex h-14 items-center justify-between border-b bg-white px-4 lg:hidden"><div className="flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-900 text-white"><AudioLines className="h-5 w-5"/></span><span className="text-sm font-semibold tracking-tight">CreatorPulse</span><span className="text-[10px] text-slate-500">Studio</span></div><button className="grid h-11 w-11 place-items-center rounded-md text-slate-500" aria-label="Refresh workspace" onClick={refresh} disabled={publishing||analyticsLoading}><RefreshCw className={"h-4 w-4 "+(analyticsLoading?"animate-spin":"")}/></button></header>
-    <aside className="v4-sidebar">
-      <div className="hidden px-4 pt-6 pb-8 lg:flex items-center gap-2"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-900 text-white"><AudioLines className="h-5 w-5"/></span><div><div className="text-sm font-semibold tracking-tight">CreatorPulse</div><div className="text-xs text-slate-500">Studio workspace</div></div></div>
-      <p className="hidden px-4 pb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400 lg:block">Workspace</p>
-      <nav aria-label="Workspace navigation" className="v4-nav">{nav.map(({id,label,mobile,Icon})=><button key={id} type="button" aria-current={selected===id?"page":undefined} onClick={()=>setActiveTab(id)} className="v4-nav-item" aria-label={label}><Icon className="h-5 w-5 shrink-0 lg:h-[18px] lg:w-[18px]" aria-hidden="true"/><span className="hidden lg:inline">{label}</span><span className="lg:hidden">{mobile}</span></button>)}</nav>
-      <div className="hidden flex-1 lg:block"/>
-      <div className="hidden border-t px-4 py-4 lg:block"><button onClick={newPost} disabled={publishing} className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-slate-900 text-sm font-medium text-white disabled:opacity-50"><Plus className="h-4 w-4"/>New post</button><div className="mt-4 flex justify-between text-[11px] text-slate-500"><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div></div>
-    </aside>
-    <main id="main-content" className="v4-main min-w-0">
-      <div className="mx-auto max-w-[1200px]">
-        <div className="mb-5 flex min-w-0 items-center justify-between gap-3 lg:mb-7"><h1 className="min-w-0 text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1><div className="flex shrink-0 items-center gap-2">
-        <button aria-label="Refresh workspace" title={lastUpdated||"Refresh"} onClick={refresh} disabled={publishing||analyticsLoading} className="hidden h-10 w-10 place-items-center rounded-md border bg-white text-slate-600 disabled:opacity-50 lg:grid"><RefreshCw className={"h-4 w-4 "+(analyticsLoading?"animate-spin":"")}/></button>
-        {activeTab==="analytics"||activeTab==="publish"||activeTab==="status"||activeTab==="review"?<button onClick={newPost} disabled={publishing} className="inline-flex min-h-11 items-center gap-1.5 rounded-md bg-slate-900 px-3 text-xs font-medium text-white disabled:opacity-50 sm:text-sm"><Plus className="h-4 w-4"/>New post</button>:null}</div></div>
-        {inPublishing&&activeTab!=="compose"&&<nav aria-label="Publishing views" className="mb-4 flex gap-4 border-b text-sm font-medium text-slate-500">{[{id:"publish",label:"Queue"},{id:"review",label:"Review"},{id:"status",label:"History"}].map(t=><button key={t.id} onClick={()=>setActiveTab(t.id)} className={"min-h-11 border-b-2 px-1 "+(activeTab===t.id?"border-slate-900 text-slate-900":"border-transparent")}>{t.label}</button>)}</nav>}
-        <WorkspaceData view={activeTab} onNavigate={setActiveTab} disabled={publishing} revision={revision} onActive={receiveActive} onLoading={setAnalyticsLoading} latestPublication={publishId}/>
+  const brand=<div className="r1-brand"><span className="r1-brandmark"><AudioLines size={22}/></span><div><div className="r1-brandname">CreatorPulse</div><div className="r1-brandtag">STUDIO</div></div></div>;
+  const navigate=(id:string)=>{if(id==="content")setAccountFilter("all");setActiveTab(id);};
+  const navButtons=(mobile:boolean)=>nav.map(({id,label,mobile:short,Icon})=><button key={id} type="button" aria-current={selected===id?"page":undefined} onClick={()=>navigate(id)} className={selected===id?"r1-active":""} aria-label={label}><Icon size={18}/><span>{mobile?short:label}</span></button>);
+  const descriptions:Record<string,string>={analytics:"All accounts · Workspace snapshot",accounts:"Manage your connected TikTok accounts",content:"Your video library across all accounts",publish:"Manage submissions and human approvals",status:"Manage submissions and human approvals",review:"Manage submissions and human approvals",agent:"Hermes integration and research activity",compose:"Choose one account and review before submission"};
+  return <div className="r1">
+    <aside className="r1-sidebar v4-sidebar">{brand}<div className="r1-navlabel">Workspace</div><nav aria-label="Workspace navigation" className="r1-nav v4-nav">{navButtons(false)}</nav><div className="r1-side-accounts"><div className="r1-navlabel r1-flex r1-between"><span>Accounts</span><span>{sidebarAccounts.length} / 3</span></div>{sidebarAccounts.map(a=><button key={a.slot} onClick={()=>{setAccountFilter(a.slot);setActiveTab("content")}}><span className="r1-avatar">{a.name.slice(0,1).toUpperCase()}</span><span className="r1-grow r1-truncate">{a.name}</span></button>)}</div><div className="r1-side-footer"><div className="r1-workspace"><span className="r1-workspace-dot"/><div className="r1-stack"><strong className="r1-small">Studio workspace</strong><span className="r1-micro r1-muted">Single operator</span></div></div><div className="r1-flex r1-between r1-micro r1-muted mt-4"><button onClick={()=>setActiveTab("accounts")}>Settings</button><button aria-label="Sign out" onClick={logout} disabled={publishing}><LogOut size={15}/></button></div></div></aside>
+    <header className="r1-topbar"><div className="r1-desktop-only"><div className="r1-crumb">Workspace <ChevronRight size={15}/><strong>{title}</strong></div></div><div className="r1-mobile-only">{brand}</div><div className="r1-top-controls"><button className="r1-btn r1-icon-only" aria-label="Refresh workspace" title={lastUpdated||"Refresh"} onClick={refresh} disabled={publishing||analyticsLoading}><RefreshCw size={17}/></button><button className="r1-operator" onClick={()=>setActiveTab("agent")}><span className="r1-avatar">OP</span><span>Operator</span><ChevronRight size={14}/></button></div></header>
+    <main id="main-content" className="r1-main"><div className="r1-page-head"><div className="r1-grow"><h1>{title}</h1><p>{descriptions[activeTab]}</p></div>{activeTab==="compose"?<button className="r1-btn" onClick={()=>setActiveTab("publish")}><ArrowLeft size={15}/>Back</button>:inPublishing||activeTab==="analytics"?<button className="r1-btn r1-primary" onClick={newPost} disabled={publishing}><Plus size={15}/>New post</button>:null}</div>
+        {inPublishing&&activeTab!=="compose"&&<><div className="r1-account-summary">{["Agent queue","Needs review","Submitted"].map(label=><div key={label} className="r1-panel r1-summary-box"><div className="r1-small r1-muted">{label}</div><div className="r1-metric-value">—</div></div>)}</div><nav aria-label="Publishing views" className="r1-panel r1-tabs">{[{id:"publish",label:"Queue"},{id:"review",label:"Review"},{id:"status",label:"History"}].map(t=><button key={t.id} onClick={()=>setActiveTab(t.id)} className={activeTab===t.id?"r1-active":""}>{t.label}</button>)}</nav></>}
+        <WorkspaceData view={activeTab} onNavigate={setActiveTab} disabled={publishing} revision={revision} onActive={receiveActive} onLoading={setAnalyticsLoading} latestPublication={publishId} onAccounts={setSidebarAccounts} accountFilter={accountFilter}/>
         {activeTab==="accounts"&&<div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t pt-3"><div className="flex gap-4 text-xs text-slate-500"><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div><button onClick={logout} disabled={publishing} className="inline-flex min-h-11 items-center gap-2 text-sm text-slate-600"><LogOut className="h-4 w-4"/>Sign out</button>{logoutError&&<p role="alert" className="text-sm text-red-700">Sign out failed. Try again.</p>}</div>}
-        {activeTab==="compose"&&<div className="mb-3 max-w-[760px] space-y-2"><button onClick={()=>setActiveTab("publish")} className="inline-flex min-h-10 items-center gap-2 text-xs font-medium text-slate-600"><ArrowLeft className="h-4 w-4"/>Back to queue</button><TargetPicker disabled={publishing} onReady={setTargetReady} accountName={profile?.display_name}/>{analyticsError&&<p role="alert" className="text-sm text-red-700">{analyticsError}</p>}</div>}
-        <div hidden={activeTab!=="compose"||!targetReady} className="max-w-[760px]">
+        {activeTab==="compose"&&<div className="mb-3 space-y-2"><TargetPicker disabled={publishing} onReady={setTargetReady} accountName={profile?.display_name}/>{analyticsError&&<p role="alert" className="text-sm text-red-700">{analyticsError}</p>}</div>}
+        <div hidden={activeTab!=="compose"||!targetReady} className={activeTab==="compose"&&targetReady?"r1-compose-layout":""}>
           {profile&&targetReady?<div className="min-w-0">
                     {pending && !publishing && <div role="alert" className="mb-3 space-y-3 rounded-lg border border-destructive p-4 text-sm"><p>Publikasi sebelumnya belum terkonfirmasi. Jangan kirim ulang sebelum memeriksa profil atau inbox TikTok.</p><a className="underline" href="https://www.tiktok.com/" target="_blank" rel="noreferrer">Buka TikTok</a><label className="flex items-center gap-2"><input type="checkbox" checked={pendingAcknowledged} onChange={e=>setPendingAcknowledged(e.target.checked)}/> Saya sudah memeriksa TikTok dan memastikan aman untuk memulai publikasi baru.</label><Button type="button" variant="outline" disabled={!pendingAcknowledged} onClick={()=>{try{if(pendingKey)localStorage.removeItem(pendingKey);setPending(false);setPendingAcknowledged(false);setPublishError(null);setFormVersion(v=>v+1);}catch{setPublishError("Penyimpanan browser tidak tersedia.");}}}>Buka blokir publikasi</Button></div>}
                     <VideoUploadForm
@@ -162,16 +160,17 @@ export default function DashboardPage() {
                       onPublish={handlePublish}
                       publishing={publishing || pending || analyticsLoading}
                       error={publishError}
+                      onPreview={setPreview}
                     />
 
           </div>:null}
+          {activeTab==="compose"&&targetReady&&<section className="r1-panel"><div className="r1-panel-head"><div><h2>Preview &amp; review</h2><p>{preview.url||preview.name?"Media selected":"No media loaded"}</p></div></div>{preview.url?<video className="mx-auto mb-4 max-h-[320px] max-w-full rounded-lg bg-black" src={preview.url} controls preload="metadata"/>:<div className="r1-preview-empty"><div><Film size={24}/>Video preview</div></div>}<div className="r1-form-section"><div className="r1-flex r1-between r1-small"><span className="r1-muted">Account</span><strong className="truncate">{profile?.display_name}</strong></div><div className="r1-flex r1-between r1-small mt-2"><span className="r1-muted">Mode</span><strong>{preview.mode==="profile"?"Direct Post":"Inbox"}</strong></div></div><div className="r1-panel-note">Review the exact target and media before submission.</div></section>}
         </div>
         {activeTab==="status"&&publishWarning&&<p role="alert" className="mt-3 rounded-md border border-amber-500 p-3 text-sm">{publishWarning}</p>}
         {["agent","review","publish"].includes(activeTab)&&<div>
           {activeTab==="agent"&&<div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-white p-3 text-xs text-slate-500"><span>Account for enrollment</span><div className="w-48"><AccountManager name={profile?.display_name} disabled={publishing}/></div></div>}
           <GatewayPanel accountName={profile?.display_name} view={activeTab==="review"?"review":activeTab==="publish"?"queue":"agent"}/>
         </div>}
-      </div>
-    </main>
+    </main><nav className="r1-bottomnav" aria-label="Workspace navigation">{navButtons(true)}</nav>
   </div>;
 }
