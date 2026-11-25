@@ -220,3 +220,46 @@ test('unconfigured gateway is disabled without affecting browser authentication'
  expect((await request.post('/api/gateway/v1/trends',{data:{topic:'test'}})).status()).toBe(503);
  expect((await request.post('/api/gateway/v1/enroll')).status()).toBe(503);
 });
+
+test('AI workspace: clear setup state, discoverable copy action, no overflow', async ({page,context})=>{
+ await context.addCookies([{name:'creatorpulse_access_token',value:'mock-only',url:'http://localhost:3000'}]);
+ await page.route('**/api/tiktok/analytics',route=>route.fulfill({json:{user_info:{open_id:'ux-account',display_name:'Nama Kreator Sangat Panjang untuk Uji Layout',avatar_url:'',follower_count:100,following_count:1,likes_count:200,video_count:0},videos:{data:[]}}}));
+ await page.route('**/api/gateway/v1/health',route=>route.fulfill({json:{configured:false}}));
+ for(const width of [1440,768,390,320]){
+  await page.setViewportSize({width,height:900});await page.goto('/dashboard');
+  await expect(page.getByRole('heading',{name:'Performa konten'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Salin instruksi Hermes'})).toHaveCount(0);
+  await page.getByRole('tab',{name:'AI Agent'}).click();
+  await expect(page.getByRole('heading',{name:'Integrasi AI',exact:true})).toBeVisible();
+  await expect(page.getByText('Belum disiapkan',{exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Salin instruksi Hermes'})).toBeVisible();
+  await expect(page.getByLabel('Kunci operator',{exact:true})).toHaveCount(0);
+  await expect(page.getByRole('link',{name:'Panduan Local Bridge'})).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  await page.screenshot({path:'test-results/ux-ai-setup-'+width+'.png',fullPage:true});
+ }
+ await page.getByText('Lihat teks instruksi',{exact:true}).click();
+ await expect(page.getByLabel('Instruksi pemasangan Hermes')).toHaveValue(/branch main/);
+});
+test('AI workspace: health failure is actionable and operator key has one entry point',async ({page,context})=>{
+ await context.addCookies([{name:'creatorpulse_access_token',value:'mock-only',url:'http://localhost:3000'}]);
+ await page.route('**/api/tiktok/analytics',route=>route.fulfill({json:{user_info:{open_id:'ux-operator',display_name:'Test Creator',avatar_url:'',follower_count:1,following_count:1,likes_count:1,video_count:0},videos:{data:[]}}}));
+ let fail=true;
+ await page.route('**/api/gateway/v1/health',route=>route.fulfill(fail?{status:503,json:{error:'Unavailable'}}:{json:{configured:true}}));
+ await page.route('**/api/gateway/v1/posts',route=>route.fulfill({json:{posts:[]}}));
+ await page.route('**/api/gateway/v1/trends?*',route=>route.fulfill({json:{observations:[]}}));
+ await page.route('**/api/gateway/v1/accounts',route=>route.fulfill({json:{accounts:[]}}));
+ await page.setViewportSize({width:390,height:844});await page.goto('/dashboard');await page.getByRole('tab',{name:'AI Agent'}).click();
+ await expect(page.getByText('Status belum dapat diperiksa',{exact:true})).toBeVisible();fail=false;
+ await page.getByRole('button',{name:'Coba lagi',exact:true}).click();
+ await expect(page.getByText('Konfigurasi tersedia',{exact:true})).toBeVisible();
+ await expect(page.getByLabel('Kunci operator',{exact:true})).toHaveCount(1);
+ await page.getByLabel('Kunci operator',{exact:true}).fill('mock-operator');await page.getByRole('button',{name:'Muat data operator'}).click();
+ await expect(page.getByRole('heading',{name:'Persetujuan publikasi'})).toBeVisible();
+ await expect(page.getByLabel('Kunci operator',{exact:true})).toHaveCount(0);
+ await expect(page.getByText('Belum ada rencana publikasi.',{exact:true})).toBeVisible();
+ await page.screenshot({path:'test-results/ux-ai-operator-mobile.png',fullPage:true});
+ await page.setViewportSize({width:1440,height:900});await page.screenshot({path:'test-results/ux-ai-operator-desktop.png',fullPage:true});
+ await page.getByRole('button',{name:'Kunci sesi'}).click();await expect(page.getByRole('heading',{name:'Operasional agent'})).toHaveCount(0);
+ await expect(page.getByLabel('Kunci operator',{exact:true})).toHaveValue('');
+});
