@@ -32,7 +32,8 @@ export function authorize(request:Request,owner=false){
 }
 export async function redis<T=unknown>(command:(string|number)[]):Promise<T>{
  const c=requiredConfig();
- const res=await fetch(c.url,{method:"POST",headers:{Authorization:"Bearer "+c.token,"Content-Type":"application/json"},body:JSON.stringify(command),cache:"no-store",redirect:"error",signal:AbortSignal.timeout(10000)});
+ let res:Response;
+ try{res=await fetch(c.url,{method:"POST",headers:{Authorization:"Bearer "+c.token,"Content-Type":"application/json"},body:JSON.stringify(command),cache:"no-store",redirect:"error",signal:AbortSignal.timeout(10000)});}catch{console.warn("gateway_bridge_transport_failure");throw new GatewayError(503,"Local Bridge tidak dapat dijangkau dari Gateway.");}
  const data=await res.json().catch(()=>null);
  if(!res.ok||!data||data.error)throw new GatewayError(503,"Penyimpanan gateway tidak tersedia.");
  return data.result as T;

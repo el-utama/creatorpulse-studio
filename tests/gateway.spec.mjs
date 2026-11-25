@@ -10,7 +10,9 @@ test('enroll and monitor without browser, separate credentials and sourced trend
  const cb=await context.request.get('/api/auth/tiktok/callback?code=account-a&state='+state,{maxRedirects:0});
  expect(cb.headers().location).toContain('/dashboard');
  expect((await context.request.post('/api/gateway/v1/enroll',{headers:agent})).status()).toBe(403);
- const enrolled=await context.request.post('/api/gateway/v1/enroll',{headers:operator});
+ const marker={'X-CreatorPulse-Operator-Session':'1'};
+ expect((await context.request.post('/api/gateway/v1/operator-session',{headers:{...marker,...operator}})).status()).toBe(200);
+ const enrolled=await context.request.post('/api/gateway/v1/enroll',{headers:marker});
  expect(enrolled.status()).toBe(200);
  const id=(await enrolled.json()).id;
  expect((await request.get('/api/gateway/v1/accounts')).status()).toBe(401);
@@ -136,9 +138,7 @@ test('operator session persists across reload, is browser-scoped and does not gr
  expect((await one.request.get(base+'accounts',{headers:{...marker,Origin:'https://other.invalid'}})).status()).toBe(403);
  expect((await one.request.post(base+'accounts/'+'f'.repeat(32)+'/disconnect',{headers:{...marker,...agent}})).status()).toBe(403);
  expect((await request.get(base+'accounts',{headers:agent})).status()).toBe(200);
- const start=await one.request.get('/api/auth/tiktok',{maxRedirects:0});
- const state=new URL(start.headers().location).searchParams.get('state');
- await one.request.get('/api/auth/tiktok/callback?code=account-session&state='+state,{maxRedirects:0});
+ await one.addCookies([{name:'creatorpulse_access_token',value:'mock-only',url:'http://localhost:3000'}]);
  const page=await one.newPage();await page.goto('/dashboard?view=agent');
  await expect(page.getByRole('heading',{name:'Agent activity'})).toBeVisible();
  await page.reload();await expect(page.getByRole('heading',{name:'Agent activity'})).toBeVisible();
