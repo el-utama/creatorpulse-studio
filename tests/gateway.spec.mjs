@@ -117,3 +117,39 @@ test('old browser binding cannot regain access after disconnect and reenroll',as
  expect((await request.post(base+'/'+draft.id+'/execute',{headers:agent})).status()).toBe(409);
  }finally{await one.close();await two.close();}
 });
+
+test('operator session persists across reload, is browser-scoped and does not grant agent privileges',async({browser,request})=>{
+ const one=await browser.newContext(),two=await browser.newContext();
+ const base='/api/gateway/v1/',marker={'X-CreatorPulse-Operator-Session':'1'};
+ try{
+ const status=async ctx=>(await (await ctx.request.get(base+'operator-session',{headers:marker})).json()).authenticated;
+ expect(await status(one)).toBe(false);
+ expect((await one.request.post(base+'operator-session',{headers:{...marker,...agent}})).status()).toBe(403);
+ expect((await one.request.post(base+'operator-session',{headers:{...marker,Authorization:'Bearer wrong'}})).status()).toBe(403);
+ expect((await one.request.post(base+'operator-session',{headers:{...marker,...operator,Origin:'https://other.invalid'}})).status()).toBe(403);
+ expect((await one.request.post(base+'operator-session',{headers:{...marker,...operator}})).status()).toBe(200);
+ expect(await status(one)).toBe(true);expect(await status(two)).toBe(false);
+ const cookie=(await one.cookies()).find(c=>c.name==='creatorpulse_operator_session');
+ expect(cookie.httpOnly).toBe(true);expect(cookie.sameSite).toBe('Strict');expect(cookie.value).not.toContain('o'.repeat(40));
+ expect((await one.request.get(base+'accounts')).status()).toBe(401);
+ expect((await one.request.get(base+'accounts',{headers:marker})).status()).toBe(200);
+ expect((await one.request.get(base+'accounts',{headers:{...marker,Origin:'https://other.invalid'}})).status()).toBe(403);
+ expect((await one.request.post(base+'accounts/'+'f'.repeat(32)+'/disconnect',{headers:{...marker,...agent}})).status()).toBe(403);
+ expect((await request.get(base+'accounts',{headers:agent})).status()).toBe(200);
+ const start=await one.request.get('/api/auth/tiktok',{maxRedirects:0});
+ const state=new URL(start.headers().location).searchParams.get('state');
+ await one.request.get('/api/auth/tiktok/callback?code=account-session&state='+state,{maxRedirects:0});
+ const page=await one.newPage();await page.goto('/dashboard?view=agent');
+ await expect(page.getByRole('heading',{name:'Agent activity'})).toBeVisible();
+ await page.reload();await expect(page.getByRole('heading',{name:'Agent activity'})).toBeVisible();
+ await expect(page.getByLabel('Kunci operator',{exact:true})).toHaveCount(0);
+ expect(await page.evaluate(()=>document.cookie.includes('creatorpulse_operator_session'))).toBe(false);
+ expect(await page.evaluate(()=>JSON.stringify(localStorage).includes('o'.repeat(40)))).toBe(false);
+ expect((await one.request.post(base+'operator-session/lock',{headers:marker})).status()).toBe(200);
+ expect(await status(one)).toBe(false);
+ expect((await one.request.get(base+'accounts',{headers:marker})).status()).toBe(401);
+ expect((await one.request.post(base+'operator-session',{headers:{...marker,...operator}})).status()).toBe(200);
+ expect((await one.request.post('/api/auth/logout')).status()).toBe(200);
+ expect(await status(one)).toBe(false);
+ }finally{await one.close();await two.close();}
+});

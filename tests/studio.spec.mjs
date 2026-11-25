@@ -250,7 +250,9 @@ test('AI workspace: clear setup state, discoverable copy action, no overflow', a
 test('AI workspace: health failure is actionable and operator key has one entry point',async ({page,context})=>{
  await context.addCookies([{name:'creatorpulse_access_token',value:'mock-only',url:'http://localhost:3000'}]);
  await page.route('**/api/tiktok/analytics',route=>route.fulfill({json:{user_info:{open_id:'ux-operator',display_name:'Test Creator',avatar_url:'',follower_count:1,following_count:1,likes_count:1,video_count:0},videos:{data:[]}}}));
- let fail=true;
+ let fail=true,authenticated=false;
+ await page.route("**/api/gateway/v1/operator-session",route=>{if(route.request().method()==="POST")authenticated=true;return route.fulfill({json:{authenticated}})});
+ await page.route("**/api/gateway/v1/operator-session/lock",route=>{authenticated=false;return route.fulfill({json:{authenticated}})});
  await page.route('**/api/gateway/v1/health',route=>route.fulfill(fail?{status:503,json:{error:'Unavailable'}}:{json:{configured:true}}));
  await page.route('**/api/gateway/v1/posts',route=>route.fulfill({json:{posts:[]}}));
  await page.route(/\/api\/gateway\/v1\/trends(?:\?|$)/,route=>route.fulfill({json:{observations:[]}}));
@@ -261,7 +263,7 @@ test('AI workspace: health failure is actionable and operator key has one entry 
  await expect(page.getByText('Konfigurasi tersedia',{exact:true})).toBeVisible();
  await expect(page.getByLabel('Kunci operator',{exact:true})).toHaveCount(1);
  await page.getByLabel('Kunci operator',{exact:true}).fill('mock-operator');await page.getByRole('button',{name:'Buka akses'}).click();
- await expect(page.getByRole('heading',{name:'Agent activity'})).toBeVisible();await nav(page,'Publishing').click();await page.getByRole('button',{name:'Review',exact:true}).click();await expect(page.getByRole('heading',{name:'Approval',exact:true})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Agent activity'})).toBeVisible();await page.reload();await nav(page,"AI Agent").click();await expect(page.getByRole("heading",{name:"Agent activity"})).toBeVisible();await expect(page.getByLabel("Kunci operator",{exact:true})).toHaveCount(0);await nav(page,'Publishing').click();await page.getByRole('button',{name:'Review',exact:true}).click();await expect(page.getByRole('heading',{name:'Approval',exact:true})).toBeVisible();
  await expect(page.getByLabel('Kunci operator',{exact:true})).toHaveCount(0);
  await expect(page.getByText('Belum ada rencana publikasi.',{exact:true})).toBeVisible();
  await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'test-results/ux-ai-operator-mobile.png',fullPage:true});

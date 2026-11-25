@@ -9,6 +9,7 @@ import {recordTrend,listTrends} from "@/lib/gateway/trends";
 import {readTikTok,explainTikTok,isAuthError} from "@/lib/tiktok-errors";
 import {getCreatorCapabilities} from "@/lib/tiktok";
 import {sessionToken} from "@/lib/session";
+import {operatorSessionActive,openOperatorSession,clearOperatorSession,requireBrowserRequest,gatewayBrowserRequest} from "@/lib/gateway/operator-session";
 const headers={"Cache-Control":"no-store"};
 const reply=(data:unknown,status=200)=>NextResponse.json(data,{status,headers});
 type Ctx={params:Promise<{path:string[]}>};
@@ -18,6 +19,8 @@ export async function GET(request:Request,ctx:Ctx){
  const p=(await ctx.params).path,url=new URL(request.url);
  if(p.join("/") === "health")return reply({version:"3.7-environment",environment:gatewayEnvironment(),storage:"local_bridge",directPublicEnabled:process.env.TIKTOK_DIRECT_POST_AUDITED==="true",configured:!!config(),posting:config()?"approval_required_inbox_and_direct":"disabled",trends:"observations_only"});
  try{
+  if(p.join("/") === "operator-session")return reply({authenticated:await operatorSessionActive(request)});
+  request=await gatewayBrowserRequest(request);
   authorize(request);await limitAgent(request);
   if(p.join("/") === "posts")return reply({posts:await listPosts()});
   if(p[0]==="posts"&&p.length===2)return reply(await getPost(p[1]));
@@ -39,6 +42,9 @@ export async function GET(request:Request,ctx:Ctx){
 export async function POST(request:Request,ctx:Ctx){
  const p=(await ctx.params).path;
  try{
+  if(p.join("/") === "operator-session"){await openOperatorSession(request);return reply({authenticated:true});}
+  if(p.join("/") === "operator-session/lock"){requireBrowserRequest(request);await clearOperatorSession();return reply({authenticated:false});}
+  request=await gatewayBrowserRequest(request);
   if(p.join("/") === "enroll"){
    authorize(request,true);
    if(!sameOrigin(request))throw new GatewayError(403,"Origin tidak diizinkan.");
