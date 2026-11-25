@@ -303,9 +303,11 @@ test('mobile dashboard has compact toolbar, native bottom navigation and readabl
   const nav=page.locator('.studio-sidebar');const rect=await nav.boundingBox();expect(rect.y+rect.height).toBeCloseTo(844,0);expect(rect.height).toBeLessThanOrEqual(70);
   expect(await page.locator('.studio-welcome').evaluate(el=>el.getBoundingClientRect().y)).toBeLessThan(155);
   expect(await page.getByRole('heading',{level:1}).evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeLessThanOrEqual(20);
-  await page.screenshot({path:'test-results/mobile-native-overview-'+width+'.png'});
+  expect(await page.locator('[data-metric-value]').evaluateAll(els=>els.every(el=>el.scrollWidth<=el.clientWidth+1))).toBe(true);
+  await page.mouse.move(width-2,2);await page.screenshot({path:'test-results/mobile-native-overview-'+width+'.png'});
   await page.getByRole('tab',{name:'Buat post'}).click();await expect(page.getByLabel('Tautan video HTTPS')).toBeVisible();expect(await page.getByLabel('Tautan video HTTPS').evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
-  await page.screenshot({path:'test-results/mobile-native-publish-'+width+'.png'});
+  expect(await page.getByRole('button',{name:'Tautan HTTPS',exact:true}).evaluate(el=>Math.round(el.getBoundingClientRect().top))).toBe(await page.getByRole('button',{name:'File perangkat',exact:true}).evaluate(el=>Math.round(el.getBoundingClientRect().top)));
+  await page.mouse.move(width-2,2);await page.screenshot({path:'test-results/mobile-native-publish-'+width+'.png'});
   await page.getByRole('tab',{name:'AI Agent'}).click();await expect(page.getByText('Belum disiapkan',{exact:true})).toBeVisible();await page.screenshot({path:'test-results/mobile-native-agent-'+width+'.png'});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
  }

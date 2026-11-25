@@ -104,3 +104,7 @@
  .studio-shell .studio-panel p.text-sm { font-size:13px; line-height:19px; }
  .studio-shell input:not([type=checkbox]):not([type=radio]):not([type=file]), .studio-shell textarea, .studio-shell select { font-size:16px; }
 }
+
+@media (max-width: 767px) {
+ .studio-shell .studio-nav .studio-tab[data-state=inactive]:hover { background: transparent; color: #475569; }
+}

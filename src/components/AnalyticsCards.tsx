@@ -18,7 +18,7 @@ export function MetricCard({ title, value, icon: Icon, description, color = "tex
         <div className="flex items-center justify-between gap-1"><CardTitle className="text-xs md:text-sm font-medium">{title}</CardTitle><span className="grid h-7 w-7 md:h-9 md:w-9 shrink-0 place-items-center rounded-xl bg-indigo-50"><Icon className="h-4 w-4 text-indigo-700" aria-hidden="true"/></span></div>
       </CardHeader>
       <CardContent className="p-3 pt-0 md:p-5 md:pt-0">
-        <div className={`break-words text-xl md:text-3xl font-semibold tracking-tight tabular-nums ${color}`}>{value}</div>
+        <div data-metric-value title={String(value)} className={`whitespace-nowrap text-base min-[375px]:text-xl md:text-3xl font-semibold tracking-tight tabular-nums ${color}`}><span className={String(value).length>10?"hidden md:inline":""}>{value}</span>{String(value).length>10&&<span className="md:hidden">{typeof value==="number"?new Intl.NumberFormat("id-ID",{notation:"compact",maximumFractionDigits:1}).format(value):Number.isFinite(Number(value.replaceAll(".","")))?new Intl.NumberFormat("id-ID",{notation:"compact",maximumFractionDigits:1}).format(Number(value.replaceAll(".",""))):value}</span>}</div>
         {description && <p className="hidden md:block mt-1 text-xs text-muted-foreground">{description}</p>}
       </CardContent>
     </Card>
