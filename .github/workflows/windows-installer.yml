@@ -74,3 +74,80 @@ jobs:
           } finally {
             if (Test-Path -LiteralPath $fixture) { Remove-Item -LiteralPath $fixture -Recurse -Force }
           }
+      - name: Start real Bridge from scheduled task under disposable standard user
+        shell: powershell
+        timeout-minutes: 5
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tokens = $null
+          $errors = $null
+          $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $pwd 'integrations/hermes/windows-owner-start.ps1'),[ref]$tokens,[ref]$errors)
+          if ($errors.Count) { throw 'Parser errors' }
+          foreach ($name in @('Get-BridgeTree','Set-BridgeItemAcl','Write-BridgeLauncher','New-BridgeTaskAction')) {
+            $fn = $ast.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name},$false)
+            if (-not $fn) { throw "Missing helper $name" }
+            . ([scriptblock]::Create($fn.Extent.Text))
+          }
+          $suffix = [guid]::NewGuid().ToString('N').Substring(0,10)
+          $user = 'cpTest' + $suffix
+          $task = 'cpTest-' + $suffix
+          $root = Join-Path $env:ProgramData $task
+          $password = 'Aa9!' + [guid]::NewGuid().ToString('N')
+          $token = 'cp_sandbox_bridge_' + [guid]::NewGuid().ToString('N')
+          $account = $null
+          try {
+            $account = New-LocalUser -Name $user -Password (ConvertTo-SecureString $password -AsPlainText -Force)
+            $identity = "$env:COMPUTERNAME\$user"
+            $null = New-Item -ItemType Directory -Path $root
+            $bridge = Join-Path $root 'local-bridge'
+            $runtime = Join-Path $root 'python'
+            $data = Join-Path $bridge 'data\sandbox'
+            $secrets = Join-Path $bridge '.secrets\sandbox'
+            $null = New-Item -ItemType Directory -Path $data,$secrets,$runtime -Force
+            Copy-Item -LiteralPath 'local-bridge/run.py','local-bridge/bridge.py' -Destination $bridge
+            Set-Content -LiteralPath (Join-Path $secrets 'bridge.env') -Value "CREATORPULSE_BRIDGE_TOKEN=$token" -Encoding Ascii
+            $zip = Join-Path $root 'python.zip'
+            Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.13.17/python-3.13.17-embed-amd64.zip' -UseBasicParsing -OutFile $zip
+            if ((Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash -ne '9e35319bffedab8b36ad44d8f377cb4f1733bcec257a0b6d04d94f01486ddb38') { throw 'Fixture runtime hash mismatch' }
+            Expand-Archive -LiteralPath $zip -DestinationPath $runtime
+            $launcher = Join-Path $root 'sandbox-launcher.py'
+            Write-BridgeLauncher -Path $launcher
+            $python = Join-Path $runtime 'python.exe'
+            foreach ($item in @(Get-BridgeTree -Path $root)) {
+                $rights = if ($item.FullName -eq $data -or $item.FullName.StartsWith($data + '\',[StringComparison]::OrdinalIgnoreCase)) { 'Modify' } else { 'ReadAndExecute' }
+                Set-BridgeItemAcl -Item $item -ServiceSid $account.SID -ServiceRights $rights
+            }
+            $action = New-BridgeTaskAction -Python $python -Launcher $launcher -WorkingDirectory $bridge
+            $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 3) -MultipleInstances IgnoreNew
+            Register-ScheduledTask -TaskName $task -Action $action -Trigger (New-ScheduledTaskTrigger -AtStartup) -Settings $settings -User $identity -Password $password -RunLevel Limited | Out-Null
+            Start-ScheduledTask -TaskName $task
+            $ok = $false
+            for ($i=0; $i -lt 45; $i++) {
+                try {
+                    $response = Invoke-RestMethod -Uri 'http://127.0.0.1:8766/storage/v1' -Method Post -Headers @{Authorization="Bearer $token"} -ContentType 'application/json' -Body '["PING"]' -TimeoutSec 2
+                    if ($response.result -eq 'PONG') { $ok = $true; break }
+                } catch {}
+                Start-Sleep -Seconds 1
+            }
+            if (-not $ok) {
+                $info = Get-ScheduledTaskInfo -TaskName $task
+                Write-Host "Fixture last task result: $($info.LastTaskResult)"
+                $status = Join-Path $data 'bridge-startup.json'
+                if (Test-Path -LiteralPath $status) { Get-Content -LiteralPath $status | Write-Host }
+                throw 'Real scheduled-task PING failed.'
+            }
+            $listener = @(Get-NetTCPConnection -LocalPort 8766 -State Listen)
+            if ($listener.Count -ne 1 -or $listener[0].LocalAddress -ne '127.0.0.1') { throw 'Unexpected fixture listener' }
+            $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$($listener[0].OwningProcess)"
+            $owner = Invoke-CimMethod -InputObject $proc -MethodName GetOwner
+            if ($owner.ReturnValue -ne 0 -or $owner.User -ne $user) { throw 'Fixture identity mismatch' }
+            Write-Host 'Real restricted-user scheduled task: authenticated PONG.'
+          } finally {
+            if (Get-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue) {
+                Stop-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue
+                Unregister-ScheduledTask -TaskName $task -Confirm:$false
+            }
+            if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+            if ($account) { Remove-LocalUser -Name $user }
+            Remove-Variable password,token -ErrorAction SilentlyContinue
+          }
