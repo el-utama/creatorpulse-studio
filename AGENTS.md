@@ -2,7 +2,7 @@
 
 For existing PC09 Sandbox recovery, first fetch and fast-forward the clean sandbox checkout. Never reset dirty files. Then run **python integrations/hermes/windows_resume.py** using the existing Hermes Python (with PyYAML). Do not interpret old reports or choose recovery steps yourself. The program emits one JSON state; use only its reported next action. Do not print secrets or raw subprocess data.
 
-- OWNER_PROVISION: open the exact reported owner script location for independent owner review/staging; do not execute it elevated yourself. The owner checks Windows CI for this commit first.
+- OWNER_PROVISION: open the exact reported owner script location for independent owner review/staging; do not execute it elevated yourself. The owner checks Windows CI for this commit first. The script inventories and protects known retired copies only with explicit owner approval, then provisions credentials. Do not tell the owner to type ISOLATED before their actual review. No separate agent credential audit is needed.
 - OWNER_ENROLL: open the reported dashboard for the owner. No OAuth or Operator Key handling by the agent.
 - READONLY_VALIDATED: report the actual returned evidence and caveat, not a claim of production or full isolation.
 - Any other state: report the JSON blocker unchanged. Do not improvise, reset, reinstall, elevate, edit permissions, generate keys, change protection, or publish.

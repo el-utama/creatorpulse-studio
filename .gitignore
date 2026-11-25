@@ -32,3 +32,6 @@ yarn-error.log*
 
 # TypeScript
 *.tsbuildinfo
+# Python bytecode caches
+__pycache__/
+*.py[cod]

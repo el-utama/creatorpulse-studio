@@ -1,11 +1,27 @@
 import unittest
-from windows_resume import next_gate, account_id, rpc_batch
+from windows_resume import next_gate, account_id, rpc_batch, audit_legacy, legacy_clear
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 class Gates(unittest.TestCase):
     def setUp(self):
         self.pre = dict(host="PC09-PR",identity="PC09-PR\\USER",elevated=False,service_account="enabled",listener={"LocalAddress":"127.0.0.1","LocalPort":8766})
         self.receipt = dict(schema=1,owner_isolation_reviewed=True,bypass_approved=True)
         self.gateway = dict(gateway="connected",environment="sandbox",accounts=1)
+    def test_legacy_probes(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.assertTrue(legacy_clear(audit_legacy(root)))
+            secret = root/"local-bridge"/".secrets"/"sandbox"
+            secret.mkdir(parents=True)
+            (secret/"vercel.env").write_text("fixture only")
+            probes = audit_legacy(root)
+            self.assertEqual(probes["local-bridge/.secrets/sandbox/vercel.env"],"accessible")
+            self.assertFalse(legacy_clear(probes))
+        self.assertTrue(legacy_clear({"one":"denied","two":"absent"}))
+        self.assertFalse(legacy_clear({"one":"unknown"}))
+        self.assertFalse(legacy_clear({}))
     def test_order(self):
         self.assertEqual(next_gate(self.pre,None),"OWNER_PROVISION")
         self.assertEqual(next_gate(self.pre,self.receipt),"CHECK_GATEWAY")

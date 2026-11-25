@@ -8,11 +8,55 @@ import shutil
 import subprocess
 import sys
 
+sys.dont_write_bytecode = True
+
 ROOT = Path(__file__).resolve().parent
 REPO = ROOT.parent.parent
 OWNER = ROOT / "windows-owner-agent.ps1"
 DASHBOARD = "https://creatorpulse-studio-git-sandbox-total-management1.vercel.app/dashboard"
 REQUIRED_TOOLS = {"list_accounts", "list_videos", "get_analytics"}
+
+
+# Known retired paths; direct file-open probes do not read any bytes.
+LEGACY_SUBTREES = (".secrets/sandbox", "local-bridge/.secrets/sandbox",
+                   "data/sandbox", "local-bridge/data/sandbox")
+LEGACY_FILES = (".secrets/bridge.env", ".secrets/vercel.env", ".secrets/hermes.env",
+                "local-bridge/.secrets/bridge.env", "local-bridge/.secrets/vercel.env",
+                "local-bridge/.secrets/hermes.env", ".env.local", "local-bridge/.env.local")
+
+
+def access_status(path, directory=False):
+    """Test effective listing/open rights only; never read file data."""
+    try:
+        if directory:
+            with os.scandir(path):
+                pass
+        else:
+            fd = os.open(path, os.O_RDONLY | getattr(os, "O_BINARY", 0))
+            os.close(fd)
+        return "accessible"
+    except (FileNotFoundError, NotADirectoryError):
+        return "absent"
+    except PermissionError:
+        return "denied"
+    except OSError:
+        return "unknown"
+
+
+def audit_legacy(root):
+    probes = {}
+    for rel in LEGACY_SUBTREES:
+        probes[rel] = access_status(root/rel, True)
+        filenames = ("bridge.env","vercel.env","hermes.env") if ".secrets/" in rel else ("creatorpulse.sqlite3","creatorpulse.sqlite3-wal","creatorpulse.sqlite3-shm")
+        for name in filenames:
+            probes[rel+"/"+name] = access_status(root/rel/name)
+    for rel in LEGACY_FILES:
+        probes[rel] = access_status(root/rel)
+    return probes
+
+
+def legacy_clear(probes):
+    return bool(probes) and all(v in ("absent","denied") for v in probes.values())
 
 
 def result(state, **fields):
@@ -141,6 +185,10 @@ def execute():
     profile = Path(os.environ["LOCALAPPDATA"])/"hermes"/"profiles"/"creatorpulse-sandbox"
     if not (profile/"config.yaml").is_file():
         return result("DEDICATED_PROFILE_MISSING",commit=commit)
+    legacy = audit_legacy(Path(r"C:\Users\USER\CreatorPulseBridge"))
+    profile_env = access_status(profile/".env")
+    if profile_env not in ("accessible","absent"):
+        return result("PROFILE_ENV_ACCESS_BLOCKED",commit=commit,profile_env=profile_env)
     out = Path(r"C:\ProgramData\CreatorPulseAgent-Sandbox")
     receipt_path = out/"provisioning.json"
     if not receipt_path.is_file():
@@ -149,7 +197,11 @@ def execute():
             return result("OWNER_HELPER_SYNTAX_FAILED",commit=commit)
         return result("OWNER_PROVISION",commit=commit,owner_script=str(OWNER),
                       sha256=hashlib.sha256(OWNER.read_bytes()).hexdigest(),
+                      legacy_access=legacy, profile_env=profile_env,
                       action="Open the reviewed script location for the owner. Owner independently stages in administrator-controlled directory, checks this revision passed Windows CI, and runs elevated with no arguments. Never elevate Hermes.")
+    if not legacy_clear(legacy):
+        return result("OWNER_LEGACY_ACCESS_BLOCKED",commit=commit,legacy_access=legacy,
+                      action="Do not activate MCP. Report the remaining known paths without reading contents.")
     acl = run([*ps,"-File",ROOT/"windows-agent-check.ps1","-Mode","Receipt"])
     if acl.returncode:
         return result("OWNER_RECEIPT_ACL_UNVERIFIED",commit=commit)
@@ -197,7 +249,7 @@ def execute():
     if tested.returncode:
         return result("HERMES_CLI_TEST_FAILED",commit=commit,adapter_readonly="passed",accounts=count)
     return result("READONLY_VALIDATED",commit=commit,adapter_readonly="passed",hermes_cli_test_exit=0,accounts=count,
-                  caveat="Owner isolation review is an attestation; persistence across reboot and default Hermes messaging are not independently tested here.")
+                  caveat="Known old paths passed access probes; isolation elsewhere is owner-attested. Persistence across reboot and default Hermes messaging are not independently tested here.")
 
 
 if __name__ == "__main__":

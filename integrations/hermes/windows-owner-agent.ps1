@@ -3,6 +3,63 @@
 [CmdletBinding()]
 param()
 $ErrorActionPreference = 'Stop'
+# Only known paths in the retired PC09 checkout. No file contents are read.
+# Owner must confirm these copies are retired and not used by Production.
+function Get-LegacyPrivateItems([string]$Root) {
+    if (-not (Test-Path -LiteralPath $Root)) { return }
+    $rootItem = Get-Item -LiteralPath $Root -Force
+    if (-not $rootItem.PSIsContainer -or ($rootItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Unexpected old checkout path.' }
+    foreach ($relative in @('.secrets\sandbox','local-bridge\.secrets\sandbox','data\sandbox','local-bridge\data\sandbox','.secrets\bridge.env','.secrets\vercel.env','.secrets\hermes.env','local-bridge\.secrets\bridge.env','local-bridge\.secrets\vercel.env','local-bridge\.secrets\hermes.env','.env.local','local-bridge\.env.local')) {
+        $current = $Root
+        $found = $true
+        foreach ($part in $relative.Split('\')) {
+            $current = Join-Path $current $part
+            if (-not (Test-Path -LiteralPath $current)) { $found = $false; break }
+            $item = Get-Item -LiteralPath $current -Force
+            if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Unexpected link in old credential path; no protection changes.' }
+        }
+        if ($found) { $item }
+    }
+}
+function Get-LegacyPrivateTree($Item) {
+    if ($Item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Unexpected link in old credential tree.' }
+    $Item
+    if ($Item.PSIsContainer) {
+        foreach ($child in Get-ChildItem -LiteralPath $Item.FullName -Force -ErrorAction Stop) { Get-LegacyPrivateTree $child }
+    }
+}
+function Protect-LegacyPrivateItem($Item) {
+    $admins = [Security.Principal.SecurityIdentifier]::new('S-1-5-32-544')
+    $system = [Security.Principal.SecurityIdentifier]::new('S-1-5-18')
+    # Replace inherited and explicit ACEs only for the explicitly approved retired items.
+    $acl = Get-Acl -LiteralPath $Item.FullName
+    $acl.SetAccessRuleProtection($true,$false)
+    foreach ($rule in @($acl.GetAccessRules($true,$false,[Security.Principal.SecurityIdentifier]))) { $acl.RemoveAccessRuleSpecific($rule) }
+    $acl.SetOwner($admins)
+    $inherit = if ($Item.PSIsContainer) { [Security.AccessControl.InheritanceFlags]'ContainerInherit, ObjectInherit' } else { [Security.AccessControl.InheritanceFlags]::None }
+    foreach ($sid in @($admins,$system)) {
+        $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($sid,[Security.AccessControl.FileSystemRights]::FullControl,$inherit,[Security.AccessControl.PropagationFlags]::None,[Security.AccessControl.AccessControlType]::Allow))
+    }
+    Set-Acl -LiteralPath $Item.FullName -AclObject $acl
+    $actual = Get-Acl -LiteralPath $Item.FullName
+    $rules = @($actual.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]))
+    if (-not $actual.AreAccessRulesProtected -or $actual.GetOwner([Security.Principal.SecurityIdentifier]).Value -ne $admins.Value -or $rules.Count -ne 2 -or @($rules.IdentityReference.Value | Sort-Object -Unique).Count -ne 2) { throw 'Retired copy ACL verification failed.' }
+    foreach ($rule in $rules) {
+        if ($rule.IdentityReference.Value -notin @($admins.Value,$system.Value) -or $rule.AccessControlType -ne 'Allow' -or $rule.FileSystemRights -ne [Security.AccessControl.FileSystemRights]::FullControl) { throw 'Retired copy ACL rights verification failed.' }
+    }
+}
+function Protect-RetiredSandboxCopies([string]$Root) {
+    $targets = @(Get-LegacyPrivateItems $Root)
+    if (-not $targets.Count) { Write-Host 'No known retired private copies found.'; return }
+    # Inventory all selected descendants before any ACL change; never follow links.
+    $items = @(foreach ($target in $targets) { Get-LegacyPrivateTree $target })
+    Write-Host 'Known old private paths (names only):'
+    $targets | ForEach-Object { Write-Host $_.FullName }
+    Write-Host 'Only approve if these are retired Sandbox copies and no current service or Production uses them. Contents are preserved; access becomes Administrators/SYSTEM only.'
+    if ((Read-Host 'Type PROTECT to secure these exact old paths') -cne 'PROTECT') { throw 'Retired copy protection not authorized; no credential export.' }
+    foreach ($item in $items) { Protect-LegacyPrivateItem $item }
+    Write-Host 'Known retired private paths protected. No contents read or deleted.'
+}
 function Get-ExistingAgentKey([string]$Root) {
     $keys = @()
     foreach ($name in @('hermes.env','vercel.env')) {
@@ -81,7 +138,13 @@ foreach ($path in @('C:\ProgramData','C:\ProgramData\CreatorPulseBridge','C:\Pro
 }
 $out = 'C:\ProgramData\CreatorPulseAgent-Sandbox'
 if ((Read-Host 'Type REVIEWED to authorize only the existing Sandbox Agent Key export to Windows USER') -cne 'REVIEWED') { throw 'Owner approval required.' }
-if ((Read-Host 'Confirm old private credential copies are secured, USER cannot access Bridge/operator/vault secrets, and elevation requires owner approval. Type ISOLATED only after review') -cne 'ISOLATED') { throw 'Owner isolation review required; no export.' }
+$legacy = 'C:\Users\USER\CreatorPulseBridge'
+foreach ($parent in @('C:\Users','C:\Users\USER')) {
+    $item = Get-Item -LiteralPath $parent -Force
+    if (-not $item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Unexpected old checkout parent.' }
+}
+Protect-RetiredSandboxCopies $legacy
+if ((Read-Host 'Confirm remaining private copies and owner CLI sessions elsewhere are secured, and USER elevation requires your approval. Type ISOLATED only after review') -cne 'ISOLATED') { throw 'Owner isolation review required; no export.' }
 $key = Get-ExistingAgentKey $base
 if (-not $key) { $key = Read-PrivateValue 'Enter EXISTING Sandbox Agent Key from your password manager or Vercel (no new key)' }
 if ($key -cnotmatch '^cp_sandbox_agent_[A-Za-z0-9_-]{32,}$') { throw 'Invalid or unavailable existing Sandbox Agent Key.' }

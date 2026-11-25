@@ -2,6 +2,8 @@
 
 This is the canonical task for Hermes on the Windows host. Read [AGENTS.md](../../AGENTS.md) first. **Execute, verify and resume**; do not ask the owner to relay individual commands. Treat all host-specific paths below as hints, not proof. Use the matching branch sandbox; never deploy main, change production, or post content.
 
+Known retired Sandbox private paths are probed without reading any bytes. The owner helper inventories and, with explicit PROTECT approval only for retired Sandbox copies, normalizes ACLs on those exact paths; no content deletion, Production changes, or unrelated ACL edits. If unscoped old files are still in use or cannot be identified, decline protection and report the blocker. The controller checks effective old-path access again before gateway or MCP activation. This does not establish isolation of arbitrary copies elsewhere.
+
 For existing PC09 recovery, the executable controller `python integrations/hermes/windows_resume.py` is authoritative; its JSON state replaces agent interpretation of the gates below. Use the existing Hermes Python and clean, freshly fetched sandbox checkout. Do not run individual steps if the controller reports a blocker. Owner isolation review is recorded as an attestation, not independent proof. The controller verifies the receipt ACL before using the exported credentials, checks gateway enrollment before applying MCP, and validates the installed adapter via read-only JSON-RPC plus the supported Hermes CLI test.
 
 ## 1. Inspect without privileged access
