@@ -17,7 +17,7 @@ interface UploadFormProps {
   onPublish: (payload: PublishPayload) => void;
   publishing?: boolean;
   error?: string | null;
-  onPreview?: (value:{mode:string;url:string|null;name:string|null})=>void;
+  onPreview?: (value:{mode:string;url:string|null;name:string|null;onDuration:(duration:number|null)=>void})=>void;
 }
 
 export interface PublishPayload {
@@ -109,126 +109,22 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
   const validUrl = (() => { try { const url = new URL(videoUrl ?? ""); return url.protocol === "https:" && !url.username && !url.password; } catch { return false; } })();
   const validDuration = duration !== null && Number.isFinite(duration) && duration > 0 && duration <= (capabilities?.max_video_post_duration_sec ?? 0);
   const ready = (source === "file" ? hasFile : validUrl) && (mode === "inbox" || (!!privacy && !!capabilities?.privacy_level_options.includes(privacy) && validDuration && (!commercial || brandOrganic || brandContent) && (!commercial || !brandContent || ["PUBLIC_TO_EVERYONE","MUTUAL_FOLLOW_FRIENDS"].includes(privacy))));
-  useEffect(()=>{onPreview?.({mode,url:source==="file"?previewUrl:validUrl?videoUrl:null,name:source==="file"?file?.name??null:null})},[mode,source,previewUrl,validUrl,videoUrl,file,onPreview]);
+  useEffect(()=>{onPreview?.({mode,url:source==="file"?previewUrl:validUrl?videoUrl:null,name:source==="file"?file?.name??null:null,onDuration:setDuration})},[mode,source,previewUrl,validUrl,videoUrl,file,onPreview]);
   const canPublish = !publishing && consent && review && ready;
 
   return (
-    <Card className="overflow-hidden rounded-lg border-slate-200 shadow-none v4-editor">
-      <CardHeader className="border-b px-4 py-4 sm:px-5">
-        <CardTitle className="flex items-center gap-1.5 text-sm md:text-base">
-          <Video className="h-4 w-4 shrink-0 text-indigo-700" aria-hidden="true" />
-          Post details
-        </CardTitle>
-        <CardDescription className="flex min-w-0 items-center gap-2 text-xs">{avatarUrl&&<img src={avatarUrl} alt="" referrerPolicy="no-referrer" className="h-6 w-6 shrink-0 rounded-full object-cover"/>}<strong className="min-w-0 truncate font-medium">{accountName}</strong><span className="shrink-0">· TikTok</span></CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4 p-4 sm:p-5">
-        {/* Tujuan publikasi */}
-        <div className="space-y-2">
-          <Label htmlFor="mode" className="text-xs font-medium text-muted-foreground">
-            Mode
-          </Label>
-          <div
-            role="group"
-            aria-label="Mode posting"
-            className="grid grid-cols-2 gap-1 rounded-md bg-slate-100 p-1"
-          >
-            <button
-              onClick={() => { setMode("inbox"); setConsent(false); setReview(false); }}
-              disabled={publishing}
-              aria-pressed={mode === "inbox"}
-              className={`flex-1 h-11 py-2 text-xs font-medium rounded-md transition-all ${
-                mode === "inbox"
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
-            >
-              Inbox
-            </button>
-            <button
-              disabled={publishing}
-              onClick={() => { setMode("profile"); setConsent(false); setReview(false); }}
-              aria-pressed={mode === "profile"}
-              className={`flex-1 h-11 py-2 text-xs font-medium rounded-md transition-all ${
-                mode === "profile"
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
-            >
-              Direct Post
-            </button>
-          </div>
+    <div className="v4-editor">
+        <div className="r1-form-section">
+          <h3 className="r1-form-label">Publishing mode</h3>
+          <div role="group" aria-label="Mode posting" className="r1-seg">
+            <button type="button" disabled={publishing} aria-pressed={mode==="inbox"} className={mode==="inbox"?"r1-active":""} onClick={()=>{setMode("inbox");setConsent(false);setReview(false)}}>Inbox</button>
+            <button type="button" disabled={publishing} aria-pressed={mode==="profile"} className={mode==="profile"?"r1-active":""} onClick={()=>{setMode("profile");setConsent(false);setReview(false)}}>Direct Post</button>
+          </div><p>{mode==="inbox"?"Upload to TikTok inbox; finish publication in TikTok.":"Requires verified capabilities, preview, duration and explicit visibility."}</p>
         </div>
-
-        <div className="space-y-2"><h3 className="text-xs font-medium">Video source</h3><div role="group" aria-label="Sumber video" className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap"><Button type="button" variant={source === "url" ? "default" : "outline"} className="min-w-0 px-3 text-xs sm:text-sm" aria-pressed={source === "url"} disabled={publishing} onClick={() => {if (source === "url") return;setSource("url");setDuration(null);setConsent(false);setReview(false);}}>URL</Button><Button type="button" variant={source === "file" ? "default" : "outline"} className="min-w-0 px-2 text-xs sm:px-4 sm:text-sm" aria-pressed={source === "file"} disabled={publishing} onClick={() => {if (source === "file") return;setSource("file");setDuration(null);setConsent(false);setReview(false);}}>File</Button></div></div>
-        {source === "url" ? (
-          <div className="space-y-2">
-            <Label htmlFor="video-url" className="text-xs font-medium">
-              URL video
-            </Label>
-            <Input
-              id="video-url"
-              placeholder="https://contoh.com/video.mp4"
-              value={videoUrl ?? ""}
-              type="url"
-              disabled={publishing}
-              onChange={(e) => { setVideoUrl(e.target.value); setDuration(null); setConsent(false); setReview(false); }}
-            />
-            {mode === "profile" && validUrl && <video key={videoUrl} aria-label="Pratinjau video" src={videoUrl ?? undefined} controls preload="metadata" className="w-full max-h-[360px] bg-black rounded-lg" onLoadedMetadata={e=>setDuration(e.currentTarget.duration)} onError={()=>setDuration(null)}/>}
-            <p className="text-xs text-muted-foreground">
-              URL harus terverifikasi di TikTok Developer.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <Label htmlFor="video-file" className="flex items-center gap-2 cursor-pointer focus-within:ring-2 focus-within:ring-ring border border-dashed rounded-lg px-3 py-4 text-center text-sm text-muted-foreground hover:border-tiktok-primary/50 transition-colors">
-              <Upload className="h-4 w-4 text-tiktok-primary" aria-hidden="true" />
-              <span>Pilih MP4 / MOV</span>
-              <input
-                id="video-file"
-                ref={fileInputRef}
-                type="file"
-                disabled={publishing}
-                accept=".mp4,.mov,video/mp4,video/quicktime"
-                className="sr-only"
-                onChange={handleFileChange}
-                aria-invalid={fileError ? true : undefined}
-                aria-describedby={fileError ? "video-file-error" : undefined}
-              />
-              {fileError && (
-                <p id="video-file-error" className="text-xs text-destructive mt-1">
-                  {fileError}
-                </p>
-              )}
-            </Label>
-            {file && previewUrl && (
-              <div className="relative group">
-                <video
-                  key={previewUrl}
-                  aria-label="Pratinjau video"
-                  preload="metadata"
-                  onLoadedMetadata={e=>setDuration(e.currentTarget.duration)}
-                  onError={()=>setDuration(null)}
-                  src={previewUrl}
-                  className="w-full max-h-[420px] aspect-[9/16] object-contain bg-black rounded-lg border border-border"
-                  controls
-                />
-                <button
-                  disabled={publishing}
-                  onClick={handleRemoveFile}
-                  className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 hover:bg-destructive/90 transition-colors"
-                  aria-label="Hapus file"
-                >
-                  ×
-                </button>
-              </div>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Maks. 4 MB. Video lebih besar: gunakan URL.
-            </p>
-          </div>
-        )}
-
-        {mode === "profile" && <>
+        <div className="r1-form-section"><h3 className="r1-form-label">Video source</h3><div role="group" aria-label="Sumber video" className="r1-seg"><button type="button" className={source==="url"?"r1-active":""} aria-pressed={source==="url"} disabled={publishing} onClick={()=>{if(source==="url")return;setSource("url");setDuration(null);setConsent(false);setReview(false)}}>URL</button><button type="button" className={source==="file"?"r1-active":""} aria-pressed={source==="file"} disabled={publishing} onClick={()=>{if(source==="file")return;setSource("file");setDuration(null);setConsent(false);setReview(false)}}>File</button></div>
+        {source==="url"?<><label className="sr-only" htmlFor="video-url">URL video</label><input id="video-url" className="r1-full-input mt-2.5" type="url" placeholder="https://…/video.mp4" value={videoUrl??""} disabled={publishing} onChange={e=>{setVideoUrl(e.target.value);setDuration(null);setConsent(false);setReview(false)}}/><p>Use an immutable HTTPS URL on a TikTok-verified domain.</p></>:<><label htmlFor="video-file" className="mt-2.5 flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-dashed px-3 text-xs"><Upload size={16}/>Pilih MP4 / MOV<input id="video-file" ref={fileInputRef} type="file" disabled={publishing} accept=".mp4,.mov,video/mp4,video/quicktime" className="sr-only" onChange={handleFileChange} aria-invalid={fileError?true:undefined}/></label>{fileError&&<p role="alert" className="text-red-700">{fileError}</p>}{file&&<div className="r1-flex r1-between mt-2"><span className="r1-small r1-truncate">{file.name}</span><button className="r1-btn" type="button" disabled={publishing} onClick={handleRemoveFile} aria-label="Hapus file">Remove</button></div>}<p>MP4 / MOV · maximum 4 MB.</p></>}
+        </div>
+        {mode === "profile" && <div className="r1-form-section space-y-4">
         {/* Caption */}
         <div className="space-y-1.5">
           <Label htmlFor="caption" className="text-xs font-medium">
@@ -309,7 +205,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
 
         <p className="text-sm text-muted-foreground">{validDuration ? `Durasi video: ${Math.round(duration ?? 0)} detik` : "Video harus dapat dipratinjau dan durasinya sesuai batas akun sebelum dipublikasikan."}</p>
         <fieldset className="space-y-3 rounded-lg border p-3"><legend className="px-1 text-sm font-medium">Pengungkapan konten</legend><label className="flex items-center gap-2 text-sm"><Checkbox disabled={publishing} checked={commercial} onCheckedChange={v=>{setCommercial(v===true);setBrandOrganic(false);setBrandContent(false);setConsent(false);setReview(false);}}/> Konten promosi atau komersial</label>{commercial && <><label className="flex items-center gap-2 text-sm"><Checkbox disabled={publishing} checked={brandOrganic} onCheckedChange={v=>{setBrandOrganic(v===true);setConsent(false);setReview(false);}}/> Merek atau bisnis sendiri</label><label className="flex items-center gap-2 text-sm"><Checkbox checked={brandContent} disabled={publishing || privacy==="SELF_ONLY" || privacy==="FOLLOWER_OF_CREATOR"} onCheckedChange={v=>{setBrandContent(v===true);setConsent(false);setReview(false);}}/> Kemitraan berbayar dengan pihak ketiga</label><p className="text-xs text-muted-foreground">{brandContent?"Label: kemitraan berbayar. Pilih privasi publik atau teman.":brandOrganic?"Label: konten promosi.":"Pilih minimal satu kategori. Kemitraan berbayar tidak dapat bersifat privat."}</p></>}<label className="flex items-center gap-2 text-sm"><Checkbox disabled={publishing} checked={isAigc} onCheckedChange={v=>{setIsAigc(v===true);setConsent(false);setReview(false);}}/> Konten dihasilkan AI</label></fieldset>
-        </>}
+        </div>}
 
         {review && <section className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:p-4" aria-label="Tinjauan publikasi"><h3 className="text-sm font-semibold">Review</h3><p className="text-sm">Akun: {accountName}</p><p className="text-sm break-all">Video: {source === "url" ? videoUrl : file?.name}</p><p className="text-sm">{mode === "inbox" ? "Dikirim ke inbox; selesaikan posting di TikTok." : `Visibilitas: ${({PUBLIC_TO_EVERYONE:"Semua orang",FOLLOWER_OF_CREATOR:"Pengikut",MUTUAL_FOLLOW_FRIENDS:"Teman",SELF_ONLY:"Hanya saya"} as Record<string,string>)[privacy] ?? privacy}`}</p>
         {mode === "profile" && <p className="text-sm whitespace-pre-wrap break-words">Keterangan: {caption || "(tanpa caption)"}</p>}
@@ -330,10 +226,9 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
             Saya menyetujui ketentuan dan mengizinkan CreatorPulse Studio memposting video ini ke akun TikTok saya.
           </label>
         </div></section>}
-      </CardContent>
-      <CardFooter className="flex-col items-stretch gap-2 border-t px-4 py-3 sm:px-5">
+      <div className="r1-form-footer flex-wrap">
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-        {!review?<Button type="button" className="w-full bg-slate-900 hover:bg-slate-800" disabled={!ready || publishing} onClick={() => setReview(true)}>Review</Button>:<Button
+        {!review?<Button type="button" className="r1-btn r1-primary" disabled={!ready || publishing} onClick={() => setReview(true)}>Review</Button>:<Button
           onClick={() => {
             requestId.current ??= crypto.randomUUID();
             onPublish({
@@ -354,7 +249,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
             });
           }}
           disabled={!canPublish}
-          className="w-full py-2.5 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+          className="r1-btn r1-primary"
           title={!canPublish ? "Centang persetujuan dan lengkapi semua input sebelum publish" : undefined}
         >
           {publishing ? "Mengirim video…" : mode === "inbox" ? "Kirim ke Inbox" : "Publish"}
@@ -364,7 +259,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
             Centang persetujuan untuk melanjutkan.
           </p>
         )}
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   );
 }
