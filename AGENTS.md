@@ -1,10 +1,10 @@
-# Agent entry point — CreatorPulse Studio
+# CreatorPulse Sandbox — executable entry point
 
-If asked to install, resume, recover or validate CreatorPulse Sandbox, **execute the repository runbook**, not just summarize it: [integrations/hermes/SANDBOX_RUNBOOK.md](integrations/hermes/SANDBOX_RUNBOOK.md).
+For existing PC09 Sandbox recovery, first fetch and fast-forward the clean sandbox checkout. Never reset dirty files. Then run **python integrations/hermes/windows_resume.py** using the existing Hermes Python (with PyYAML). Do not interpret old reports or choose recovery steps yourself. The program emits one JSON state; use only its reported next action. Do not print secrets or raw subprocess data.
 
-- Start with a clean dedicated checkout of branch sandbox, or update the existing clean checkout fast-forward only. Record the commit. Never reset a dirty worktree.
-- Inspect current host state before changing anything. Continue from the first unfinished gate. Do all non-privileged work locally, including diagnostics, preparation, retries of safe read-only checks and MCP tests. Do not send the owner individual terminal commands.
-- Do not access bridge, vault, operator, TikTok or Vercel owner credentials. Never read private service files, dump environment variables, logs containing secrets, or use existing owner login sessions. Only the owner may run privileged setup or provision the agent-only credentials. Prepare one reviewed owner action when required. For PC09 credentials use the fixed-path owner helper in runbook section 3; do not ask the owner to create credential files, provide paths, or relay shell commands. Missing access is not missing file.
-- Never elevate the agent, change the default Hermes profile, modify existing model/messaging gateways, change Tailscale routes or Vercel protection, or publish content. No production changes from sandbox.
-- Report actual evidence and remaining blockers in a single concise report. A configured gateway, local discovery or successful fixture tests alone do not establish live account connectivity.
-- For code changes follow README and relevant tests. Production release and posting require separate explicit owner approval.
+- OWNER_PROVISION: open the exact reported owner script location for independent owner review/staging; do not execute it elevated yourself. The owner checks Windows CI for this commit first.
+- OWNER_ENROLL: open the reported dashboard for the owner. No OAuth or Operator Key handling by the agent.
+- READONLY_VALIDATED: report the actual returned evidence and caveat, not a claim of production or full isolation.
+- Any other state: report the JSON blocker unchanged. Do not improvise, reset, reinstall, elevate, edit permissions, generate keys, change protection, or publish.
+
+After owner action, run the same controller again. No placeholders, manual credential file creation, or path requests. Never access owner secrets or sessions. Preserve default Hermes, messaging, Tailscale, existing DB, and Production. The [runbook](integrations/hermes/SANDBOX_RUNBOOK.md) documents owner boundaries and other installations; the controller is authoritative for existing PC09. Do not claim that a hidden file is absent. Only the owner may approve privileged actions and project-wide bypass.

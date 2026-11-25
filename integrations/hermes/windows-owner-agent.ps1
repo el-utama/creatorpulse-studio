@@ -81,6 +81,7 @@ foreach ($path in @('C:\ProgramData','C:\ProgramData\CreatorPulseBridge','C:\Pro
 }
 $out = 'C:\ProgramData\CreatorPulseAgent-Sandbox'
 if ((Read-Host 'Type REVIEWED to authorize only the existing Sandbox Agent Key export to Windows USER') -cne 'REVIEWED') { throw 'Owner approval required.' }
+if ((Read-Host 'Confirm old private credential copies are secured, USER cannot access Bridge/operator/vault secrets, and elevation requires owner approval. Type ISOLATED only after review') -cne 'ISOLATED') { throw 'Owner isolation review required; no export.' }
 $key = Get-ExistingAgentKey $base
 if (-not $key) { $key = Read-PrivateValue 'Enter EXISTING Sandbox Agent Key from your password manager or Vercel (no new key)' }
 if ($key -cnotmatch '^cp_sandbox_agent_[A-Za-z0-9_-]{32,}$') { throw 'Invalid or unavailable existing Sandbox Agent Key.' }
@@ -99,8 +100,10 @@ Assert-AgentCredentialAcl $out $account.SID
 $agentPath = Join-Path $out 'hermes.env'
 $bypassPath = Join-Path $out 'preview-bypass.secret'
 if ($decision -ceq 'DECLINE' -and (Test-Path -LiteralPath $bypassPath)) { throw 'Previously provisioned bypass exists; owner must review/revoke separately before declining. No changes.' }
-# Check both existing destinations before writing either.
-foreach ($entry in @(@{Path=$agentPath;Content="CREATORPULSE_AGENT_KEY=$key"},@{Path=$bypassPath;Content=$bypass})) {
+$receiptPath = Join-Path $out 'provisioning.json'
+$receiptContent = ([ordered]@{schema=1;owner_isolation_reviewed=$true;bypass_approved=($decision -ceq 'ACCEPT')} | ConvertTo-Json -Compress)
+# Check all existing destinations before writing any.
+foreach ($entry in @(@{Path=$agentPath;Content="CREATORPULSE_AGENT_KEY=$key"},@{Path=$bypassPath;Content=$bypass},@{Path=$receiptPath;Content=$receiptContent})) {
     if ($null -ne $entry.Content -and (Test-Path -LiteralPath $entry.Path)) {
         Assert-AgentCredentialAcl $entry.Path $account.SID
         if ([IO.File]::ReadAllText($entry.Path) -cne $entry.Content) { throw 'Existing credential differs. No overwrite.' }
@@ -108,5 +111,6 @@ foreach ($entry in @(@{Path=$agentPath;Content="CREATORPULSE_AGENT_KEY=$key"},@{
 }
 Write-AgentCredential $agentPath "CREATORPULSE_AGENT_KEY=$key" $account.SID
 if ($bypass) { Write-AgentCredential $bypassPath $bypass $account.SID }
+Write-AgentCredential $receiptPath $receiptContent $account.SID
 Remove-Variable key,bypass,entry -ErrorAction SilentlyContinue
 [pscustomobject]@{agent_file=$agentPath;bypass_approved=($decision -ceq 'ACCEPT');bypass_file=if ($decision -ceq 'ACCEPT') {$bypassPath} else {$null};scope='Windows USER, not profile-only isolation';next='Owner verifies old private duplicates and enrolls TikTok in Sandbox dashboard; Hermes resumes without elevation.'} | ConvertTo-Json

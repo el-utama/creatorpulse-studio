@@ -2,6 +2,8 @@
 
 This is the canonical task for Hermes on the Windows host. Read [AGENTS.md](../../AGENTS.md) first. **Execute, verify and resume**; do not ask the owner to relay individual commands. Treat all host-specific paths below as hints, not proof. Use the matching branch sandbox; never deploy main, change production, or post content.
 
+For existing PC09 recovery, the executable controller `python integrations/hermes/windows_resume.py` is authoritative; its JSON state replaces agent interpretation of the gates below. Use the existing Hermes Python and clean, freshly fetched sandbox checkout. Do not run individual steps if the controller reports a blocker. Owner isolation review is recorded as an attestation, not independent proof. The controller verifies the receipt ACL before using the exported credentials, checks gateway enrollment before applying MCP, and validates the installed adapter via read-only JSON-RPC plus the supported Hermes CLI test.
+
 ## 1. Inspect without privileged access
 - Identify the current Windows user, OS, clean checkout/commit, Python installations available to that identity, Hermes version and profile list. Never dump .env, config contents, process command lines, credentials or chat memory. Use metadata and targeted checks.
 - Run `powershell -NoProfile -File integrations/hermes/windows-preflight.ps1` from the checkout. It reports service-account existence, port 8766, named task status, safe paths and dedicated profile presence; access denied means unknown, not absent.

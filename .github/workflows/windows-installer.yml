@@ -6,6 +6,8 @@ on:
     paths:
       - 'integrations/hermes/*.ps1'
       - '.github/workflows/windows-installer.yml'
+      - 'integrations/hermes/*.py'
+      - 'AGENTS.md'
 permissions:
   contents: read
 jobs:
@@ -17,7 +19,7 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          foreach ($name in @('windows-owner-start.ps1','windows-preflight.ps1','windows-owner-agent.ps1')) {
+          foreach ($name in @('windows-owner-start.ps1','windows-preflight.ps1','windows-owner-agent.ps1','windows-agent-check.ps1')) {
             $tokens = $null
             $errors = $null
             $path = Join-Path $pwd "integrations/hermes/$name"
@@ -34,6 +36,11 @@ jobs:
             }
             Write-Host "Syntax valid: $name"
           }
+      - name: Test deterministic recovery state machine
+        shell: powershell
+        run: |
+          python -m unittest discover -s integrations/hermes -p test_windows_resume.py -v
+          if ($LASTEXITCODE -ne 0) { throw 'Recovery state tests failed' }
       - name: Run read-only Windows preflight
         shell: powershell
         run: |
