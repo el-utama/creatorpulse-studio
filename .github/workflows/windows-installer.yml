@@ -83,7 +83,7 @@ jobs:
           $errors = $null
           $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $pwd 'integrations/hermes/windows-owner-start.ps1'),[ref]$tokens,[ref]$errors)
           if ($errors.Count) { throw 'Parser errors' }
-          foreach ($name in @('Get-BridgeTree','Set-BridgeItemAcl','Write-BridgeLauncher','New-BridgeTaskAction')) {
+          foreach ($name in @('Get-BridgeTree','Set-BridgeItemAcl','Write-BridgeLauncher','New-BridgeTaskAction','Initialize-BridgeBatchLogonApi','Ensure-BridgeBatchLogon')) {
             $fn = $ast.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name},$false)
             if (-not $fn) { throw "Missing helper $name" }
             . ([scriptblock]::Create($fn.Extent.Text))
@@ -104,6 +104,23 @@ jobs:
             $identity = "$env:COMPUTERNAME\$user"
             $usersGroup = Get-LocalGroup -SID 'S-1-5-32-545'
             if (-not @(Get-LocalGroupMember -Group $usersGroup.Name | Where-Object {$_.SID -eq $account.SID}).Count) { Add-LocalGroupMember -Group $usersGroup.Name -Member $identity }
+            Initialize-BridgeBatchLogonApi
+            $sid = $account.SID.Value
+            $adminGroup = Get-LocalGroup -SID 'S-1-5-32-544'
+            if (@(Get-LocalGroupMember -Group $adminGroup.Name | Where-Object {$_.SID -eq $account.SID}).Count) { throw 'Fixture account unexpectedly administrator' }
+            $hadRight = [CreatorPulse.BatchLogon]::Has($sid,'SeBatchLogonRight')
+            [CreatorPulse.BatchLogon]::Change($sid,'SeDenyBatchLogonRight',$true)
+            try {
+                $denied = $false
+                try { $null = Ensure-BridgeBatchLogon -Sid $account.SID -User $user -Password $password } catch { $denied = $_.Exception.Message -like '*explicitly denied*' }
+                if (-not $denied -or -not [CreatorPulse.BatchLogon]::Has($sid,'SeDenyBatchLogonRight') -or [CreatorPulse.BatchLogon]::Has($sid,'SeBatchLogonRight') -ne $hadRight) { throw 'Deny policy preservation failed' }
+            } finally {
+                [CreatorPulse.BatchLogon]::Change($sid,'SeDenyBatchLogonRight',$false)
+            }
+            $granted = Ensure-BridgeBatchLogon -Sid $account.SID -User $user -Password $password
+            if ($granted -and -not [CreatorPulse.BatchLogon]::Has($sid,'SeBatchLogonRight')) { throw 'Expected explicit batch right absent' }
+            if (Ensure-BridgeBatchLogon -Sid $account.SID -User $user -Password $password) { throw 'Batch provisioning is not idempotent' }
+            Write-Host "Effective batch logon, Deny preservation and idempotence passed; explicit grant=$granted"
             $null = New-Item -ItemType Directory -Path $root
             $bridge = Join-Path $root 'local-bridge'
             $runtime = Join-Path $root 'python'
@@ -153,12 +170,40 @@ jobs:
             $owner = Invoke-CimMethod -InputObject $proc -MethodName GetOwner
             if ($owner.ReturnValue -ne 0 -or $owner.User -ne $user) { throw 'Fixture identity mismatch' }
             Write-Host 'Real restricted-user scheduled task: authenticated PONG.'
+            $query = Invoke-RestMethod -Uri 'http://127.0.0.1:8766/storage/v1' -Method Post -Headers @{Authorization="Bearer $token"} -ContentType 'application/json' -Body '["HGETALL","creatorpulse:v3:vault"]' -TimeoutSec 10
+            if ($null -eq $query.result -or @($query.result).Count -ne 0) { throw 'Unexpected fixture SQLite read' }
+            $db = Join-Path $data 'creatorpulse.sqlite3'
+            if (-not (Test-Path -LiteralPath $db -PathType Leaf)) { throw 'Fixture SQLite file missing' }
+            Stop-ScheduledTask -TaskName $task
+            for ($i=0; $i -lt 30 -and (Get-NetTCPConnection -LocalPort 8766 -State Listen -ErrorAction SilentlyContinue); $i++) { Start-Sleep -Seconds 1 }
+            if (Get-NetTCPConnection -LocalPort 8766 -State Listen -ErrorAction SilentlyContinue) { throw 'Fixture task did not stop' }
+            Start-ScheduledTask -TaskName $task
+            $restarted = $false
+            for ($i=0; $i -lt 45; $i++) {
+                try {
+                    $response = Invoke-RestMethod -Uri 'http://127.0.0.1:8766/storage/v1' -Method Post -Headers @{Authorization="Bearer $token"} -ContentType 'application/json' -Body '["PING"]' -TimeoutSec 2
+                    if ($response.result -eq 'PONG') { $restarted = $true; break }
+                } catch {}
+                Start-Sleep -Seconds 1
+            }
+            if (-not $restarted) { throw 'Fixture restart PING failed' }
+            $listener = @(Get-NetTCPConnection -LocalPort 8766 -State Listen)
+            if ($listener.Count -ne 1 -or $listener[0].LocalAddress -ne '127.0.0.1') { throw 'Restart listener mismatch' }
+            $owner = Invoke-CimMethod -InputObject (Get-CimInstance Win32_Process -Filter "ProcessId=$($listener[0].OwningProcess)") -MethodName GetOwner
+            if ($owner.ReturnValue -ne 0 -or $owner.User -ne $user) { throw 'Restart identity mismatch' }
+            Write-Host 'SQLite read and restricted-user task restart: authenticated PONG.'
           } finally {
             if (Get-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue) {
                 Stop-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue
                 Unregister-ScheduledTask -TaskName $task -Confirm:$false
             }
             if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
-            if ($account) { Remove-LocalUser -Name $user }
+            if ($account) {
+                Initialize-BridgeBatchLogonApi
+                foreach ($right in @('SeBatchLogonRight','SeDenyBatchLogonRight')) {
+                    if ([CreatorPulse.BatchLogon]::Has($account.SID.Value,$right)) { [CreatorPulse.BatchLogon]::Change($account.SID.Value,$right,$false) }
+                }
+                Remove-LocalUser -Name $user
+            }
             Remove-Variable password,token -ErrorAction SilentlyContinue
           }

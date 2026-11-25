@@ -53,6 +53,120 @@ function Set-BridgeItemAcl($Item, [Security.Principal.SecurityIdentifier]$Servic
     $rules = @($actual.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]))
     if (-not $actual.AreAccessRulesProtected -or $actual.GetOwner([Security.Principal.SecurityIdentifier]).Value -ne $adminsSid.Value -or $rules.Count -ne 3 -or @($rules | Where-Object { $_.IdentityReference.Value -notin $allowed -or $_.AccessControlType -ne 'Allow' }).Count -or @($rules.IdentityReference.Value | Sort-Object -Unique).Count -ne 3) { throw 'ACL verification failed; do not start Bridge.' }
 }
+# Use LSA to modify exactly one account/right, never rewrite the machine's policy.
+# An actual batch logon checks the effective policy (including group Deny and credentials).
+function Initialize-BridgeBatchLogonApi {
+    if ('CreatorPulse.BatchLogon' -as [type]) { return }
+    Add-Type -TypeDefinition @'
+using System;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+using System.Security.Principal;
+namespace CreatorPulse {
+    public static class BatchLogon {
+        [StructLayout(LayoutKind.Sequential)]
+        struct Attributes {
+            public uint Length;
+            public IntPtr RootDirectory, ObjectName;
+            public uint Flags;
+            public IntPtr SecurityDescriptor, SecurityQualityOfService;
+        }
+        [StructLayout(LayoutKind.Sequential)]
+        struct LsaString {
+            public ushort Length, MaximumLength;
+            public IntPtr Buffer;
+        }
+        [DllImport("advapi32.dll")] static extern uint LsaOpenPolicy(IntPtr system, ref Attributes attrs, uint access, out IntPtr policy);
+        [DllImport("advapi32.dll")] static extern uint LsaClose(IntPtr policy);
+        [DllImport("advapi32.dll")] static extern uint LsaFreeMemory(IntPtr buffer);
+        [DllImport("advapi32.dll")] static extern uint LsaNtStatusToWinError(uint status);
+        [DllImport("advapi32.dll")] static extern uint LsaEnumerateAccountRights(IntPtr policy, byte[] sid, out IntPtr rights, out uint count);
+        [DllImport("advapi32.dll")] static extern uint LsaAddAccountRights(IntPtr policy, byte[] sid, LsaString[] rights, uint count);
+        [DllImport("advapi32.dll")] static extern uint LsaRemoveAccountRights(IntPtr policy, byte[] sid, [MarshalAs(UnmanagedType.U1)] bool all, LsaString[] rights, uint count);
+        [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool LogonUserW(string user, string domain, string password, int type, int provider, out IntPtr token);
+        [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
+        static void Check(uint status) {
+            if (status != 0) throw new Win32Exception((int)LsaNtStatusToWinError(status));
+        }
+        static IntPtr Open(uint access) {
+            Attributes attrs = new Attributes();
+            attrs.Length = (uint)Marshal.SizeOf(typeof(Attributes));
+            IntPtr policy;
+            Check(LsaOpenPolicy(IntPtr.Zero, ref attrs, access, out policy));
+            return policy;
+        }
+        static byte[] BinarySid(string value) {
+            SecurityIdentifier sid = new SecurityIdentifier(value);
+            byte[] bytes = new byte[sid.BinaryLength];
+            sid.GetBinaryForm(bytes, 0);
+            return bytes;
+        }
+        public static bool Has(string sid, string right) {
+            IntPtr policy = Open(0x800); // POLICY_LOOKUP_NAMES
+            IntPtr buffer = IntPtr.Zero;
+            try {
+                uint count;
+                uint status = LsaEnumerateAccountRights(policy, BinarySid(sid), out buffer, out count);
+                if (status == 0xC0000034u) return false; // no account rights
+                Check(status);
+                int stride = Marshal.SizeOf(typeof(LsaString));
+                for (uint i = 0; i < count; i++) {
+                    LsaString s = (LsaString)Marshal.PtrToStructure(IntPtr.Add(buffer, checked((int)i * stride)), typeof(LsaString));
+                    if (String.Equals(Marshal.PtrToStringUni(s.Buffer, s.Length / 2), right, StringComparison.Ordinal)) return true;
+                }
+                return false;
+            } finally {
+                if (buffer != IntPtr.Zero) LsaFreeMemory(buffer);
+                LsaClose(policy);
+            }
+        }
+        public static void Change(string sid, string right, bool add) {
+            // Only these batch rights are supported; Deny mutations are used by the disposable CI fixture only.
+            if (right != "SeBatchLogonRight" && right != "SeDenyBatchLogonRight") throw new ArgumentException("Unsupported right");
+            IntPtr policy = Open(add ? 0x810u : 0x800u); // LOOKUP_NAMES + CREATE_ACCOUNT only when adding
+            IntPtr buffer = IntPtr.Zero;
+            try {
+                buffer = Marshal.StringToHGlobalUni(right);
+                LsaString s = new LsaString { Length = (ushort)(right.Length * 2), MaximumLength = (ushort)((right.Length + 1) * 2), Buffer = buffer };
+                LsaString[] rights = new LsaString[] { s };
+                Check(add ? LsaAddAccountRights(policy, BinarySid(sid), rights, 1) : LsaRemoveAccountRights(policy, BinarySid(sid), false, rights, 1));
+            } finally {
+                if (buffer != IntPtr.Zero) Marshal.FreeHGlobal(buffer);
+                LsaClose(policy);
+            }
+        }
+        public static int Test(string user, string domain, string password) {
+            IntPtr token;
+            if (!LogonUserW(user, domain, password, 4, 0, out token)) return Marshal.GetLastWin32Error();
+            CloseHandle(token);
+            return 0;
+        }
+    }
+}
+'@ -ErrorAction Stop
+}
+function Ensure-BridgeBatchLogon([Security.Principal.SecurityIdentifier]$Sid, [string]$User, [string]$Password) {
+    Initialize-BridgeBatchLogonApi
+    $local = Get-LocalUser -Name $User -ErrorAction Stop
+    if ($local.SID.Value -ne $Sid.Value -or -not $local.Enabled) { throw 'Batch logon account identity mismatch.' }
+    $right = 'SeBatchLogonRight'
+    if ([CreatorPulse.BatchLogon]::Has($Sid.Value,'SeDenyBatchLogonRight')) { throw 'Batch logon explicitly denied for the dedicated account; policy left unchanged.' }
+    $before = [CreatorPulse.BatchLogon]::Test($User,$env:COMPUTERNAME,$Password)
+    if ($before -eq 0) { return $false }
+    if ($before -ne 1385) { throw "Batch logon credential/account check failed (Win32 $before); policy left unchanged." }
+    if ([CreatorPulse.BatchLogon]::Has($Sid.Value,$right)) { throw 'Batch logon right is already assigned but effective logon is denied; policy left unchanged.' }
+    [CreatorPulse.BatchLogon]::Change($Sid.Value,$right,$true)
+    try {
+        if (-not [CreatorPulse.BatchLogon]::Has($Sid.Value,$right)) { throw 'Batch logon grant verification failed.' }
+        $after = [CreatorPulse.BatchLogon]::Test($User,$env:COMPUTERNAME,$Password)
+        if ($after -ne 0) { throw "Effective batch logon still failed (Win32 $after); inspect owner-managed Deny/GPO policy." }
+    } catch {
+        # Roll back only the right added by this invocation. Never remove Deny or other accounts' rights.
+        [CreatorPulse.BatchLogon]::Change($Sid.Value,$right,$false)
+        throw
+    }
+    return $true
+}
 # Stable file-based launcher avoids nested quoting in the Task Scheduler action.
 function Write-BridgeLauncher([string]$Path) {
     $source = @'
@@ -114,7 +228,7 @@ if ($root -ne 'C:\ProgramData\CreatorPulseBridge') { throw 'Unexpected service r
 $items = @(Get-BridgeTree -Path $root)
 $top = @(Get-ChildItem -LiteralPath $root -Force)
 if (@($top | Where-Object { $_.Name -notin @('local-bridge','python','python-3.13.17-embed-amd64.zip','sandbox-launcher.py') }).Count) { throw 'Unexpected contents in protected root; inspect before changing permissions.' }
-Write-Host "Installer will replace permissions only on $root and its $($items.Count - 1) descendants. SYSTEM and Administrators: FullControl; CreatorPulseBridge: read/execute on runtime and code, Modify only in Sandbox data. Other entries removed. Existing contents and secrets retained."
+Write-Host "Installer will replace permissions only on $root and its $($items.Count - 1) descendants. SYSTEM and Administrators: FullControl; CreatorPulseBridge: read/execute on runtime and code, Modify only in Sandbox data. Other entries removed. Existing contents and secrets retained. If needed, the installer will grant SeBatchLogonRight only to the dedicated account SID; Deny and other accounts' rights will not be modified."
 if ((Read-Host 'Type REVIEWED after independently reviewing this script, protected code and scope') -cne 'REVIEWED') { throw 'Owner review required.' }
 if ($existingTask -and $existingTask.State -eq 'Running') {
     Stop-ScheduledTask -TaskName $taskName -TaskPath '\'
@@ -160,6 +274,8 @@ $password = Read-Host "Password for $identity (local only)" -AsSecureString
 $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($password)
 try {
     $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
+    $granted = Ensure-BridgeBatchLogon -Sid $account.SID -User $account.Name -Password $plain
+    Write-Host "Effective batch logon verified; explicit right added: $granted"
     $registration = @{TaskName=$taskName;TaskPath='\';Action=$action;Trigger=$trigger;Settings=$settings;User=$identity;Password=$plain;RunLevel='Limited'}
     if ($existingTask) { $registration.Force = $true }
     Register-ScheduledTask @registration | Out-Null
