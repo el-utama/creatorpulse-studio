@@ -113,19 +113,19 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
   return (
     <Card className="overflow-hidden rounded-2xl border-slate-200 shadow-none">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
+        <CardTitle className="flex items-center gap-2 text-base md:text-lg">
           <Video className="h-5 w-5 text-indigo-700" aria-hidden="true" />
           Unggah & Publikasikan Video
         </CardTitle>
         <CardDescription className="text-sm">
-          Publikasi ke akun <strong>{accountName}</strong>. Pilih mode dan atur opsi sebelum menerbitkan.
+          Akun tujuan: <strong className="break-words">{accountName}</strong>.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-4 md:space-y-6">
         {/* Tujuan publikasi */}
-        <div className="space-y-3 rounded-xl border bg-slate-50 p-4">
+        <div className="space-y-2 rounded-lg border bg-slate-50 p-3 md:p-4">
           <Label htmlFor="mode" className="text-xs font-medium text-muted-foreground">
-            Mode Posting
+            Mode publikasi
           </Label>
           <div
             role="group"
@@ -159,7 +159,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
           </div>
         </div>
 
-        <div className="space-y-2"><h3 className="text-sm font-medium">Sumber video</h3><div role="group" aria-label="Sumber video" className="flex flex-wrap gap-2"><Button type="button" variant={source === "url" ? "default" : "outline"} aria-pressed={source === "url"} disabled={publishing} onClick={() => {if (source === "url") return;setSource("url");setDuration(null);setConsent(false);setReview(false);}}>Tautan HTTPS</Button><Button type="button" variant={source === "file" ? "default" : "outline"} aria-pressed={source === "file"} disabled={publishing} onClick={() => {if (source === "file") return;setSource("file");setDuration(null);setConsent(false);setReview(false);}}>File perangkat</Button></div></div>
+        <div className="space-y-2"><h3 className="text-sm font-medium">Sumber video</h3><div role="group" aria-label="Sumber video" className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap"><Button type="button" variant={source === "url" ? "default" : "outline"} className="min-w-0 px-2 text-xs sm:px-4 sm:text-sm" aria-pressed={source === "url"} disabled={publishing} onClick={() => {if (source === "url") return;setSource("url");setDuration(null);setConsent(false);setReview(false);}}>Tautan HTTPS</Button><Button type="button" variant={source === "file" ? "default" : "outline"} className="min-w-0 px-2 text-xs sm:px-4 sm:text-sm" aria-pressed={source === "file"} disabled={publishing} onClick={() => {if (source === "file") return;setSource("file");setDuration(null);setConsent(false);setReview(false);}}>File perangkat</Button></div></div>
         {source === "url" ? (
           <div className="space-y-2">
             <Label htmlFor="video-url" className="text-xs font-medium">
@@ -175,7 +175,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
             />
             {mode === "profile" && validUrl && <video key={videoUrl} aria-label="Pratinjau video" src={videoUrl ?? undefined} controls preload="metadata" className="w-full max-h-[360px] bg-black rounded-lg" onLoadedMetadata={e=>setDuration(e.currentTarget.duration)} onError={()=>setDuration(null)}/>}
             <p className="text-xs text-muted-foreground">
-              Gunakan URL dari domain atau awalan URL yang telah diverifikasi untuk aplikasi TikTok.
+              Gunakan URL yang terverifikasi di TikTok Developer.
             </p>
           </div>
         ) : (
@@ -223,7 +223,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
               </div>
             )}
             <p className="text-xs text-muted-foreground">
-              Maksimal 4 MB. Untuk video lebih besar, gunakan tautan HTTPS.
+              Maks. 4 MB. Video lebih besar: gunakan URL.
             </p>
           </div>
         )}
@@ -268,37 +268,37 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
         </div>
 
         {/* Interaction checkboxes - stack on mobile */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <label className="flex items-center gap-2 cursor-pointer text-sm leading-none">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-3">
+          <label className="flex min-h-11 items-center gap-2 cursor-pointer text-sm leading-tight">
             <Checkbox
               disabled={!capabilities || capabilities.comment_disabled || publishing}
               checked={!disableComment}
               onCheckedChange={(v) => { setDisableComment(v !== true); setConsent(false); setReview(false); }}
-              className="h-11 w-11"
+              className="h-5 w-5 shrink-0"
               aria-label="Izinkan komentar"
             />
             <span className="flex items-center gap-1 text-sm">
               Izinkan komentar
             </span>
           </label>
-          <label className="flex items-center gap-2 cursor-pointer text-sm leading-none">
+          <label className="flex min-h-11 items-center gap-2 cursor-pointer text-sm leading-tight">
             <Checkbox
               disabled={!capabilities || capabilities.duet_disabled || publishing}
               checked={!disableDuet}
               onCheckedChange={(v) => { setDisableDuet(v !== true); setConsent(false); setReview(false); }}
-              className="h-11 w-11"
+              className="h-5 w-5 shrink-0"
               aria-label="Izinkan duet"
             />
             <span className="flex items-center gap-1 text-sm">
               Izinkan duet
             </span>
           </label>
-          <label className="flex items-center gap-2 cursor-pointer text-sm leading-none">
+          <label className="flex min-h-11 items-center gap-2 cursor-pointer text-sm leading-tight">
             <Checkbox
               disabled={!capabilities || capabilities.stitch_disabled || publishing}
               checked={!disableStitch}
               onCheckedChange={(v) => { setDisableStitch(v !== true); setConsent(false); setReview(false); }}
-              className="h-11 w-11"
+              className="h-5 w-5 shrink-0"
               aria-label="Izinkan stitch"
             />
             <span className="flex items-center gap-1 text-sm">
@@ -315,7 +315,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
         {mode === "profile" && <p className="text-sm whitespace-pre-wrap break-words">Keterangan: {caption || "(tanpa caption)"}</p>}
         {mode === "profile" && <p className="text-sm">Dengan memposting, Anda menyetujui <a className="underline" href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noreferrer">ketentuan penggunaan musik TikTok</a>{commercial && brandContent && <> dan <a className="underline" href="https://www.tiktok.com/legal/page/global/bc-policy/en" target="_blank" rel="noreferrer">kebijakan konten bermerek</a></>}. Konten mungkin memerlukan beberapa menit untuk diproses.</p>}
         {/* Consent */}
-        <div className="flex items-start gap-2 pt-2 border-t border-border">
+        <div className="flex min-h-11 items-start gap-2 pt-2 border-t border-border">
           <Checkbox
             id="publication-consent"
             disabled={publishing}
@@ -324,9 +324,9 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
             aria-required="true"
             aria-describedby="consent-hint"
             aria-label="Saya menyetujui ketentuan dan mengizinkan CreatorPulse Studio memposting video ini ke akun TikTok saya."
-            className="h-11 w-11"
+            className="h-5 w-5 shrink-0"
           />
-          <label htmlFor="publication-consent" id="consent-hint" className="text-sm leading-relaxed">
+          <label htmlFor="publication-consent" id="consent-hint" className="text-sm leading-snug">
             Saya menyetujui ketentuan dan mengizinkan CreatorPulse Studio memposting video ini ke akun TikTok saya.
           </label>
         </div></section>}

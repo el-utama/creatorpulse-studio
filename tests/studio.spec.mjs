@@ -293,3 +293,22 @@ test('navigation highlights exactly the current tab immediately and mobile edito
  await page.setViewportSize({width:390,height:844});await page.getByRole('tab',{name:'Buat post'}).click();
  const editor=page.getByText('Unggah & Publikasikan Video',{exact:true}),notes=page.getByText('Catatan Penting',{exact:true});await expect(editor).toBeVisible();await expect(notes).toBeVisible();expect((await editor.boundingBox()).y).toBeLessThan((await notes.boundingBox()).y);
 });
+
+test('mobile dashboard has compact toolbar, native bottom navigation and readable input sizes',async({page,context})=>{
+ await context.addCookies([{name:'creatorpulse_access_token',value:'mock-only',url:'http://localhost:3000'}]);
+ await page.route('**/api/tiktok/analytics',route=>route.fulfill({json:{user_info:{open_id:'mobile-native',display_name:'Nama kreator yang sangat panjang untuk pengujian',avatar_url:'',follower_count:12345678,following_count:20,likes_count:500,video_count:0},videos:{data:[]}}}));
+ await page.route('**/api/gateway/v1/health',route=>route.fulfill({json:{configured:false}}));
+ for(const width of [320,390,430]){
+  await page.setViewportSize({width,height:844});await page.goto('/dashboard');await expect(page.getByRole('heading',{name:/Halo,/})).toBeVisible();
+  const nav=page.locator('.studio-sidebar');const rect=await nav.boundingBox();expect(rect.y+rect.height).toBeCloseTo(844,0);expect(rect.height).toBeLessThanOrEqual(70);
+  expect(await page.locator('.studio-welcome').evaluate(el=>el.getBoundingClientRect().y)).toBeLessThan(155);
+  expect(await page.getByRole('heading',{level:1}).evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeLessThanOrEqual(20);
+  expect(await page.locator('[data-metric-value]').evaluateAll(els=>els.every(el=>el.scrollWidth<=el.clientWidth+1))).toBe(true);
+  await page.mouse.move(width-2,2);await page.screenshot({path:'test-results/mobile-native-overview-'+width+'.png'});
+  await page.getByRole('tab',{name:'Buat post'}).click();await expect(page.getByLabel('Tautan video HTTPS')).toBeVisible();expect(await page.getByLabel('Tautan video HTTPS').evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
+  expect(await page.getByRole('button',{name:'Tautan HTTPS',exact:true}).evaluate(el=>Math.round(el.getBoundingClientRect().top))).toBe(await page.getByRole('button',{name:'File perangkat',exact:true}).evaluate(el=>Math.round(el.getBoundingClientRect().top)));
+  await page.mouse.move(width-2,2);await page.screenshot({path:'test-results/mobile-native-publish-'+width+'.png'});
+  await page.getByRole('tab',{name:'AI Agent'}).click();await expect(page.getByText('Belum disiapkan',{exact:true})).toBeVisible();await page.screenshot({path:'test-results/mobile-native-agent-'+width+'.png'});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+ }
+});
