@@ -61,7 +61,7 @@ test('direct post requires account capabilities and explicit privacy', async ({p
   await expect(page.getByRole('checkbox',{name:'Izinkan komentar'})).toBeDisabled();await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'test-results/ux-direct-desktop.png',fullPage:true});
   await page.getByRole('button',{name:'Review'}).click();
   await page.locator('#publication-consent').click();
-  await page.getByRole('button',{name:'Publish'}).click();
+  await page.getByRole('button',{name:'Publish',exact:true}).click();
   await expect(page.getByText('Terpublikasi',{exact:true})).toBeVisible();
 });
 
@@ -300,7 +300,7 @@ test('mobile dashboard has compact toolbar, native bottom navigation and readabl
  await page.route('**/api/gateway/v1/health',route=>route.fulfill({json:{configured:false}}));
  for(const width of [320,390,430]){
   await page.setViewportSize({width,height:844});await page.goto('/dashboard');await expect(page.getByRole('heading',{name:'Account performance',exact:true})).toBeVisible();
-  const nav=page.locator('.v4-sidebar');const rect=await nav.boundingBox();expect(rect.y+rect.height).toBeCloseTo(844,0);expect(rect.height).toBeLessThanOrEqual(70);
+  const sidebar=page.locator('.v4-sidebar');const rect=await sidebar.boundingBox();expect(rect.y+rect.height).toBeCloseTo(844,0);expect(rect.height).toBeLessThanOrEqual(70);
   expect(await page.getByRole('heading',{level:1}).evaluate(el=>el.getBoundingClientRect().y)).toBeLessThan(120);
   expect(await page.getByRole('heading',{level:1}).evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeLessThanOrEqual(20);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
