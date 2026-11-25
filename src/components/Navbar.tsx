@@ -28,13 +28,13 @@ export function Navbar() {
       <div className="flex h-14 items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-2">
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-indigo-700 text-white"><Play className="h-4 w-4" aria-hidden="true" /></span>
-          <Link href="/" className="text-sm sm:text-base font-semibold tracking-tight">
+          <Link href={pathname === "/dashboard" ? "/dashboard" : "/"} className="text-sm sm:text-base font-semibold tracking-tight">
             CreatorPulse Studio
           </Link>
         </div>
 
         {/* Desktop navigation */}
-        <div className="hidden md:flex items-center gap-4">
+        <div className={`${pathname === "/dashboard" ? "hidden" : "hidden md:flex"} items-center gap-4`}>
           <Link
             href="/"
             className={`text-sm font-medium transition-colors ${
@@ -83,14 +83,14 @@ export function Navbar() {
         <div className="md:hidden flex items-center">
           <Button
             variant="ghost"
-            size="lg"
+            size="icon"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label={mobileMenuOpen ? "Tutup menu" : "Buka menu"}
             aria-expanded={mobileMenuOpen}
             aria-controls="mobile-menu"
-            className="h-11 w-11"
+            className="h-11 w-11 shrink-0 p-0 text-slate-700"
           >
-            {mobileMenuOpen ? <X className="h-6 w-6" aria-hidden="true" /> : <Menu className="h-6 w-6" aria-hidden="true" />}
+            {mobileMenuOpen ? <X className="h-6 w-6 shrink-0" aria-hidden="true" /> : <Menu className="h-6 w-6 shrink-0" aria-hidden="true" />}
           </Button>
         </div>
       </div>
@@ -99,7 +99,7 @@ export function Navbar() {
       {mobileMenuOpen && (
         <div id="mobile-menu" className="md:hidden border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90">
           <div className="px-4 py-4 space-y-3">
-            <Link
+            {pathname !== "/dashboard" && <><Link
               href="/"
               onClick={() => setMobileMenuOpen(false)}
               className={`block px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
@@ -116,7 +116,7 @@ export function Navbar() {
               }`}
             >
               Dasbor
-            </Link>
+            </Link></>}
             <Link
               href="/privacy"
               onClick={() => setMobileMenuOpen(false)}

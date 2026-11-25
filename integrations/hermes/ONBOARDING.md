@@ -4,7 +4,7 @@
 
 ```text
 Hubungkan profil Hermes yang sedang aktif dengan CreatorPulse Studio V3. Jangan mengganti model/provider NVIDIA NIM, konfigurasi WhatsApp/Telegram, profil, atau toolset lain. Jangan hanya menjelaskan; gunakan terminal untuk menjalankan langkah aman yang tersedia.
-1. Ambil repository https://github.com/el-utama/creatorpulse-studio branch feat/agent-gateway-v3 ke direktori kerja baru (atau gunakan checkout yang sudah ada). Jangan menimpa pekerjaan lokal. Catat commit.
+1. Ambil repository https://github.com/el-utama/creatorpulse-studio branch main ke direktori kerja baru (atau gunakan checkout yang sudah ada). Jangan menimpa pekerjaan lokal. Catat commit.
 2. Baca integrations/hermes/ONBOARDING.md. Jalankan python integrations/hermes/bootstrap.py tanpa --apply untuk rencana terlebih dahulu. Gunakan interpreter Python Hermes yang memiliki PyYAML. Pastikan HERMES_HOME adalah profil chat yang benar; jika ambigu, minta lokasi profil saja.
 3. Jalankan bootstrap.py --apply pada profil tersebut setelah rencana sesuai. Jika agent key belum tersedia, minta saya memasangnya secara lokal pada .env profil, atau menyediakan path file hermes.env yang hanya berisi agent key melalui --agent-env. JANGAN meminta saya mengirim key, token TikTok, operator key, bridge key, atau file .env melalui chat.
 4. Jalankan diagnosis adapter lokal (--check) sesuai dokumentasi dan hermes mcp test creatorpulse bila tersedia. Jika gateway belum dikonfigurasi, laporkan blocker yang tepat, jangan mengarang koneksi berhasil. Jangan mengubah konfigurasi TikTok Developer, mengaktifkan layanan berbayar, atau mengambil alih Vercel.
