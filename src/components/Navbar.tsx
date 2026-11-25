@@ -25,10 +25,10 @@ export function Navbar() {
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="flex h-14 items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className="flex h-12 md:h-14 items-center justify-between px-3 sm:px-6 lg:px-8">
         <div className="flex items-center gap-2">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-indigo-700 text-white"><Play className="h-4 w-4" aria-hidden="true" /></span>
-          <Link href={pathname === "/dashboard" ? "/dashboard" : "/"} className="text-sm sm:text-base font-semibold tracking-tight">
+          <span className="grid h-8 w-8 md:h-9 md:w-9 place-items-center rounded-lg md:rounded-xl bg-indigo-700 text-white"><Play className="h-4 w-4" aria-hidden="true" /></span>
+          <Link href={pathname === "/dashboard" ? "/dashboard" : "/"} className="text-sm md:text-base font-semibold tracking-tight">
             CreatorPulse Studio
           </Link>
         </div>

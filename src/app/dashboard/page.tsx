@@ -40,6 +40,7 @@ interface UserProfile {
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("analytics");
+  useEffect(()=>{if(window.matchMedia("(max-width: 767px)").matches)window.scrollTo({top:0,behavior:"auto"});},[activeTab]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [videos, setVideos] = useState<import("@/types/tiktok").TikTokVideo[]>([]);
   const [cursor,setCursor]=useState<number|null>(null);
@@ -188,30 +189,32 @@ export default function DashboardPage() {
     <div className="studio-shell min-h-screen flex flex-col">
       <Navbar />
 
-      <main className="flex-1 px-4 sm:px-6 lg:px-8 py-5 lg:py-8" id="main-content">
+      <main className="studio-main flex-1 px-3 sm:px-6 lg:px-8 py-3 md:py-5 lg:py-8" id="main-content">
         <div className="max-w-[1440px] mx-auto">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 lg:mb-8">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-                {({analytics:"Ringkasan",content:"Perpustakaan konten",publish:"Buat publikasi",status:"Aktivitas publikasi",agent:"Integrasi AI"} as Record<string,string>)[activeTab] || "Studio Kreator"}
+          <div className="flex items-center justify-between gap-2 mb-3 md:gap-3 md:mb-6 lg:mb-8">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg leading-tight md:text-3xl font-semibold tracking-tight text-foreground">
+                <span className="md:hidden">{({analytics:"Ringkasan",content:"Konten",publish:"Buat post",status:"Aktivitas",agent:"Integrasi AI"} as Record<string,string>)[activeTab]}</span><span className="hidden md:inline">{({analytics:"Ringkasan",content:"Perpustakaan konten",publish:"Buat publikasi",status:"Aktivitas publikasi",agent:"Integrasi AI"} as Record<string,string>)[activeTab] || "Studio Kreator"}</span>
               </h1>
-              <p className="text-xs sm:text-sm text-muted-foreground">
+              <p className="hidden md:block text-sm text-muted-foreground">
                 {({analytics:"Analitik akun",content:"Konten TikTok",publish:"Editor publikasi",status:"Riwayat & status",agent:"Koneksi & operasional Hermes"} as Record<string,string>)[activeTab]}
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="w-full sm:w-56"><AccountManager name={profile?.display_name} disabled={publishing}/></div>
-              {lastUpdated && activeTab!=="agent" && <span className="text-xs text-muted-foreground">Diperbarui {lastUpdated}</span>}
+            <div className="flex min-w-0 shrink-0 items-center gap-1.5 md:gap-2">
+              <div className="w-[105px] min-[375px]:w-[138px] md:w-56"><AccountManager name={profile?.display_name} disabled={publishing}/></div>
+              {lastUpdated && activeTab!=="agent" && <span className="hidden lg:inline text-xs text-muted-foreground">Diperbarui {lastUpdated}</span>}
               {activeTab!=="agent"&&<Button
                 variant="outline"
                 size="sm"
                 onClick={fetchAnalytics}
                 disabled={analyticsLoading || publishing || moreLoading}
-                className="flex items-center gap-1.5 ml-auto sm:ml-0"
+                aria-label="Muat ulang"
+                title={lastUpdated?"Diperbarui "+lastUpdated:"Muat ulang"}
+                className="flex h-11 w-11 shrink-0 items-center justify-center gap-1.5 p-0 md:h-9 md:w-auto md:px-3"
               >
-                <RefreshCw className="h-4 w-4" />
-                {analyticsLoading ? "Memuat..." : "Muat ulang"}
+                <RefreshCw className={"h-4 w-4 shrink-0 "+(analyticsLoading?"animate-spin":"")} aria-hidden="true"/>
+                <span className="hidden md:inline">{analyticsLoading ? "Memuat..." : "Muat ulang"}</span>
               </Button>}
             </div>
           </div>
@@ -237,14 +240,14 @@ export default function DashboardPage() {
             <aside className="studio-sidebar">
  <div className="hidden min-w-0 lg:block px-2 pb-3"><p className="mb-3 text-[11px] font-medium text-slate-500">Akun aktif</p><div className="flex items-center gap-2.5 min-w-0"><div className="h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-indigo-100 text-indigo-700 grid place-items-center text-sm font-semibold">{profile?.avatar_url?<img src={profile.avatar_url} alt="" className="h-full w-full object-cover"/>:profile?.display_name?.slice(0,1)||"CP"}</div><div className="min-w-0"><p className="truncate text-sm font-semibold">{profile?.display_name||"CreatorPulse"}</p><p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500"><span className={"h-1.5 w-1.5 shrink-0 rounded-full "+(profile?"bg-emerald-600":"bg-slate-400")}/>{profile?"Terhubung":"Belum terhubung"}</p></div></div></div>
  <TabsList aria-label="Navigasi studio" className="studio-nav grid h-auto w-full grid-cols-5 gap-1 bg-transparent p-0 lg:grid-cols-1 lg:justify-start">
- {([{value:"analytics",label:"Ringkasan",Icon:LayoutDashboard},{value:"content",label:"Konten",Icon:Film},{value:"publish",label:"Buat post",Icon:PlusSquare},{value:"status",label:"Aktivitas",Icon:ListChecks},{value:"agent",label:"AI Agent",Icon:Bot}]).map(({value,label,Icon})=><TabsTrigger key={value} value={value} className="studio-tab flex min-h-11 min-w-0 flex-col items-center justify-center gap-1 px-1 py-1.5 text-[10px] min-[375px]:text-xs sm:text-sm lg:flex-row lg:justify-start lg:gap-2.5 lg:px-2.5"><Icon className="h-4 w-4 shrink-0" aria-hidden="true"/><span className="truncate">{label}</span></TabsTrigger>)}
+ {([{value:"analytics",label:"Ringkasan",Icon:LayoutDashboard},{value:"content",label:"Konten",Icon:Film},{value:"publish",label:"Buat post",Icon:PlusSquare},{value:"status",label:"Aktivitas",Icon:ListChecks},{value:"agent",label:"AI Agent",Icon:Bot}]).map(({value,label,Icon})=><TabsTrigger key={value} value={value} className="studio-tab flex min-h-12 min-w-0 flex-col items-center justify-center gap-0.5 px-0.5 py-1.5 text-[10px] min-[375px]:text-[11px] md:text-sm lg:min-h-11 lg:flex-row lg:justify-start lg:gap-2.5 lg:px-2.5"><Icon className="h-5 w-5 shrink-0 lg:h-4 lg:w-4" aria-hidden="true"/><span className="truncate">{label}</span></TabsTrigger>)}
  </TabsList>
  <p className="hidden lg:block mt-3 border-t pt-3 px-2 text-xs text-slate-500">Maksimal 3 akun TikTok</p>
  </aside>
             <div className="min-w-0">
 
             {/* Tab: Analytics */}
-            <TabsContent value="analytics" className="mt-4 space-y-5 lg:mt-0">
+            <TabsContent value="analytics" className="mt-0 space-y-3 md:mt-4 lg:mt-0">
               {/* Profile + Metrics */}
               
               {profile ? (
@@ -270,7 +273,7 @@ export default function DashboardPage() {
               )}
 
             </TabsContent>
-            <TabsContent value="content" className="mt-4 space-y-4 lg:mt-0">
+            <TabsContent value="content" className="mt-0 space-y-3 md:mt-4 lg:mt-0">
               {/* Video List */}
               
               <Card>
@@ -279,7 +282,7 @@ export default function DashboardPage() {
                     Koleksi video
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    Video terbaru dari TikTok. Muat ulang untuk memperbarui data.
+                    Video dari TikTok.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -291,14 +294,14 @@ export default function DashboardPage() {
                     <><VideoList videos={videos} />
                     {moreError && <p role="alert" className="mt-3 text-sm text-destructive">{moreError}</p>}
                     {cursor!==null && <Button type="button" variant="outline" className="mt-4 w-full" onClick={loadMore} disabled={moreLoading}>{moreLoading?"Memuat video…":"Muat video lainnya"}</Button>}
-                    <p className="mt-2 text-xs text-muted-foreground" aria-live="polite">{videos.length} video dimuat. Pencarian dan urutan berlaku untuk video yang sudah dimuat.</p></>
+                    <p className="mt-2 text-xs text-muted-foreground" aria-live="polite">{videos.length} video dimuat. Pencarian hanya pada video ini.</p></>
                   )}
                 </CardContent>
               </Card>
             </TabsContent>
 
             {/* Tab: Publish */}
-            <TabsContent forceMount hidden={activeTab !== "publish"} value="publish" className="mt-4 space-y-4 lg:mt-0">
+            <TabsContent forceMount hidden={activeTab !== "publish"} value="publish" className="mt-0 space-y-3 md:mt-4 lg:mt-0">
               {profile ? (
                 <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-4">
                   <div className="min-w-0">
@@ -326,7 +329,7 @@ export default function DashboardPage() {
                             File dari perangkat: maksimal 4 MB.
                           </li>
                           <li>
-                            Untuk video lebih besar, gunakan tautan HTTPS dari domain terverifikasi.
+                            Video lebih besar: gunakan URL HTTPS terverifikasi.
                           </li>
                           <li>Video tidak disimpan permanen di server kami.</li>
                           <li>
@@ -349,14 +352,14 @@ export default function DashboardPage() {
             </TabsContent>
 
             {/* Tab: Status */}
-            <TabsContent value="status" className="mt-4 space-y-4 lg:mt-0">
+            <TabsContent value="status" className="mt-0 space-y-3 md:mt-4 lg:mt-0">
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-semibold">
                     Riwayat Publikasi
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    Pilih publikasi untuk melihat status. Riwayat disimpan pada browser ini, khusus akun yang terhubung.
+                    Pilih publikasi untuk cek status. Riwayat tersimpan di browser ini.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -377,13 +380,13 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
             </TabsContent>
-            <TabsContent value="agent" className="mt-4 space-y-4 lg:mt-0"><GatewayPanel accountName={profile?.display_name} /></TabsContent>
+            <TabsContent value="agent" className="mt-0 space-y-3 md:mt-4 lg:mt-0"><GatewayPanel accountName={profile?.display_name} /></TabsContent>
             </div>
           </Tabs>
         </div>
       </main>
 
-      <footer className="border-t border-border bg-transparent py-5 px-4">
+      <footer className="hidden md:block border-t border-border bg-transparent py-5 px-4">
         <div className="max-w-[1400px] mx-auto flex flex-col sm:flex-row justify-between items-center gap-3 text-xs sm:text-sm text-muted-foreground">
           <p>© {new Date().getFullYear()} CreatorPulse Studio. All rights reserved.</p>
           <div className="flex sm:gap-6 gap-3">

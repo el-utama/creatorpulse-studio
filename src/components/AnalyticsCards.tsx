@@ -13,13 +13,13 @@ interface MetricCardProps {
 
 export function MetricCard({ title, value, icon: Icon, description, color = "text-foreground" }: MetricCardProps) {
   return (
-    <Card className="min-w-0 shadow-none border-slate-200 rounded-2xl bg-white">
-      <CardHeader className="space-y-1 p-4 sm:p-5">
-        <div className="flex items-center justify-between gap-1"><CardTitle className="text-sm font-medium">{title}</CardTitle><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-indigo-50"><Icon className="h-4 w-4 text-indigo-700" aria-hidden="true"/></span></div>
+    <Card className="min-w-0 shadow-none border-slate-200 rounded-xl md:rounded-2xl bg-white">
+      <CardHeader className="space-y-1 p-3 md:p-5">
+        <div className="flex items-center justify-between gap-1"><CardTitle className="text-xs md:text-sm font-medium">{title}</CardTitle><span className="grid h-7 w-7 md:h-9 md:w-9 shrink-0 place-items-center rounded-xl bg-indigo-50"><Icon className="h-4 w-4 text-indigo-700" aria-hidden="true"/></span></div>
       </CardHeader>
-      <CardContent className="p-4 pt-0 sm:p-5 sm:pt-0">
-        <div className={`break-words text-2xl sm:text-3xl font-semibold tracking-tight tabular-nums ${color}`}>{value}</div>
-        {description && <p className="mt-1 text-xs text-muted-foreground">{description}</p>}
+      <CardContent className="p-3 pt-0 md:p-5 md:pt-0">
+        <div className={`break-words text-xl md:text-3xl font-semibold tracking-tight tabular-nums ${color}`}>{value}</div>
+        {description && <p className="hidden md:block mt-1 text-xs text-muted-foreground">{description}</p>}
       </CardContent>
     </Card>
   );
@@ -37,7 +37,7 @@ export function AnalyticsCards({
   videos: number;
 }) {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
       <MetricCard
         title="Pengikut"
         value={Number.isFinite(followers) ? followers.toLocaleString("id-ID") : "—"}

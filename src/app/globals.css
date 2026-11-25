@@ -88,3 +88,19 @@
  .studio-orbit div { position:absolute; inset:0; border:1px solid #b4b7ff; border-radius:50%; }
  .studio-orbit div:nth-child(2){inset:35px;} .studio-orbit div:nth-child(3){inset:70px;}
 }
+
+/* Mobile dashboard only: short toolbar and a persistent bottom navigation.
+   Keep full-size touch targets and native-size form inputs for iOS. */
+@media (max-width: 767px) {
+ .studio-shell { padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px)); }
+ .studio-shell .studio-main { scroll-padding-bottom: 84px; }
+ .studio-shell .studio-sidebar { position:fixed; inset:auto 0 0; z-index:45; border-radius:0; border-width:1px 0 0; padding:4px 8px calc(4px + env(safe-area-inset-bottom, 0px)); background:#fff; box-shadow:0 -2px 12px rgb(15 23 42 / .04); }
+ .studio-shell .studio-nav { gap:2px; }
+ .studio-shell .studio-nav .studio-tab { min-height:52px; border-radius:9px; }
+ .studio-shell .studio-nav .studio-tab[data-state=active] { background:#eef2ff; color:#4338ca; }
+ .studio-shell .studio-panel { padding:14px; border-radius:12px; }
+ .studio-shell .studio-welcome { padding:14px; border-radius:12px; }
+ .studio-shell .studio-panel h2 { font-size:14px; line-height:20px; }
+ .studio-shell .studio-panel p.text-sm { font-size:13px; line-height:19px; }
+ .studio-shell input:not([type=checkbox]):not([type=radio]):not([type=file]), .studio-shell textarea, .studio-shell select { font-size:16px; }
+}
