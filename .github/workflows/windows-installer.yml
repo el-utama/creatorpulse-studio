@@ -10,7 +10,7 @@ permissions:
   contents: read
 jobs:
   parse-and-preflight:
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
       - name: Parse scripts using Windows PowerShell 5.1 (never execute owner installer)
@@ -76,7 +76,7 @@ jobs:
           }
       - name: Start real Bridge from scheduled task under disposable standard user
         shell: powershell
-        timeout-minutes: 5
+        timeout-minutes: 8
         run: |
           $ErrorActionPreference = 'Stop'
           $tokens = $null
@@ -95,9 +95,15 @@ jobs:
           $password = 'Aa9!' + [guid]::NewGuid().ToString('N')
           $token = 'cp_sandbox_bridge_' + [guid]::NewGuid().ToString('N')
           $account = $null
+          $logName = 'Microsoft-Windows-TaskScheduler/Operational'
+          & wevtutil.exe sl $logName /e:true
+          if ($LASTEXITCODE -ne 0) { throw 'Could not enable task diagnostic log on disposable runner' }
+          $since = Get-Date
           try {
             $account = New-LocalUser -Name $user -Password (ConvertTo-SecureString $password -AsPlainText -Force)
             $identity = "$env:COMPUTERNAME\$user"
+            $usersGroup = Get-LocalGroup -SID 'S-1-5-32-545'
+            if (-not @(Get-LocalGroupMember -Group $usersGroup.Name | Where-Object {$_.SID -eq $account.SID}).Count) { Add-LocalGroupMember -Group $usersGroup.Name -Member $identity }
             $null = New-Item -ItemType Directory -Path $root
             $bridge = Join-Path $root 'local-bridge'
             $runtime = Join-Path $root 'python'
@@ -118,9 +124,12 @@ jobs:
                 Set-BridgeItemAcl -Item $item -ServiceSid $account.SID -ServiceRights $rights
             }
             $action = New-BridgeTaskAction -Python $python -Launcher $launcher -WorkingDirectory $bridge
-            $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 3) -MultipleInstances IgnoreNew
+            $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 3) -MultipleInstances IgnoreNew -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
             Register-ScheduledTask -TaskName $task -Action $action -Trigger (New-ScheduledTaskTrigger -AtStartup) -Settings $settings -User $identity -Password $password -RunLevel Limited | Out-Null
-            Start-ScheduledTask -TaskName $task
+            $registered = Get-ScheduledTask -TaskName $task
+            Write-Host "Registered fixture: state=$($registered.State) logon=$($registered.Principal.LogonType) runlevel=$($registered.Principal.RunLevel)"
+            & schtasks.exe /Run /TN "\$task"
+            if ($LASTEXITCODE -ne 0) { throw 'Native scheduler start failed' }
             $ok = $false
             for ($i=0; $i -lt 45; $i++) {
                 try {
@@ -131,7 +140,9 @@ jobs:
             }
             if (-not $ok) {
                 $info = Get-ScheduledTaskInfo -TaskName $task
-                Write-Host "Fixture last task result: $($info.LastTaskResult)"
+                Write-Host "Fixture last task result: $($info.LastTaskResult) state=$((Get-ScheduledTask -TaskName $task).State)"
+                Write-Host 'Matching scheduler events:'
+                Get-WinEvent -FilterHashtable @{LogName=$logName;StartTime=$since} -ErrorAction SilentlyContinue | Where-Object {$_.Message -like "*$task*"} | Select-Object -First 20 Id,Message | Format-List | Out-String | Write-Host
                 $status = Join-Path $data 'bridge-startup.json'
                 if (Test-Path -LiteralPath $status) { Get-Content -LiteralPath $status | Write-Host }
                 throw 'Real scheduled-task PING failed.'
