@@ -55,3 +55,6 @@ Slots are 32 lowercase hex characters and must belong to browser session for sco
 
 ## Documentation maintenance
 Every feature, security or navigation change must update this spec, relevant user/setup/API docs and tests in the same PR. Do not update effective legal dates or declare compliance/audit without evidence. Current privacy/terms describe existing data handling; no new collection or permission from the visual redesign. Public support contact is still unverified. Keep historical V1–V3 plans marked as archives and link to the active spec. The repository state, preview state, production state, visual acceptance and live integration acceptance must be reported separately.
+
+### R1 implementation candidate
+PR #9 uses the approved R1 visual reference with responsive account/content tables, operator-authenticated summary data, queue/review/agent history, and operational Hermes panels. Manual history remains browser-local; agent history lists active terminal records only (archived records remain available by ID). Operator key is held in dashboard memory until lock or reload, never persisted. A successful authenticated read verifies Bridge access, not the live Hermes process. Pending Chromium validation; production not updated by this change.

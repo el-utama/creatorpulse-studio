@@ -136,12 +136,12 @@ test('content loads another page and searches loaded descriptions',async ({page,
  await page.route('**/api/tiktok/analytics**',route=>route.fulfill({json:route.request().url().includes('cursor=123')?{videos:{data:[video('v2','Video lama','musik unik')],has_more:false}}:{user_info:{open_id:'pagination-account',display_name:'Test Creator',avatar_url:'',follower_count:0,following_count:0,likes_count:0,video_count:2},videos:{data:[video('v1','Video baru','test')],has_more:true,cursor:123}}}));
  await page.goto('/dashboard');
  await nav(page,'Content').click();
- await expect(page.getByText('Video baru',{exact:true})).toBeVisible();
+ await expect(page.getByText('Video baru',{exact:true}).filter({visible:true})).toBeVisible();
  await page.getByRole('button',{name:'Load more'}).click();
- await expect(page.getByText('Video lama',{exact:true})).toBeVisible();
+ await expect(page.getByText('Video lama',{exact:true}).filter({visible:true})).toBeVisible();
  await page.getByLabel('Search content').fill('musik unik');
  await expect(page.getByText('Video baru',{exact:true})).toHaveCount(0);
- await expect(page.getByText('Video lama',{exact:true})).toBeVisible();
+ await expect(page.getByText('Video lama',{exact:true}).filter({visible:true})).toBeVisible();
 });
 
 test('uncertain publication stays blocked after reload',async ({page,context})=>{
@@ -190,7 +190,7 @@ test('multi-account OAuth, switch, isolation and removal',async ({page,context})
  const mismatch=await context.request.post('/api/tiktok/publish',{multipart:{accountId:'account-b',requestId:crypto.randomUUID(),mode:'inbox',consent:'true',videoUrl:'https://example.com/video.mp4'}});
  expect(mismatch.status()).toBe(409);
  const scoped=await context.request.get('/api/tiktok/analytics?account='+b.slot);expect((await scoped.json()).user_info.open_id).toBe('account-b');expect(await profile()).toBe('account-a');expect((await context.request.get('/api/tiktok/analytics?account='+'f'.repeat(32))).status()).toBe(401);
- await page.goto('/dashboard');await expect(page.getByRole('heading',{name:'Account performance'}).locator('../..').getByText('Account A',{exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'Account performance'}).locator('../..').getByText('Account B',{exact:true})).toBeVisible();await nav(page,'Content').click();await page.getByLabel('Filter accounts').selectOption(b.slot);await expect(page.getByRole('article').getByText('Account B',{exact:true})).toBeVisible();await expect(page.getByRole('article').getByText('Account A',{exact:true})).toHaveCount(0);
+ await page.goto('/dashboard');await expect(page.getByRole('heading',{name:'Account performance'}).locator('xpath=ancestor::section[1]').getByText('Account A',{exact:true}).filter({visible:true})).toBeVisible();await expect(page.getByRole('heading',{name:'Account performance'}).locator('xpath=ancestor::section[1]').getByText('Account B',{exact:true}).filter({visible:true})).toBeVisible();await nav(page,'Content').click();await page.getByLabel('Filter accounts').selectOption(b.slot);await expect(page.locator('.r1-library').getByText('Account B',{exact:true}).filter({visible:true}).filter({visible:true})).toBeVisible();await expect(page.locator('.r1-library').getByText('Account A',{exact:true})).toHaveCount(0);
  const denied=await context.request.post('/api/auth/accounts',{headers:{Origin:'https://other.example'},data:{action:'remove',slot:b.slot}});expect(denied.status()).toBe(403);
  expect((await context.request.post('/api/auth/accounts',{data:{action:'remove',slot:b.slot}})).ok()).toBe(true);expect(await profile()).toBe('account-a');
  expect((await context.request.post('/api/auth/logout')).ok()).toBe(true);
@@ -265,7 +265,7 @@ test('AI workspace: health failure is actionable and operator key has one entry 
  await expect(page.getByText('Belum ada rencana publikasi.',{exact:true})).toBeVisible();
  await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'test-results/ux-ai-operator-mobile.png',fullPage:true});
  await page.setViewportSize({width:1440,height:900});await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'test-results/ux-ai-operator-desktop.png',fullPage:true});
- await page.getByRole('button',{name:'Kunci sesi'}).click();await expect(page.getByRole('heading',{name:'Awaiting review'})).toHaveCount(0);
+ await page.getByRole('button',{name:'Kunci sesi'}).click();await expect(page.getByRole('heading',{name:'Approval',exact:true})).toHaveCount(0);
  await expect(page.getByLabel('Kunci operator',{exact:true})).toHaveValue('');
 });
 
@@ -278,7 +278,7 @@ test('desktop sidebar uses flat compact rows and centers icons',async({page,cont
   const style=await tab.evaluate(el=>({shadow:getComputedStyle(el).boxShadow,align:getComputedStyle(el).alignItems,height:el.getBoundingClientRect().height}));
   expect(style.shadow==='none'||style.shadow.replaceAll('rgba(0, 0, 0, 0) 0px 0px 0px 0px','').replace(/[,\s]/g,'')==='').toBe(true);expect(style.align).toBe('center');expect(style.height).toBeLessThanOrEqual(46);
  }
- expect(await page.locator('.v4-sidebar').evaluate(el=>el.getBoundingClientRect().width)).toBeLessThanOrEqual(224);
+ expect(await page.locator('.r1-sidebar').evaluate(el=>el.getBoundingClientRect().width)).toBeLessThanOrEqual(224);
  await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'test-results/ux-compact-sidebar-desktop.png',fullPage:true});
 });
 
@@ -291,7 +291,7 @@ test('navigation highlights exactly the current tab immediately and mobile edito
  const state=await page.getByRole('navigation',{name:'Workspace navigation'}).getByRole('button').evaluateAll(els=>els.map(el=>({selected:el.getAttribute('aria-current'),color:getComputedStyle(el).backgroundColor})));
  expect(state.filter(x=>x.selected==='page')).toHaveLength(1);expect(state.filter(x=>x.selected!== 'page').every(x=>x.color==='rgba(0, 0, 0, 0)')).toBe(true);expect(state.find(x=>x.selected==='page').color).not.toBe('rgba(0, 0, 0, 0)');
  await page.setViewportSize({width:390,height:844});await compose(page);
- const editor=page.getByRole('heading',{name:'Upload & Publish',exact:true});await expect(editor).toBeVisible();await expect(page.getByRole('heading',{name:'Target account',exact:true})).toBeVisible();
+ const editor=page.getByRole('heading',{name:'Post details',exact:true});await expect(editor).toBeVisible();await expect(page.getByRole('heading',{name:'Target account',exact:true})).toBeVisible();
 });
 
 test('mobile dashboard has compact toolbar, native bottom navigation and readable input sizes',async({page,context})=>{
@@ -300,12 +300,12 @@ test('mobile dashboard has compact toolbar, native bottom navigation and readabl
  await page.route('**/api/gateway/v1/health',route=>route.fulfill({json:{configured:false}}));
  for(const width of [320,390,430]){
   await page.setViewportSize({width,height:844});await page.goto('/dashboard');await expect(page.getByRole('heading',{name:'Account performance',exact:true})).toBeVisible();
-  const sidebar=page.locator('.v4-sidebar');const rect=await sidebar.boundingBox();expect(rect.y+rect.height).toBeCloseTo(844,0);expect(rect.height).toBeLessThanOrEqual(70);
+  const sidebar=page.locator('.r1-bottomnav');const rect=await sidebar.boundingBox();expect(rect.y+rect.height).toBeCloseTo(844,0);expect(rect.height).toBeLessThanOrEqual(70);
   expect(await page.getByRole('heading',{level:1}).evaluate(el=>el.getBoundingClientRect().y)).toBeLessThan(120);
-  expect(await page.getByRole('heading',{level:1}).evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeLessThanOrEqual(20);
+  expect(await page.getByRole('heading',{level:1}).evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeLessThanOrEqual(22);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   await page.mouse.move(width-2,2);await page.screenshot({path:'test-results/mobile-native-overview-'+width+'.png'});
-  await compose(page);await expect(page.getByLabel('URL video')).toBeVisible();const editorTitle=page.getByRole('heading',{name:'Upload & Publish',exact:true});await expect(editorTitle).toBeVisible();expect(await editorTitle.evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeLessThanOrEqual(16);expect(await editorTitle.evaluate(el=>el.getBoundingClientRect().height)).toBeLessThanOrEqual(22);expect(await page.getByLabel('URL video').evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
+  await compose(page);await expect(page.getByLabel('URL video')).toBeVisible();const editorTitle=page.getByRole('heading',{name:'Post details',exact:true});await expect(editorTitle).toBeVisible();expect(await editorTitle.evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeLessThanOrEqual(16);expect(await editorTitle.evaluate(el=>el.getBoundingClientRect().height)).toBeLessThanOrEqual(22);expect(await page.getByLabel('URL video').evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
   expect(await page.getByRole('button',{name:'URL',exact:true}).evaluate(el=>Math.round(el.getBoundingClientRect().top))).toBe(await page.getByRole('button',{name:'File',exact:true}).evaluate(el=>Math.round(el.getBoundingClientRect().top)));
   await page.mouse.move(width-2,2);await page.screenshot({path:'test-results/mobile-native-publish-'+width+'.png'});
   await nav(page,'AI Agent').click();await expect(page.getByText('Belum disiapkan',{exact:true})).toBeVisible();await page.screenshot({path:'test-results/mobile-native-agent-'+width+'.png'});
@@ -319,6 +319,6 @@ test('V4 three-account overview and scoped content at all viewport sizes',async(
  const accounts=[{slot:'a'.repeat(32),name:'Studio Alpha'},{slot:'b'.repeat(32),name:'Studio Beta'},{slot:'c'.repeat(32),name:'Studio Gamma — exceptionally long creator account name'}];
  await page.route('**/api/auth/accounts',route=>route.fulfill({json:{accounts,active:accounts[0].slot,legacy:false,limit:3}}));
  await page.route('**/api/tiktok/analytics**',route=>{const slot=new URL(route.request().url()).searchParams.get('account');const i=accounts.findIndex(a=>a.slot===slot);if(i<0)return route.fulfill({status:401,json:{error:'Unknown account'}});const a=accounts[i];return route.fulfill({json:{user_info:{open_id:'id-'+i,display_name:a.name,avatar_url:'',follower_count:[12500,8200,4100][i],likes_count:100,video_count:1},videos:{data:[{id:'video-'+i,title:'Content '+i,cover_image_url:'',create_time:1,share_url:'https://www.tiktok.com/',view_count:[92000,65000,29400][i],like_count:10,comment_count:1,share_count:0}]}}});});
- for(const width of [320,390,430,768,1440]){await page.setViewportSize({width,height:900});await page.goto('/dashboard');await expect(page.getByText('24.8K',{exact:true})).toBeVisible();await expect(page.getByText('186.4K',{exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'Account performance'}).locator('../..').getByText('Studio Alpha',{exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'Account performance'}).locator('../..').getByText('Studio Beta',{exact:true})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);await page.screenshot({path:'test-results/v4-overview-'+width+'.png',fullPage:true});}
- await nav(page,'Content').click();await expect(page.getByText('Content 0',{exact:true})).toBeVisible();await expect(page.getByText('Content 2',{exact:true})).toBeVisible();await page.getByLabel('Filter accounts').selectOption(accounts[1].slot);await expect(page.getByText('Content 1',{exact:true})).toBeVisible();await expect(page.getByText('Content 0',{exact:true})).toHaveCount(0);await page.screenshot({path:'test-results/v4-content-filtered.png',fullPage:true});await nav(page,'Accounts').click();await page.screenshot({path:'test-results/v4-accounts.png',fullPage:true});
+ for(const width of [320,390,430,768,1440]){await page.setViewportSize({width,height:900});await page.goto('/dashboard');await expect(page.getByText('24.8K',{exact:true})).toBeVisible();await expect(page.getByText('186.4K',{exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'Account performance'}).locator('xpath=ancestor::section[1]').getByText('Studio Alpha',{exact:true}).filter({visible:true})).toBeVisible();await expect(page.getByRole('heading',{name:'Account performance'}).locator('xpath=ancestor::section[1]').getByText('Studio Beta',{exact:true}).filter({visible:true})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);await page.screenshot({path:'test-results/v4-overview-'+width+'.png',fullPage:true});}
+ await nav(page,'Content').click();await expect(page.getByText('Content 0',{exact:true}).filter({visible:true})).toBeVisible();await expect(page.getByText('Content 2',{exact:true}).filter({visible:true})).toBeVisible();await page.getByLabel('Filter accounts').selectOption(accounts[1].slot);await expect(page.getByText('Content 1',{exact:true}).filter({visible:true})).toBeVisible();await expect(page.getByText('Content 0',{exact:true})).toHaveCount(0);await page.screenshot({path:'test-results/v4-content-filtered.png',fullPage:true});await nav(page,'Accounts').click();await page.screenshot({path:'test-results/v4-accounts.png',fullPage:true});
 });
