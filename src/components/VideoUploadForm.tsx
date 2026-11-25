@@ -1,5 +1,6 @@
 "use client";
 
+import {ReviewDialog} from "@/components/ReviewDialog";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -207,7 +208,8 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
         <fieldset className="space-y-3 rounded-lg border p-3"><legend className="px-1 text-sm font-medium">Pengungkapan konten</legend><label className="flex items-center gap-2 text-sm"><Checkbox disabled={publishing} checked={commercial} onCheckedChange={v=>{setCommercial(v===true);setBrandOrganic(false);setBrandContent(false);setConsent(false);setReview(false);}}/> Konten promosi atau komersial</label>{commercial && <><label className="flex items-center gap-2 text-sm"><Checkbox disabled={publishing} checked={brandOrganic} onCheckedChange={v=>{setBrandOrganic(v===true);setConsent(false);setReview(false);}}/> Merek atau bisnis sendiri</label><label className="flex items-center gap-2 text-sm"><Checkbox checked={brandContent} disabled={publishing || privacy==="SELF_ONLY" || privacy==="FOLLOWER_OF_CREATOR"} onCheckedChange={v=>{setBrandContent(v===true);setConsent(false);setReview(false);}}/> Kemitraan berbayar dengan pihak ketiga</label><p className="text-xs text-muted-foreground">{brandContent?"Label: kemitraan berbayar. Pilih privasi publik atau teman.":brandOrganic?"Label: konten promosi.":"Pilih minimal satu kategori. Kemitraan berbayar tidak dapat bersifat privat."}</p></>}<label className="flex items-center gap-2 text-sm"><Checkbox disabled={publishing} checked={isAigc} onCheckedChange={v=>{setIsAigc(v===true);setConsent(false);setReview(false);}}/> Konten dihasilkan AI</label></fieldset>
         </div>}
 
-        {review && <section className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:p-4" aria-label="Tinjauan publikasi"><h3 className="text-sm font-semibold">Review</h3><p className="text-sm">Akun: {accountName}</p><p className="text-sm break-all">Video: {source === "url" ? videoUrl : file?.name}</p><p className="text-sm">{mode === "inbox" ? "Dikirim ke inbox; selesaikan posting di TikTok." : `Visibilitas: ${({PUBLIC_TO_EVERYONE:"Semua orang",FOLLOWER_OF_CREATOR:"Pengikut",MUTUAL_FOLLOW_FRIENDS:"Teman",SELF_ONLY:"Hanya saya"} as Record<string,string>)[privacy] ?? privacy}`}</p>
+      <div className="r1-form-footer flex-wrap">{!review&&error&&<p role="alert" className="text-sm text-destructive">{error}</p>}<button type="button" className="r1-btn r1-primary" disabled={!ready||publishing} onClick={()=>setReview(true)}>Review</button></div>
+      {review&&<ReviewDialog title="Review publication" onDismiss={()=>{setReview(false);setConsent(false)}}>        <section className="r1-form-section space-y-3" aria-label="Tinjauan publikasi"><p className="text-sm">Akun: {accountName}</p><p className="text-sm break-all">Video: {source === "url" ? videoUrl : file?.name}</p><p className="text-sm">{mode === "inbox" ? "Dikirim ke inbox; selesaikan posting di TikTok." : `Visibilitas: ${({PUBLIC_TO_EVERYONE:"Semua orang",FOLLOWER_OF_CREATOR:"Pengikut",MUTUAL_FOLLOW_FRIENDS:"Teman",SELF_ONLY:"Hanya saya"} as Record<string,string>)[privacy] ?? privacy}`}</p>
         {mode === "profile" && <p className="text-sm whitespace-pre-wrap break-words">Keterangan: {caption || "(tanpa caption)"}</p>}
         {mode === "profile" && <p className="text-sm">Dengan memposting, Anda menyetujui <a className="underline" href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noreferrer">ketentuan penggunaan musik TikTok</a>{commercial && brandContent && <> dan <a className="underline" href="https://www.tiktok.com/legal/page/global/bc-policy/en" target="_blank" rel="noreferrer">kebijakan konten bermerek</a></>}. Konten mungkin memerlukan beberapa menit untuk diproses.</p>}
         {/* Consent */}
@@ -225,10 +227,8 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
           <label htmlFor="publication-consent" id="consent-hint" className="text-sm leading-snug">
             Saya menyetujui ketentuan dan mengizinkan CreatorPulse Studio memposting video ini ke akun TikTok saya.
           </label>
-        </div></section>}
-      <div className="r1-form-footer flex-wrap">
-        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-        {!review?<Button type="button" className="r1-btn r1-primary" disabled={!ready || publishing} onClick={() => setReview(true)}>Review</Button>:<Button
+        </div></section>
+<div className="r1-form-footer flex-wrap">{error&&<p role="alert" className="text-sm text-destructive">{error}</p>}<Button
           onClick={() => {
             requestId.current ??= crypto.randomUUID();
             onPublish({
@@ -253,13 +253,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
           title={!canPublish ? "Centang persetujuan dan lengkapi semua input sebelum publish" : undefined}
         >
           {publishing ? "Mengirim video…" : mode === "inbox" ? "Kirim ke Inbox" : "Publish"}
-        </Button>}
-        {review && !consent && (
-          <p className="text-xs text-muted-foreground mt-2">
-            Centang persetujuan untuk melanjutkan.
-          </p>
-        )}
-      </div>
+        </Button></div></ReviewDialog>}
     </div>
   );
 }
