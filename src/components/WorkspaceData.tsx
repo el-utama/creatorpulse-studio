@@ -5,33 +5,36 @@ import type {TikTokUserInfo,TikTokVideo} from "@/types/tiktok";
 type Account={slot:string;name:string};
 type Session={accounts:Account[];active:string|null;legacy:boolean;limit:number};
 type Entry={slot:string;name:string;profile?:TikTokUserInfo;videos:TikTokVideo[];cursor:number|null;error?:string;videoError?:string};
-const fmt=(n:number)=>new Intl.NumberFormat("en",{notation:"compact",maximumFractionDigits:1}).format(n);
+const fmt=(n:number)=>Number.isFinite(n)?new Intl.NumberFormat("en",{notation:"compact",maximumFractionDigits:1}).format(n):"—";
 const date=(n:number|string)=>typeof n==="number"?n*1000:/^\d+$/.test(n)?Number(n)*1000:Date.parse(n);
-const sum=(a:Entry[],k:"follower_count"|"likes_count"|"video_count")=>a.reduce((n,x)=>n+(x.profile?.[k]??0),0);
+const sum=(a:Entry[],k:"follower_count"|"likes_count"|"video_count")=>a.length&&a.every(x=>Number.isFinite(x.profile?.[k]))?a.reduce((n,x)=>n+(x.profile?.[k]??0),0):NaN;
 const views=(x:Entry)=>x.videos.reduce((n,v)=>n+(v.view_count||0),0);
 const btn="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium hover:bg-slate-50 disabled:opacity-50";
-export function WorkspaceData({view,onNavigate,disabled,revision}:{view:string;onNavigate:(v:string)=>void;disabled:boolean;revision:number}){
+export function WorkspaceData({view,onNavigate,disabled,revision,onActive,onLoading}:{view:string;onNavigate:(v:string)=>void;disabled:boolean;revision:number;onActive:(profile:TikTokUserInfo|null,error:string|null)=>void;onLoading:(loading:boolean)=>void}){
  const [session,setSession]=useState<Session|null>(null),[rows,setRows]=useState<Entry[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(""),[filter,setFilter]=useState("all"),[query,setQuery]=useState(""),[sort,setSort]=useState("recent"),[layout,setLayout]=useState("list"),[busy,setBusy]=useState(false),[more,setMore]=useState(false);
  const generation=useRef(0);
- useEffect(()=>{const gen=++generation.current;const controller=new AbortController();setLoading(true);setError("");setRows([]);setSession(null);
+ useEffect(()=>{const gen=++generation.current;const controller=new AbortController();setLoading(true);onLoading(true);setError("");setRows([]);setSession(null);
  async function load(){
  try{
  const r=await fetch("/api/auth/accounts",{cache:"no-store",signal:controller.signal});if(!r.ok)throw Error("Account list unavailable.");
  const s:Session=await r.json();if(gen!==generation.current)return;setSession(s);
  const accounts=s.legacy?[...s.accounts,{slot:"legacy",name:"TikTok account"}]:s.accounts;
+ const active=s.legacy?"legacy":s.active;
+ if(!active)onActive(null,"No active account.");
  const next:Entry[]=[];
  for(const a of accounts){if(controller.signal.aborted)return;
  try{const res=await fetch("/api/tiktok/analytics"+(a.slot==="legacy"?"":"?account="+encodeURIComponent(a.slot)),{cache:"no-store",signal:controller.signal});const d=await res.json();if(!res.ok||!d.user_info)throw Error(d.error||"Analytics unavailable.");
  next.push({slot:a.slot,name:d.user_info.display_name||a.name,profile:d.user_info,videos:d.videos?.data??[],cursor:d.videos?.has_more&&Number.isSafeInteger(d.videos.cursor)?d.videos.cursor:null,videoError:d.video_error||undefined});
  }catch(e){if(controller.signal.aborted)return;next.push({slot:a.slot,name:a.name,videos:[],cursor:null,error:e instanceof Error?e.message:"Analytics unavailable."});}
- if(gen===generation.current)setRows([...next]);
+ if(gen===generation.current&&!controller.signal.aborted){setRows([...next]);if(a.slot===active){const entry=next[next.length-1];onActive(entry.profile??null,entry.error??null);}}
  }
- }catch(e){if(!controller.signal.aborted&&gen===generation.current)setError(e instanceof Error?e.message:"Workspace unavailable.");}
- finally{if(!controller.signal.aborted&&gen===generation.current)setLoading(false);}
+ }catch(e){if(!controller.signal.aborted&&gen===generation.current){const message=e instanceof Error?e.message:"Workspace unavailable.";setError(message);onActive(null,message);}}
+ finally{if(!controller.signal.aborted&&gen===generation.current){setLoading(false);onLoading(false);}}
  }
- void load();return()=>controller.abort();},[revision]);
+ void load();return()=>controller.abort();},[revision,onActive,onLoading]);
  const select=(s:string)=>{setFilter(s);onNavigate("content");};
  const chosen=filter==="all"?rows:rows.filter(a=>a.slot===filter);
+ useEffect(()=>{if(!loading&&filter!=="all"&&!rows.some(a=>a.slot===filter))setFilter("all");},[filter,loading,rows]);
  const videos=useMemo(()=>chosen.flatMap(a=>a.videos.map(v=>({...v,account:a.name,slot:a.slot}))).filter(v=>(v.title+" "+(v.video_description||"")+" "+v.account).toLowerCase().includes(query.trim().toLowerCase())).sort((a,b)=>sort==="views"?b.view_count-a.view_count:sort==="likes"?b.like_count-a.like_count:date(b.create_time)-date(a.create_time)),[chosen,query,sort]);
  const complete=!!session&&!loading&&!error&&rows.length>0&&rows.every(a=>a.profile);
  const available=rows.filter(a=>a.profile);
