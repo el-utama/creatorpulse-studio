@@ -1,5 +1,7 @@
 # Rencana Implementasi: CreatorPulse Studio
 
+> **Arsip historis — rencana awal sebelum workspace multi-account.** Untuk desain, fitur dan status terkini, baca [Workspace V4](WORKSPACE_V4.md) dan [Local-first architecture](ARCHITECTURE_LOCAL_FIRST.md). Bagian lama di bawah dipertahankan sebagai rekam keputusan, bukan instruksi aktif.
+
 Proyek web fullstack lengkap menggunakan **Next.js (App Router)**, **TypeScript**, dan **Tailwind CSS**, siap di-deploy gratis ke **Vercel (Hobby Plan)** tanpa database berbayar, dirancang untuk memenuhi persyaratan teknis dan UX Guidelines App Review **TikTok for Developers** dengan 3 fitur utama: **TikTok Login**, **Posting Video (Content Posting API)**, dan **Penarikan Analitik (Display API)**.
 
 ---

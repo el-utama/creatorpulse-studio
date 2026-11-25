@@ -1,142 +1,59 @@
 # CreatorPulse Studio
 
-**V3 local-first design (development):** [architecture and progress log](docs/ARCHITECTURE_LOCAL_FIRST.md) · [Local Bridge setup](local-bridge/README.md) · [Hermes integration](integrations/hermes/README.md). V2 manual dashboard remains supported. The V3 gateway is opt-in, with no Redis cloud requirement.
+Workspace operasional kreator TikTok untuk satu operator dengan maksimum tiga akun, menggunakan Next.js App Router, TypeScript dan Tailwind. Hermes adalah agent opsional; Local Bridge menyediakan penyimpanan SQLite lokal.
 
-Web fullstack lengkap menggunakan **Next.js (App Router)**, **TypeScript**, dan **Tailwind CSS**, siap di-deploy gratis ke **Vercel (Hobby Plan)** tanpa database berbayar, dirancang untuk memenuhi persyaratan teknis dan UX Guidelines App Review **TikTok for Developers** dengan 3 fitur utama:
+**Status (2026-11-25):** V4 baseline multi-account sudah di main (6d9e1f2), CI pada revisi yang di-merge lulus ([run 45524478755](https://github.com/el-utama/creatorpulse-studio/actions/runs/45524478755)). Produksi terakhir diverifikasi masih pada V3 (60c9ae1), karena build-rate limit. Kualitas desain V4 belum diterima oleh owner; bukan rilis final. Lihat [status dan acceptance gate](docs/WORKSPACE_V4.md).
 
-1. **TikTok Login** (Login Kit / OAuth 2.0)
-2. **Posting Video** (Content Posting API)
-3. **Penarikan Analitik** (Display API)
+## Dokumentasi aktif
 
----
+| Dokumen | Kegunaan |
+|---|---|
+| [Workspace V4](docs/WORKSPACE_V4.md) | Target desain, baseline aktual, alur pengguna dan release gates |
+| [Local-first architecture](docs/ARCHITECTURE_LOCAL_FIRST.md) | Batas tanggung jawab, storage, keamanan |
+| [Local Bridge](local-bridge/README.md) | Setup host, HTTPS, secrets, enrollment dan backup |
+| [Hermes onboarding](integrations/hermes/ONBOARDING.md) | Bootstrap profil existing dan pengujian MCP/chat |
+| [Integrations](integrations/README.md) | REST/MCP, OpenAPI dan opsi n8n historis |
+| [Agent OpenAPI](public/agent-openapi.json) | Kontrak gateway v1 |
+| [Audit V3](docs/AUDIT_V3.md) | Temuan historis dan risiko yang masih terbuka |
+| [Rencana awal](docs/PLAN_CREATORPULSE.md) | Arsip desain awal, bukan spesifikasi UI aktif |
 
-## Struktur Folder
+## Workspace V4 (baseline, bukan desain final)
 
-```
-creatorpulse-studio/
-├── .env.example
-├── .gitignore
-├── next.config.mjs
-├── package.json
-├── tailwind.config.ts
-├── tsconfig.json
-├── README.md
-├── docs/
-│   └── PLAN_CREATORPULSE.md
-├── public/
-│   └── favicon.ico
-└── src/
-    ├── config/
-    │   └── app.ts
-    ├── app/
-    │   ├── layout.tsx
-    │   ├── page.tsx
-    │   ├── globals.css
-    │   ├── dashboard/page.tsx
-    │   ├── privacy/page.tsx
-    │   ├── terms/page.tsx
-    │   ├── api/
-    │   │   ├── auth/tiktok/route.ts
-    │   │   ├── auth/tiktok/callback/route.ts
-    │   │   ├── auth/logout/route.ts
-    │   │   ├── tiktok/analytics/route.ts
-    │   │   ├── tiktok/publish/route.ts
-    │   │   └── tiktok/publish/status/route.ts
-    │   └── middleware.ts
-    ├── components/
-    │   ├── Navbar.tsx
-    │   ├── TikTokConnectButton.tsx
-    │   ├── AnalyticsCards.tsx
-    │   ├── VideoList.tsx
-    │   ├── VideoUploadForm.tsx
-    │   └── PublishStatusChecker.tsx
-    │   └── ui/ (button, card, input, label, select, checkbox, tabs, textarea)
-    ├── lib/
-    │   ├── cookies.ts
-    │   ├── tiktok.ts
-    │   └── utils.ts
-    ├── types/
-    │   └── tiktok.ts
-    └── middleware.ts
-```
+Overview merangkum akun browser dan konten yang sudah dimuat; Accounts mengelola koneksi; Content menyajikan koleksi lintas akun; Publishing memisahkan Queue, Review, History dan New post; AI Agent menangani integrasi dan riset. Pemilihan target dilakukan sebelum editor manual. Approval agent hanya lewat operator yang berwenang. Jumlah view adalah view video yang sudah dimuat, bukan total historis atau growth. Gateway tidak perlu dikonfigurasi untuk penggunaan manual akun yang belum enrolled.
 
----
+## Pengembangan lokal
 
-## Fitur Utama
+Gunakan Node.js 22 LTS atau versi yang kompatibel dengan Next.js 16 (jangan gunakan Node 18), npm dan Python 3.10+ untuk Bridge/Hermes. Untuk bootstrap Hermes diperlukan PyYAML di interpreter Hermes.
 
-| Fitur | Deskripsi | Endpoint / API TikTok |
-|-------|-----------|----------------------|
-| TikTok Login | OAuth 2.0 login dengan `state` di cookie HTTP-only | `GET /api/auth/tiktok`, `/v2/oauth/token/` |
-| Profil & Analitik | Info profil kreator + kartu metrik + daftar video terbaru | `GET /v2/user/info/`, `POST /v2/video/list/` |
-| Upload & Posting | Upload file video atau lewat URL, atur privacy & interaksi, publikasi ke draft atau profil | `POST /v2/post/publish/video/init/`, `/v2/post/publish/inbox/video/init/`, `/v2/post/publish/status/fetch/` |
-| Logout | Hapus semua cookie sesi | `POST /api/auth/logout` |
-
----
-
-## Persyaratan Sistem
-
-- Node.js 18+
-- npm / yarn / pnpm
-- Akun TikTok for Developers
-- Akun Vercel (Hobby Plan gratis)
-
----
-
-## Instalasi Lokal
-
-```bash
-# Clone repository
-git clone <repo-url>
+```sh
+git clone https://github.com/el-utama/creatorpulse-studio
 cd creatorpulse-studio
-
-# Install dependencies
-npm install
-
-# Salin file environment
+npm ci
 cp .env.example .env.local
-
-# Isi nilai di .env.local dengan kredensial TikTok Anda
-
-# Jalankan development server
 npm run dev
-
-# Buka http://localhost:3000
 ```
 
----
+Isi environment secara lokal sesuai `.env.example`; jangan commit secret. Pada Windows gunakan Copy-Item untuk menyalin file. APP_URL dan redirect harus sesuai environment yang benar-benar terdaftar di TikTok. Untuk project existing jangan ubah redirect atau kredensial TikTok hanya demi preview. Jangan menganggap preview memiliki OAuth yang berfungsi.
 
-## Konfigurasi Environment (`.env.example`)
+## Deployment
 
-```env
-TIKTOK_CLIENT_KEY=your_tiktok_client_key
-TIKTOK_CLIENT_SECRET=your_tiktok_client_secret
-TIKTOK_REDIRECT_URI=https://your-app.vercel.app/api/auth/tiktok/callback
-APP_URL=https://your-app.vercel.app
+Project existing: https://creatorpulse-studio-six.vercel.app. Vercel membangun dari main; cek deployment READY **dan** commit yang dilayani domain production, bukan hanya preview. Hobby memiliki batas kuota dan penggunaan personal/non-komersial; tidak ada jaminan gratis untuk penggunaan komersial. Jangan membeli paket tanpa persetujuan. Gateway opsional membutuhkan lima variabel server-only sesuai panduan Local Bridge. Jangan ubah flag TIKTOK_DIRECT_POST_AUDITED tanpa audit resmi.
+
+## Pengujian
+
+```sh
+npm ci
+npx tsc --noEmit
+npm run build
+npm install --no-save --package-lock=false @playwright/test@1.56.1
+npx playwright install chromium
+npx playwright test
+npx playwright test --config playwright.gateway.config.mjs
+python -m unittest discover -s local-bridge -p "test_*.py"
+python -m unittest discover -s integrations/hermes -p "test_*.py"
 ```
 
----
-
-## Panduan Deploy ke Vercel (Gratis, Hobby Plan)
-
-### 1. Push ke GitHub
-Push kode repository ke GitHub / GitLab / Bitbucket.
-
-### 2. Import ke Vercel
-1. Login ke [vercel.com](https://vercel.com).
-2. Klik **Add New → Project**.
-3. Impor repository Anda.
-4. Framework preset: **Next.js** (biarkan default).
-5. Klik **Deploy**.
-
-### 3. Tambah Environment Variables
-Di dashboard Vercel → project → **Settings → Environment Variables**, tambahkan:
-- `TIKTOK_CLIENT_KEY`
-- `TIKTOK_CLIENT_SECRET`
-- `TIKTOK_REDIRECT_URI` (contoh: `https://creatorpulse.vercel.app/api/auth/tiktok/callback`)
-- `APP_URL` (contoh: `https://creatorpulse.vercel.app`)
-
-### 4. Redeploy
-Setelah menambahkan env vars, klik **Redeploy** di deployment terbaru.
+Tes browser memakai fixture TikTok, bukan akun nyata; tes gateway memakai bridge lokal. Hasil lulus tidak berarti UI sudah diterima atau App Review sudah disetujui. Uji live tanpa publikasi terlebih dahulu.
 
 ---
 
@@ -193,19 +110,17 @@ Pilih semua scope berikut saat mengajukan App Review:
 
 ## Catatan Teknis Penting
 
-### Batas Upload Serverless Vercel
-Serverless function di Vercel Hobby Plan memiliki batas ukuran body request sekitar **4.5 MB**. Jika file video lebih besar dari ini:
-- Gunakan metode **PULL_FROM_URL** (unggah video ke penyimpanan publik, berikan URL ke aplikasi).
-- Atau kompresi video sebelum upload.
+### Media dan penyimpanan
+File manual MP4/MOV maksimal 4 MB; video lebih besar menggunakan HTTPS URL pada domain/prefix yang diverifikasi TikTok. Gunakan URL immutable. Inbox memerlukan penyelesaian di TikTok; Direct Post memerlukan preview, durasi, pilihan privasi, interaksi, disclosure dan persetujuan eksplisit. Jangan mengaktifkan flag audit tanpa persetujuan TikTok yang sebenarnya.
 
 ### Keamanan
-- Semua token disimpan dalam **HTTP-only cookie** (tidak bisa diakses via JavaScript).
-- Cookie menggunakan `Secure` di production dan `SameSite=Lax`.
-- Tidak ada database eksternal; session hanya di cookie.
-- Tidak ada library berbayar digunakan.
+- Maksimal tiga sesi TikTok terpisah dalam browser. Token akun belum enrolled berada dalam cookie HttpOnly, Secure di produksi, SameSite=Lax.
+- Gateway opsional memakai SQLite Local Bridge; Vercel melakukan enkripsi/dekripsi dan panggilan TikTok. Agent tidak memperoleh token OAuth atau operator/bridge/vault key.
+- Riwayat publikasi manual dan marker permintaan belum pasti berada di localStorage per akun. Logout tidak menghapus riwayat itu, tidak memutus vault, dan tidak mencabut izin TikTok.
+- Persetujuan agent dilakukan operator melalui dashboard, bukan oleh model.
 
 ### Refresh Token
-Jika access token expired, sistem otomatis mencoba refresh menggunakan refresh token yang disimpan di cookie.
+Operasi baca mencoba refresh sekali saat diperlukan menggunakan sesi akun terkait atau vault enrolled. Inisialisasi publikasi tidak otomatis diulang.
 
 ---
 
