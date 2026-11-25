@@ -13,18 +13,20 @@ async function videoPage(token:string,cursor:number) {
   return {data:data.videos,total:data.videos.length,cursor: data.cursor,has_more:data.has_more===true && Number.isSafeInteger(data.cursor) && data.cursor>0 && data.cursor!==cursor};
 }
 export async function GET(request:Request) {
-  const raw=new URL(request.url).searchParams.get("cursor");
+  const params=new URL(request.url).searchParams;
+  const raw=params.get("cursor");
+  const slot=params.get("account")??undefined;
   const cursor=raw===null?0:Number(raw);
   if(!Number.isSafeInteger(cursor)||cursor<0||(raw!==null&&!/^\d+$/.test(raw))) return NextResponse.json({error:"Halaman video tidak valid."},{status:400,headers});
   try {
-    if(raw!==null) return NextResponse.json({videos:await sessionRead(token=>videoPage(token,cursor))},{headers});
+    if(raw!==null) return NextResponse.json({videos:await sessionRead(token=>videoPage(token,cursor),slot)},{headers});
     const profile=await sessionRead(async token=>{
       const response=await fetch(APP_CONFIG.tiktokUserInfoUrl+"?fields=open_id,union_id,avatar_url,display_name,bio_description,follower_count,following_count,likes_count,video_count",{headers:{Authorization:`Bearer ${token}`},cache:"no-store"});
       return readTikTok<{user:TikTokUserInfo}>(response);
-    });
+    },slot);
     if(!profile.user?.open_id) throw new Error("Missing user");
     let videos;let video_error:null|string=null;
-    try {videos=await sessionRead(token=>videoPage(token,0));} catch(error) {video_error=explainTikTok(error,"Daftar video belum dapat dimuat.");videos={data:[],total:0,cursor:0,has_more:false};}
+    try {videos=await sessionRead(token=>videoPage(token,0),slot);} catch(error) {video_error=explainTikTok(error,"Daftar video belum dapat dimuat.");videos={data:[],total:0,cursor:0,has_more:false};}
     return NextResponse.json({user_info:profile.user,videos,video_error},{headers});
   } catch(error) {return NextResponse.json({error:explainTikTok(error,"Analitik TikTok belum dapat dimuat.")},{status:isAuthError(error)?401:502,headers});}
 }

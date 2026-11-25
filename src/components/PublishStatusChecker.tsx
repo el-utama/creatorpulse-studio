@@ -6,10 +6,11 @@ import { Loader2, CheckCircle, XCircle } from "lucide-react";
 
 interface PublishStatusCheckerProps {
   publishId: string | null;
+  accountSlot?: string;
   onStatusChange?: (status: string) => void;
 }
 
-export function PublishStatusChecker({ publishId, onStatusChange }: PublishStatusCheckerProps) {
+export function PublishStatusChecker({ publishId, accountSlot, onStatusChange }: PublishStatusCheckerProps) {
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -33,7 +34,7 @@ export function PublishStatusChecker({ publishId, onStatusChange }: PublishStatu
         const res = await fetch("/api/tiktok/publish/status", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ publish_ids: [publishId] }),
+          body: JSON.stringify({ publish_ids: [publishId], ...(accountSlot?{accountSlot}:{}) }),
           signal: abortController.signal,
         });
         if (res.status === 401) { isTerminal = true; setLoading(false); throw new Error("Sesi berakhir. Hubungkan kembali akun TikTok."); }
@@ -78,7 +79,7 @@ export function PublishStatusChecker({ publishId, onStatusChange }: PublishStatu
       abortController.abort();
       clearTimeout(timer);
     };
-  }, [publishId, onStatusChange, attempt]);
+  }, [publishId, accountSlot, onStatusChange, attempt]);
 
   if (!publishId) return null;
 

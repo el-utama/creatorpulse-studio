@@ -108,3 +108,25 @@
 @media (max-width: 767px) {
  .studio-shell .studio-nav .studio-tab[data-state=inactive]:hover { background: transparent; color: #475569; }
 }
+
+/* V4: workspace shell, independent from the personal dashboard. */
+.v4-shell {font-size:14px;--workspace-nav:216px;}
+.v4-sidebar {position:fixed;inset:auto 0 0;z-index:50;background:white;border-top:1px solid #e2e8f0;padding:4px 8px calc(4px + env(safe-area-inset-bottom,0px));}
+.v4-nav {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px;}
+.v4-nav-item {display:flex;min-width:0;min-height:54px;flex-direction:column;align-items:center;justify-content:center;gap:3px;border-radius:6px;color:#64748b;font-size:10px;font-weight:500;white-space:nowrap;}
+.v4-nav-item[aria-current="page"] {background:#eef2ff;color:#4338ca;font-weight:600;}
+.v4-main {padding:20px 14px calc(88px + env(safe-area-inset-bottom,0px));}
+.v4-shell [hidden] {display:none!important;}
+.v4-shell .studio-panel {border-radius:8px;padding:16px;box-shadow:none;}
+.v4-shell .studio-panel h2 {font-size:14px;line-height:20px;}
+.v4-shell .studio-panel p.text-sm {font-size:13px;line-height:19px;}
+@media(max-width:767px){.v4-shell input:not([type=checkbox]):not([type=radio]):not([type=file]),.v4-shell textarea,.v4-shell select{font-size:16px;}.v4-shell .studio-panel{padding:12px;}}
+@media(min-width:768px){.v4-main{padding:24px 24px 88px;}}
+@media(min-width:1024px){.v4-sidebar{inset:0 auto 0 0;width:var(--workspace-nav);border-top:0;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;padding:0 8px;}.v4-nav{grid-template-columns:1fr;gap:3px;}.v4-nav-item{min-height:40px;flex-direction:row;justify-content:flex-start;gap:10px;padding:0 12px;font-size:13px;}.v4-nav-item:hover{background:#f1f5f9;}.v4-nav-item[aria-current="page"]{background:#eef2ff;}.v4-main{margin-left:var(--workspace-nav);padding:30px 32px 50px;}}
+
+/* V4 compose: only the current step has a primary action. */
+.v4-shell .v4-editor h3 { line-height: 1.4; }
+.v4-shell .v4-editor input:not([type=checkbox]), .v4-shell .v4-editor textarea { border-radius:6px; }
+.v4-shell .v4-editor [role=group] button { min-height:40px; }
+.v4-shell .v4-editor .text-muted-foreground { color:#64748b; }
+@media(max-width:767px){.v4-shell .v4-editor [role=combobox]{font-size:16px;}}

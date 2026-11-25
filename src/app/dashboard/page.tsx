@@ -3,28 +3,13 @@
 export const dynamic = "force-dynamic";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Navbar } from "@/components/Navbar";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { WorkspaceData } from "@/components/WorkspaceData";
+import { TargetPicker } from "@/components/TargetPicker";
 import { Button } from "@/components/ui/button";
 import { AccountManager } from "@/components/AccountManager";
-import { StudioOverview } from "@/components/StudioOverview";
 import { GatewayPanel } from "@/components/GatewayPanel";
-import { VideoList } from "@/components/VideoList";
 import { VideoUploadForm, type PublishPayload } from "@/components/VideoUploadForm";
-import { PublishStatusChecker } from "@/components/PublishStatusChecker";
-import { RefreshCw, ShieldAlert, LayoutDashboard, Film, PlusSquare, ListChecks, Bot } from "lucide-react";
+import { RefreshCw, LayoutDashboard, Film, PlusSquare, ListChecks, Bot, Users, Plus, ArrowLeft, LogOut, AudioLines } from "lucide-react";
 
 interface UserProfile {
   open_id: string;
@@ -40,13 +25,12 @@ interface UserProfile {
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("analytics");
+  const [revision,setRevision]=useState(0);
+  const [targetReady,setTargetReady]=useState(false);
+  const [logoutError,setLogoutError]=useState(false);
+  useEffect(()=>{const params=new URLSearchParams(location.search);if(params.has("account_changed")){try{localStorage.setItem("creatorpulse:account-change",crypto.randomUUID());}catch{}params.delete("account_changed");window.history.replaceState(null,"","/dashboard"+(params.size?"?"+params.toString():""));}const v=params.get("view");if(v&&["analytics","accounts","content","publish","compose","status","agent","review"].includes(v))setActiveTab(v);const changed=(e:StorageEvent)=>{if(e.key==="creatorpulse:account-change")location.reload()};window.addEventListener("storage",changed);return()=>window.removeEventListener("storage",changed);},[]);
   useEffect(()=>{if(window.matchMedia("(max-width: 767px)").matches)window.scrollTo({top:0,behavior:"auto"});},[activeTab]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [videos, setVideos] = useState<import("@/types/tiktok").TikTokVideo[]>([]);
-  const [cursor,setCursor]=useState<number|null>(null);
-  const [moreLoading,setMoreLoading]=useState(false);
-  const [moreError,setMoreError]=useState<string|null>(null);
-  const moreLock=useRef(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
@@ -68,59 +52,17 @@ export default function DashboardPage() {
     if (!accountId) return;
     try {
       const records = JSON.parse(localStorage.getItem(`creatorpulse:publications:${accountId}`) ?? "[]");
-      if (Array.isArray(records)) setHistory(records.filter((r) => typeof r?.id === "string" && typeof r?.createdAt === "string").slice(0, 50));
+      if (Array.isArray(records)) {const valid=records.filter((r) => typeof r?.id === "string" && typeof r?.createdAt === "string").slice(0,50);setHistory(valid);const selected=new URLSearchParams(location.search).get("publication");if(selected&&valid.some(r=>r.id===selected))setPublishId(selected);}
     } catch { /* Storage can be unavailable. */ }
   }, [accountId]);
 
-  const fetchAnalytics = useCallback(async () => {
-    setAnalyticsLoading(true);
-    setAnalyticsError(null);
-    setMoreError(null);
-    try {
-      const res = await fetch("/api/tiktok/analytics", {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-      });
-
-      if (res.status === 401) { setProfile(null); setVideos([]); setCursor(null); throw new Error("Sesi berakhir. Hubungkan kembali akun TikTok."); }
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Gagal memuat analitik");
-      setProfile(data.user_info ?? null);
-      setVideos(data.videos?.data ?? []);
-      setCursor(data.videos?.has_more && Number.isSafeInteger(data.videos.cursor) ? data.videos.cursor : null);
-      if (data.video_error) setAnalyticsError(data.video_error);
-      setLastUpdated(new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }));
-    } catch (err) {
-      setAnalyticsError(err instanceof Error ? err.message : "Terjadi kesalahan");
-    } finally {
-      setAnalyticsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchAnalytics();
-  }, [fetchAnalytics]);
-
-  const loadMore=async()=>{
-    if(cursor===null||moreLock.current||analyticsLoading) return;
-    moreLock.current=true;setMoreLoading(true);setMoreError(null);
-    try {
-      const res=await fetch("/api/tiktok/analytics?cursor="+cursor,{cache:"no-store"});
-      const data=await res.json();
-      if(!res.ok) throw new Error(data.error||"Gagal memuat video berikutnya.");
-      const next=data.videos;
-      if(!Array.isArray(next?.data)) throw new Error("Daftar video tidak valid.");
-      setVideos(old=>Array.from(new Map<string,import("@/types/tiktok").TikTokVideo>([...old,...(next.data as import("@/types/tiktok").TikTokVideo[])].map(v=>[v.id,v])).values()));
-      setCursor(next.has_more && Number.isSafeInteger(next.cursor) && next.cursor!==cursor ? next.cursor:null);
-    } catch(error) {setMoreError(error instanceof Error?error.message:"Gagal memuat video berikutnya.");}
-    finally {moreLock.current=false;setMoreLoading(false);}
-  };
+  const receiveActive=useCallback((value:UserProfile|null,error:string|null)=>{setProfile(value);setAnalyticsError(error);if(value)setLastUpdated(new Date().toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"}));},[]);
   const publishLock = useRef(false);
   const [publishing, setPublishing] = useState(false);
   const [publishWarning, setPublishWarning] = useState<string | null>(null);
   const [publishError, setPublishError] = useState<string | null>(null);
   const handlePublish = async (payload: PublishPayload) => {
-    if (publishLock.current || !accountId || !pendingKey || pending) return;
+    if (publishLock.current || !accountId || !pendingKey || pending || analyticsLoading || !targetReady) return;
     publishLock.current = true;
     setPublishing(true);
     setPublishError(null);
@@ -185,220 +127,51 @@ export default function DashboardPage() {
     }
   };
 
-  return (
-    <div className="studio-shell min-h-screen flex flex-col">
-      <Navbar />
-
-      <main className="studio-main flex-1 px-3 sm:px-6 lg:px-8 py-3 md:py-5 lg:py-8" id="main-content">
-        <div className="max-w-[1440px] mx-auto">
-          {/* Header */}
-          <div className="flex items-center justify-between gap-2 mb-3 md:gap-3 md:mb-6 lg:mb-8">
-            <div className="min-w-0 flex-1">
-              <h1 className="text-lg leading-tight md:text-3xl font-semibold tracking-tight text-foreground">
-                <span className="md:hidden">{({analytics:"Ringkasan",content:"Konten",publish:"Publish",status:"Aktivitas",agent:"Integrasi AI"} as Record<string,string>)[activeTab]}</span><span className="hidden md:inline">{({analytics:"Ringkasan",content:"Konten",publish:"Publish",status:"Aktivitas",agent:"Integrasi AI"} as Record<string,string>)[activeTab] || "Studio Kreator"}</span>
-              </h1>
-              <p className="hidden md:block text-sm text-muted-foreground">
-                {({analytics:"Analitik akun",content:"Konten TikTok",publish:"Editor publikasi",status:"Riwayat & status",agent:"Koneksi & operasional Hermes"} as Record<string,string>)[activeTab]}
-              </p>
-            </div>
-            <div className="flex min-w-0 shrink-0 items-center gap-1.5 md:gap-2">
-              <div className="w-[105px] min-[375px]:w-[138px] md:w-56"><AccountManager name={profile?.display_name} disabled={publishing}/></div>
-              {lastUpdated && activeTab!=="agent" && <span className="hidden lg:inline text-xs text-muted-foreground">Diperbarui {lastUpdated}</span>}
-              {activeTab!=="agent"&&<Button
-                variant="outline"
-                size="sm"
-                onClick={fetchAnalytics}
-                disabled={analyticsLoading || publishing || moreLoading}
-                aria-label="Muat ulang"
-                title={lastUpdated?"Diperbarui "+lastUpdated:"Muat ulang"}
-                className="flex h-11 w-11 shrink-0 items-center justify-center gap-1.5 p-0 md:h-9 md:w-auto md:px-3"
-              >
-                <RefreshCw className={"h-4 w-4 shrink-0 "+(analyticsLoading?"animate-spin":"")} aria-hidden="true"/>
-                <span className="hidden md:inline">{analyticsLoading ? "Memuat..." : "Muat ulang"}</span>
-              </Button>}
-            </div>
-          </div>
-
-          {analyticsError && activeTab!=="agent" && (
-            <Card
-              className="border-destructive bg-destructive/5"
-              role="alert"
-              aria-live="polite"
-            >
-              <CardHeader className="flex flex-row items-center gap-2">
-                <ShieldAlert className="h-4 w-4 text-destructive" />
-                <CardTitle className="text-sm">Gagal memuat analitik</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <p className="text-xs text-destructive">{analyticsError}</p>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-6 lg:items-start">
-            <aside className="studio-sidebar">
- <div className="hidden min-w-0 lg:block px-2 pb-3"><p className="mb-3 text-[11px] font-medium text-slate-500">Akun aktif</p><div className="flex items-center gap-2.5 min-w-0"><div className="h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-indigo-100 text-indigo-700 grid place-items-center text-sm font-semibold">{profile?.avatar_url?<img src={profile.avatar_url} alt="" className="h-full w-full object-cover"/>:profile?.display_name?.slice(0,1)||"CP"}</div><div className="min-w-0"><p className="truncate text-sm font-semibold">{profile?.display_name||"CreatorPulse"}</p><p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500"><span className={"h-1.5 w-1.5 shrink-0 rounded-full "+(profile?"bg-emerald-600":"bg-slate-400")}/>{profile?"Terhubung":"Belum terhubung"}</p></div></div></div>
- <TabsList aria-label="Navigasi studio" className="studio-nav grid h-auto w-full grid-cols-5 gap-1 bg-transparent p-0 lg:grid-cols-1 lg:justify-start">
- {([{value:"analytics",label:"Ringkasan",Icon:LayoutDashboard},{value:"content",label:"Konten",Icon:Film},{value:"publish",label:"Publish",Icon:PlusSquare},{value:"status",label:"Aktivitas",Icon:ListChecks},{value:"agent",label:"AI Agent",Icon:Bot}]).map(({value,label,Icon})=><TabsTrigger key={value} value={value} className="studio-tab flex min-h-12 min-w-0 flex-col items-center justify-center gap-0.5 px-0.5 py-1.5 text-[10px] min-[375px]:text-[11px] md:text-sm lg:min-h-11 lg:flex-row lg:justify-start lg:gap-2.5 lg:px-2.5"><Icon className="h-5 w-5 shrink-0 lg:h-4 lg:w-4" aria-hidden="true"/><span className="truncate">{label}</span></TabsTrigger>)}
- </TabsList>
- <p className="hidden lg:block mt-3 border-t pt-3 px-2 text-xs text-slate-500">Maksimal 3 akun TikTok</p>
- </aside>
-            <div className="min-w-0">
-
-            {/* Tab: Analytics */}
-            <TabsContent value="analytics" className="mt-0 space-y-3 md:mt-4 lg:mt-0">
-              {/* Profile + Metrics */}
-              
-              {profile ? (
-                <StudioOverview profile={profile} videos={videos} history={history} onNavigate={setActiveTab} videoError={!!analyticsError}/>
-              ) : (
-                <Card>
-                  <CardContent className="py-8 text-center space-y-3">
-                    <p className="text-muted-foreground">{analyticsLoading ? "Memuat profil…" : "Profil tidak tersedia. Coba hubungkan kembali akun Anda."}</p>
-                    <Button
-                      onClick={fetchAnalytics}
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                    >
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Coba Lagi
-                    </Button>
-                    <p className="text-xs text-muted-foreground">
-                      Jika masalah berlanjut, <a href="/api/auth/tiktok" className="underline font-medium">hubungkan kembali akun TikTok</a>.
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
-
-            </TabsContent>
-            <TabsContent value="content" className="mt-0 space-y-3 md:mt-4 lg:mt-0">
-              {/* Video List */}
-              
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-semibold">
-                    Koleksi video
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    Video dari TikTok.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {analyticsLoading ? (
-                    <div className="h-48 flex items-center justify-center">
-                      <p className="text-muted-foreground text-sm">Memuat daftar video...</p>
-                    </div>
-                  ) : (
-                    <><VideoList videos={videos} />
-                    {moreError && <p role="alert" className="mt-3 text-sm text-destructive">{moreError}</p>}
-                    {cursor!==null && <Button type="button" variant="outline" className="mt-4 w-full" onClick={loadMore} disabled={moreLoading}>{moreLoading?"Memuat video…":"Muat lagi"}</Button>}
-                    <p className="mt-2 text-xs text-muted-foreground" aria-live="polite">{videos.length} video dimuat. Pencarian hanya pada video ini.</p></>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Tab: Publish */}
-            <TabsContent forceMount hidden={activeTab !== "publish"} value="publish" className="mt-0 space-y-3 md:mt-4 lg:mt-0">
-              {profile ? (
-                <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-4">
-                  <div className="min-w-0">
+  const nav=[{id:"analytics",label:"Overview",mobile:"Home",Icon:LayoutDashboard},{id:"accounts",label:"Accounts",mobile:"Accounts",Icon:Users},{id:"content",label:"Content",mobile:"Content",Icon:Film},{id:"publish",label:"Publishing",mobile:"Publish",Icon:PlusSquare},{id:"agent",label:"AI Agent",mobile:"Agent",Icon:Bot}];
+  const inPublishing=["publish","compose","status","review"].includes(activeTab);
+  const selected=inPublishing?"publish":activeTab;
+  const title=activeTab==="compose"?"New post":nav.find(n=>n.id===selected)?.label||"Overview";
+  const newPost=()=>{if(activeTab==="compose")return;setTargetReady(false);setPublishError(null);setActiveTab("compose");};
+  const refresh=()=>{setRevision(r=>r+1);};
+  async function logout(){if(publishing)return;setLogoutError(false);try{const r=await fetch("/api/auth/logout",{method:"POST"});if(!r.ok)throw Error();try{localStorage.setItem("creatorpulse:account-change",crypto.randomUUID())}catch{}location.assign("/");}catch{setLogoutError(true);}}
+  return <div className="v4-shell min-h-screen bg-[#f7f8fa] text-slate-900">
+    <header className="v4-mobile-header sticky top-0 z-40 flex h-14 items-center justify-between border-b bg-white px-4 lg:hidden"><div className="flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-900 text-white"><AudioLines className="h-5 w-5"/></span><span className="text-sm font-semibold tracking-tight">CreatorPulse</span><span className="text-[10px] text-slate-500">Studio</span></div><button className="grid h-11 w-11 place-items-center rounded-md text-slate-500" aria-label="Refresh workspace" onClick={refresh} disabled={publishing||analyticsLoading}><RefreshCw className={"h-4 w-4 "+(analyticsLoading?"animate-spin":"")}/></button></header>
+    <aside className="v4-sidebar">
+      <div className="hidden px-4 pt-6 pb-8 lg:flex items-center gap-2"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-900 text-white"><AudioLines className="h-5 w-5"/></span><div><div className="text-sm font-semibold tracking-tight">CreatorPulse</div><div className="text-xs text-slate-500">Studio workspace</div></div></div>
+      <p className="hidden px-4 pb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400 lg:block">Workspace</p>
+      <nav aria-label="Workspace navigation" className="v4-nav">{nav.map(({id,label,mobile,Icon})=><button key={id} type="button" aria-current={selected===id?"page":undefined} onClick={()=>setActiveTab(id)} className="v4-nav-item" aria-label={label}><Icon className="h-5 w-5 shrink-0 lg:h-[18px] lg:w-[18px]" aria-hidden="true"/><span className="hidden lg:inline">{label}</span><span className="lg:hidden">{mobile}</span></button>)}</nav>
+      <div className="hidden flex-1 lg:block"/>
+      <div className="hidden border-t px-4 py-4 lg:block"><button onClick={newPost} disabled={publishing} className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-slate-900 text-sm font-medium text-white disabled:opacity-50"><Plus className="h-4 w-4"/>New post</button><div className="mt-4 flex justify-between text-[11px] text-slate-500"><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div></div>
+    </aside>
+    <main id="main-content" className="v4-main min-w-0">
+      <div className="mx-auto max-w-[1200px]">
+        <div className="mb-5 flex min-w-0 items-center justify-between gap-3 lg:mb-7"><h1 className="min-w-0 text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1><div className="flex shrink-0 items-center gap-2">
+        <button aria-label="Refresh workspace" title={lastUpdated||"Refresh"} onClick={refresh} disabled={publishing||analyticsLoading} className="hidden h-10 w-10 place-items-center rounded-md border bg-white text-slate-600 disabled:opacity-50 lg:grid"><RefreshCw className={"h-4 w-4 "+(analyticsLoading?"animate-spin":"")}/></button>
+        {activeTab==="analytics"||activeTab==="publish"||activeTab==="status"||activeTab==="review"?<button onClick={newPost} disabled={publishing} className="inline-flex min-h-11 items-center gap-1.5 rounded-md bg-slate-900 px-3 text-xs font-medium text-white disabled:opacity-50 sm:text-sm"><Plus className="h-4 w-4"/>New post</button>:null}</div></div>
+        {inPublishing&&activeTab!=="compose"&&<nav aria-label="Publishing views" className="mb-4 flex gap-4 border-b text-sm font-medium text-slate-500">{[{id:"publish",label:"Queue"},{id:"review",label:"Review"},{id:"status",label:"History"}].map(t=><button key={t.id} onClick={()=>setActiveTab(t.id)} className={"min-h-11 border-b-2 px-1 "+(activeTab===t.id?"border-slate-900 text-slate-900":"border-transparent")}>{t.label}</button>)}</nav>}
+        <WorkspaceData view={activeTab} onNavigate={setActiveTab} disabled={publishing} revision={revision} onActive={receiveActive} onLoading={setAnalyticsLoading} latestPublication={publishId}/>
+        {activeTab==="accounts"&&<div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t pt-3"><div className="flex gap-4 text-xs text-slate-500"><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div><button onClick={logout} disabled={publishing} className="inline-flex min-h-11 items-center gap-2 text-sm text-slate-600"><LogOut className="h-4 w-4"/>Sign out</button>{logoutError&&<p role="alert" className="text-sm text-red-700">Sign out failed. Try again.</p>}</div>}
+        {activeTab==="compose"&&<div className="mb-3 max-w-[760px] space-y-2"><button onClick={()=>setActiveTab("publish")} className="inline-flex min-h-10 items-center gap-2 text-xs font-medium text-slate-600"><ArrowLeft className="h-4 w-4"/>Back to queue</button><TargetPicker disabled={publishing} onReady={setTargetReady} accountName={profile?.display_name}/>{analyticsError&&<p role="alert" className="text-sm text-red-700">{analyticsError}</p>}</div>}
+        <div hidden={activeTab!=="compose"||!targetReady} className="max-w-[760px]">
+          {profile&&targetReady?<div className="min-w-0">
                     {pending && !publishing && <div role="alert" className="mb-3 space-y-3 rounded-lg border border-destructive p-4 text-sm"><p>Publikasi sebelumnya belum terkonfirmasi. Jangan kirim ulang sebelum memeriksa profil atau inbox TikTok.</p><a className="underline" href="https://www.tiktok.com/" target="_blank" rel="noreferrer">Buka TikTok</a><label className="flex items-center gap-2"><input type="checkbox" checked={pendingAcknowledged} onChange={e=>setPendingAcknowledged(e.target.checked)}/> Saya sudah memeriksa TikTok dan memastikan aman untuk memulai publikasi baru.</label><Button type="button" variant="outline" disabled={!pendingAcknowledged} onClick={()=>{try{if(pendingKey)localStorage.removeItem(pendingKey);setPending(false);setPendingAcknowledged(false);setPublishError(null);setFormVersion(v=>v+1);}catch{setPublishError("Penyimpanan browser tidak tersedia.");}}}>Buka blokir publikasi</Button></div>}
                     <VideoUploadForm
                       key={`${profile.open_id}:${formVersion}`}
                       accountName={profile.display_name}
                       avatarUrl={profile.avatar_url}
                       onPublish={handlePublish}
-                      publishing={publishing || pending}
+                      publishing={publishing || pending || analyticsLoading}
                       error={publishError}
                     />
-                  </div>
-                  <div className="min-w-0 space-y-4">
 
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-sm font-semibold">
-                          Catatan
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="pt-3">
-                        <ul className="text-xs text-muted-foreground space-y-1.5 list-disc pl-4">
-                          <li>
-                            File dari perangkat: maksimal 4 MB.
-                          </li>
-                          <li>
-                            Video lebih besar: gunakan URL HTTPS terverifikasi.
-                          </li>
-                          <li>Video tidak disimpan permanen di server kami.</li>
-                          <li>
-                            Tinjau akun, video, dan pengaturan sebelum mengirim.
-                          </li>
-                        </ul>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-              ) : (
-                <Card>
-                  <CardContent className="py-8 text-center">
-                    <p className="text-muted-foreground text-sm">
-                      {analyticsLoading ? "Memuat profil akun…" : "Profil tidak tersedia. Kembali ke ringkasan untuk mencoba lagi."}
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
-
-            {/* Tab: Status */}
-            <TabsContent value="status" className="mt-0 space-y-3 md:mt-4 lg:mt-0">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-semibold">
-                    Riwayat
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    Pilih publikasi untuk cek status. Riwayat tersimpan di browser ini.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {publishWarning && <p role="alert" className="mb-3 rounded-md border border-amber-500 p-3 text-sm">{publishWarning}</p>}
-                  {history.length > 0 && <div className="mb-4 divide-y rounded-lg border">{history.map((record) => <button type="button" key={record.id} onClick={() => setPublishId(record.id)} aria-pressed={publishId === record.id} className="flex w-full min-w-0 items-center justify-between gap-3 p-3 text-left hover:bg-muted aria-pressed:bg-muted"><span className="min-w-0 truncate text-sm">{record.id}</span><span className="shrink-0 text-xs text-muted-foreground">{new Date(record.createdAt).toLocaleString("id-ID")}</span></button>)}</div>}
-                  {publishId ? (
-                    <PublishStatusChecker
-                      publishId={publishId}
-                      key={publishId}
-                    />
-                  ) : (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground text-sm">
-                        {history.length ? "Pilih publikasi untuk memeriksa status." : "Belum ada aktivitas publikasi di browser ini."}
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-            <TabsContent value="agent" className="mt-0 space-y-3 md:mt-4 lg:mt-0"><GatewayPanel accountName={profile?.display_name} /></TabsContent>
-            </div>
-          </Tabs>
+          </div>:null}
         </div>
-      </main>
-
-      <footer className="hidden md:block border-t border-border bg-transparent py-5 px-4">
-        <div className="max-w-[1400px] mx-auto flex flex-col sm:flex-row justify-between items-center gap-3 text-xs sm:text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} CreatorPulse Studio. All rights reserved.</p>
-          <div className="flex sm:gap-6 gap-3">
-            <a href="/privacy" className="hover:text-foreground transition-colors">
-              Kebijakan Privasi
-            </a>
-            <a href="/terms" className="hover:text-foreground transition-colors">
-              Ketentuan Layanan
-            </a>
-          </div>
-        </div>
-      </footer>
-    </div>
-  );
+        {activeTab==="status"&&publishWarning&&<p role="alert" className="mt-3 rounded-md border border-amber-500 p-3 text-sm">{publishWarning}</p>}
+        {["agent","review","publish"].includes(activeTab)&&<div>
+          {activeTab==="agent"&&<div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-white p-3 text-xs text-slate-500"><span>Account for enrollment</span><div className="w-48"><AccountManager name={profile?.display_name} disabled={publishing}/></div></div>}
+          <GatewayPanel accountName={profile?.display_name} view={activeTab==="review"?"review":activeTab==="publish"?"queue":"agent"}/>
+        </div>}
+      </div>
+    </main>
+  </div>;
 }
