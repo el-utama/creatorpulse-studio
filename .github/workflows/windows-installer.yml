@@ -17,7 +17,7 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          foreach ($name in @('windows-owner-start.ps1','windows-preflight.ps1')) {
+          foreach ($name in @('windows-owner-start.ps1','windows-preflight.ps1','windows-owner-agent.ps1')) {
             $tokens = $null
             $errors = $null
             $path = Join-Path $pwd "integrations/hermes/$name"
@@ -74,6 +74,43 @@ jobs:
           } finally {
             if (Test-Path -LiteralPath $fixture) { Remove-Item -LiteralPath $fixture -Recurse -Force }
           }
+      - name: Test owner credential helpers on disposable fixture
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tokens = $null
+          $errors = $null
+          $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $pwd 'integrations/hermes/windows-owner-agent.ps1'),[ref]$tokens,[ref]$errors)
+          if ($errors.Count) { throw 'Parser errors' }
+          foreach ($name in @('Get-ExistingAgentKey','New-AgentCredentialAcl','Assert-AgentCredentialAcl','Write-AgentCredential')) {
+            $fn = $ast.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name},$false)
+            if (-not $fn) { throw "Missing helper $name" }
+            . ([scriptblock]::Create($fn.Extent.Text))
+          }
+          $root = Join-Path $env:RUNNER_TEMP ('cp-credentials-' + [guid]::NewGuid())
+          $null = New-Item -ItemType Directory -Path $root
+          try {
+            $key = 'cp_sandbox_agent_' + [guid]::NewGuid().ToString('N')
+            $source = Join-Path $root 'source'
+            $null = New-Item -ItemType Directory -Path $source
+            Set-Content -LiteralPath (Join-Path $source 'vercel.env') -Value @("CREATORPULSE_AGENT_KEY=$key",'CREATORPULSE_BRIDGE_TOKEN=fixture-not-for-agent') -Encoding Ascii
+            if ((Get-ExistingAgentKey $source) -cne $key) { throw 'Existing Agent Key extraction failed' }
+            Set-Content -LiteralPath (Join-Path $source 'hermes.env') -Value ('CREATORPULSE_AGENT_KEY=cp_sandbox_agent_' + [guid]::NewGuid().ToString('N')) -Encoding Ascii
+            $rejected = $false
+            try { $null = Get-ExistingAgentKey $source } catch { $rejected = $_.Exception.Message -like '*disagree*' }
+            if (-not $rejected) { throw 'Mismatched sources not rejected' }
+            $sid = [Security.Principal.SecurityIdentifier]::new('S-1-5-32-545')
+            $out = Join-Path $root 'export'
+            $null = [IO.Directory]::CreateDirectory($out,(New-AgentCredentialAcl $sid))
+            Assert-AgentCredentialAcl $out $sid
+            $file = Join-Path $out 'hermes.env'
+            Write-AgentCredential $file "CREATORPULSE_AGENT_KEY=$key" $sid
+            Write-AgentCredential $file "CREATORPULSE_AGENT_KEY=$key" $sid
+            $rejected = $false
+            try { Write-AgentCredential $file 'different' $sid } catch { $rejected = $_.Exception.Message -like '*differs*' }
+            if (-not $rejected -or [IO.File]::ReadAllText($file) -cne "CREATORPULSE_AGENT_KEY=$key") { throw 'Credential overwrite guard failed' }
+            Write-Host 'Owner credential extraction, scoped ACL and no-overwrite fixture passed.'
+          } finally { Remove-Item -LiteralPath $root -Recurse -Force }
       - name: Start real Bridge from scheduled task under disposable standard user
         shell: powershell
         timeout-minutes: 8
