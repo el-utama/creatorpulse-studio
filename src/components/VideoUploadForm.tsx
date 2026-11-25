@@ -18,6 +18,7 @@ interface UploadFormProps {
   onPublish: (payload: PublishPayload) => void;
   publishing?: boolean;
   error?: string | null;
+  onDirty?: (dirty:boolean)=>void;
   onPreview?: (value:{mode:string;url:string|null;name:string|null;onDuration:(duration:number|null)=>void})=>void;
 }
 
@@ -38,7 +39,7 @@ export interface PublishPayload {
   isAigc: boolean;
 }
 
-export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing = false, error, onPreview }: UploadFormProps) {
+export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing = false, error, onPreview, onDirty }: UploadFormProps) {
   const [mode, setMode] = useState<"inbox" | "profile">("inbox");
   const [duration, setDuration] = useState<number | null>(null);
   const [commercial, setCommercial] = useState(false);
@@ -111,6 +112,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
   const validDuration = duration !== null && Number.isFinite(duration) && duration > 0 && duration <= (capabilities?.max_video_post_duration_sec ?? 0);
   const ready = (source === "file" ? hasFile : validUrl) && (mode === "inbox" || (!!privacy && !!capabilities?.privacy_level_options.includes(privacy) && validDuration && (!commercial || brandOrganic || brandContent) && (!commercial || !brandContent || ["PUBLIC_TO_EVERYONE","MUTUAL_FOLLOW_FRIENDS"].includes(privacy))));
   useEffect(()=>{onPreview?.({mode,url:source==="file"?previewUrl:validUrl?videoUrl:null,name:source==="file"?file?.name??null:null,onDuration:setDuration})},[mode,source,previewUrl,validUrl,videoUrl,file,onPreview]);
+  useEffect(()=>{onDirty?.(!!videoUrl||!!file||!!caption||mode!=="inbox"||source!=="url"||!!privacy||commercial||isAigc||!!fileError)},[videoUrl,file,caption,mode,source,privacy,commercial,isAigc,fileError,onDirty]);
   const canPublish = !publishing && consent && review && ready;
 
   return (

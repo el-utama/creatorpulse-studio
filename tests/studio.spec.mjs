@@ -343,3 +343,32 @@ test('R1 operational reference screenshots, real fixture counts and lock isolati
  for(const width of [320,390,1440]){await page.setViewportSize({width,height:900});await page.locator('.r1-queue').getByRole('button',{name:'Review',exact:true}).filter({visible:true}).last().click();const dialog=page.getByRole('dialog',{name:'Review agent draft'});await expect(dialog).toBeVisible();await expect(dialog.getByText('Buka dan tinjau video:',{exact:false})).toBeVisible();await expect(dialog.getByRole('button',{name:'Setujui Direct Post'})).toBeDisabled();expect(await dialog.evaluate(el=>el.scrollWidth)).toBeLessThanOrEqual(width-32);await page.screenshot({path:'test-results/r1-review-'+width+'.png'});await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);}
  await nav(page,'AI Agent').click();await page.getByRole('button',{name:'Kunci sesi'}).click();await nav(page,'Overview').click();await expect(page.getByText('Unlock operator to view',{exact:true})).toBeVisible();await expect(page.getByText('Morning studio routine',{exact:true}).filter({visible:true})).toHaveCount(1);
 });
+
+test('R1 draft guard and global agent refresh with unified history',async({page,context})=>{
+ await context.addCookies([{name:'creatorpulse_access_token',value:'mock-only',url:'http://localhost:3000'}]);
+ await page.route('**/api/tiktok/analytics',route=>route.fulfill({json:{user_info:{open_id:'guard-account',display_name:'Guard account',avatar_url:'',follower_count:1,following_count:1,likes_count:1,video_count:0},videos:{data:[]}}}));
+ await page.route('https://example.com/video.mp4',route=>route.abort());
+ await page.addInitScript(()=>localStorage.setItem('creatorpulse:publications:guard-account',JSON.stringify([{id:'manual-record',createdAt:'2026-11-24T00:00:00Z',mode:'inbox'}])));
+ let reads=0,posts=[];
+ await page.route('**/api/gateway/v1/health',route=>route.fulfill({json:{configured:true}}));
+ await page.route('**/api/gateway/v1/posts',route=>{reads++;return route.fulfill({json:{posts}})});
+ await page.route('**/api/gateway/v1/accounts',route=>route.fulfill({json:{accounts:[]}}));
+ await page.route(/\/api\/gateway\/v1\/trends(?:\?|$)/,route=>route.fulfill({json:{observations:[]}}));
+ await page.route('**/api/tiktok/publish/status',route=>route.fulfill({json:{status:'SEND_TO_USER_INBOX'}}));
+ await page.setViewportSize({width:390,height:844});await page.goto('/dashboard');await compose(page);
+ await page.getByLabel('URL video').fill('https://example.com/video.mp4');
+ page.once('dialog',dialog=>dialog.dismiss());await nav(page,'Overview').click();await expect(page.getByLabel('URL video')).toHaveValue('https://example.com/video.mp4');
+ page.once('dialog',dialog=>dialog.accept());await nav(page,'Overview').click();await expect(page.getByRole('heading',{name:'Overview',exact:true})).toBeVisible();
+ await compose(page);await expect(page.getByLabel('URL video')).toHaveValue('');await nav(page,'AI Agent').click();
+ await page.getByLabel('Kunci operator',{exact:true}).fill('fixture-operator');await page.getByRole('button',{name:'Buka akses'}).click();await expect(page.getByText('Bridge data loaded',{exact:true})).toBeVisible();
+ const initial=reads;posts=[{id:'agent-history',accountId:'a'.repeat(32),accountName:'Agent account',caption:'Agent record',videoUrl:'https://example.com/video.mp4',mode:'inbox',state:'submitted',status:'SEND_TO_USER_INBOX',updatedAt:'2026-11-25T00:00:00Z',events:[]}];
+ await nav(page,'Overview').click();await page.getByRole('button',{name:'Refresh workspace'}).click();await expect.poll(()=>reads).toBeGreaterThan(initial);
+ await nav(page,'Publishing').click();await page.getByRole('button',{name:'History',exact:true}).click();const history=page.getByRole('heading',{name:'Publication history'}).locator('xpath=ancestor::section[1]');
+ await expect(history.getByText('Agent record',{exact:true}).filter({visible:true})).toBeVisible();await expect(history.getByText('manual-record',{exact:true}).filter({visible:true})).toBeVisible();
+ await page.getByLabel('History source').selectOption('manual');await expect(history.getByText('Agent record',{exact:true})).toHaveCount(0);
+ await page.getByRole('button',{name:'Details manual-record'}).click();await expect(page.getByText('Dikirim ke inbox TikTok',{exact:true})).toBeVisible();
+ await page.getByLabel('History source').selectOption('agent');await page.getByRole('button',{name:'Details Agent record'}).click();await expect(page.getByRole('dialog',{name:'Publication details'})).toBeVisible();await page.keyboard.press('Escape');
+ await page.getByRole('button',{name:'Kunci sesi'}).click();await expect(history.getByText('Agent record',{exact:true})).toHaveCount(0);
+ await page.getByLabel('History source').selectOption('all');await expect(history.getByText('manual-record',{exact:true}).filter({visible:true})).toBeVisible();
+ await page.screenshot({path:'test-results/r1-history-390.png',fullPage:true});
+});
