@@ -18,16 +18,16 @@ test('mobile dashboard: review, publish once, status, reload history', async ({p
   await page.route('**/api/tiktok/publish/status', route=>route.fulfill({json:{status:'SEND_TO_USER_INBOX'}}));
   await page.goto('/dashboard');
   await expect(page.getByRole('heading',{name:'Halo, Test Creator',exact:true})).toBeVisible();
-  await page.getByRole('tab',{name:'Buat post',exact:true}).click();
-  await page.getByLabel('Tautan video HTTPS').fill('http://example.com/video.mp4');
-  await expect(page.getByRole('button',{name:'Tinjau publikasi'})).toBeDisabled();
-  await page.getByLabel('Tautan video HTTPS').fill('https://example.com/video.mp4');
+  await page.getByRole('tab',{name:'Publish',exact:true}).click();
+  await page.getByLabel('URL video').fill('http://example.com/video.mp4');
+  await expect(page.getByRole('button',{name:'Review'})).toBeDisabled();
+  await page.getByLabel('URL video').fill('https://example.com/video.mp4');
   await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'test-results/ux-publish-inbox-mobile.png',fullPage:true});
-  await page.getByRole('button',{name:'Tinjau publikasi'}).click();
-  await expect(page.getByRole('button',{name:'Kirim ke inbox TikTok'})).toBeDisabled();
+  await page.getByRole('button',{name:'Review'}).click();
+  await expect(page.getByRole('button',{name:'Kirim ke Inbox'})).toBeDisabled();
   await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'test-results/ux-publish-review-mobile.png',fullPage:true});
   await page.locator('#publication-consent').click();
-  await page.getByRole('button',{name:'Kirim ke inbox TikTok'}).click();
+  await page.getByRole('button',{name:'Kirim ke Inbox'}).click();
   await expect(page.getByText('Dikirim ke inbox TikTok',{exact:true})).toBeVisible();
   expect(requests).toBe(1);await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'test-results/ux-activity-mobile.png',fullPage:true});
   await page.reload();
@@ -45,20 +45,20 @@ test('direct post requires account capabilities and explicit privacy', async ({p
   await page.route('**/api/tiktok/publish',route=>route.fulfill({json:{publish_id:'mock-direct'}}));
   await page.route('**/api/tiktok/publish/status',route=>route.fulfill({json:{status:'PUBLISH_COMPLETE'}}));
   await page.goto('/dashboard');
-  await page.getByRole('tab',{name:'Buat post',exact:true}).click();
+  await page.getByRole('tab',{name:'Publish',exact:true}).click();
   await page.route('https://example.com/video.mp4',route=>route.abort());
   await page.getByRole('button',{name:'Direct Post',exact:true}).click();
-  await page.getByLabel('Tautan video HTTPS').fill('https://example.com/video.mp4');
-  await expect(page.getByRole('button',{name:'Tinjau publikasi'})).toBeDisabled();
+  await page.getByLabel('URL video').fill('https://example.com/video.mp4');
+  await expect(page.getByRole('button',{name:'Review'})).toBeDisabled();
   await page.locator('#privacy').click();
   await expect(page.getByRole('option',{name:'Semua orang'})).toHaveCount(0);
   await page.getByRole('option',{name:'Hanya saya'}).click();
   await expect.poll(()=>page.getByLabel('Pratinjau video').evaluate(video=>!!video.error)).toBe(true);
   await page.getByLabel('Pratinjau video').evaluate(video=>{Object.defineProperty(video,'duration',{value:10,configurable:true});video.dispatchEvent(new Event('loadedmetadata'));});
   await expect(page.getByRole('checkbox',{name:'Izinkan komentar'})).toBeDisabled();await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'test-results/ux-direct-desktop.png',fullPage:true});
-  await page.getByRole('button',{name:'Tinjau publikasi'}).click();
+  await page.getByRole('button',{name:'Review'}).click();
   await page.locator('#publication-consent').click();
-  await page.getByRole('button',{name:'Publikasikan ke TikTok'}).click();
+  await page.getByRole('button',{name:'Publish'}).click();
   await expect(page.getByText('Terpublikasi',{exact:true})).toBeVisible();
 });
 
@@ -137,7 +137,7 @@ test('content loads another page and searches loaded descriptions',async ({page,
  await page.goto('/dashboard');
  await page.getByRole('tab',{name:'Konten'}).click();
  await expect(page.getByText('Video baru',{exact:true})).toBeVisible();
- await page.getByRole('button',{name:'Muat video lainnya'}).click();
+ await page.getByRole('button',{name:'Muat lagi'}).click();
  await expect(page.getByText('Video lama',{exact:true})).toBeVisible();
  await page.getByLabel('Cari video').fill('musik unik');
  await expect(page.getByText('Video baru',{exact:true})).toHaveCount(0);
@@ -148,13 +148,13 @@ test('uncertain publication stays blocked after reload',async ({page,context})=>
  await context.addCookies([{name:'creatorpulse_access_token',value:'mock-only',url:'http://localhost:3000'}]);
  await page.route('**/api/tiktok/analytics',route=>route.fulfill({json:{user_info:{open_id:'uncertain-account',display_name:'Test Creator',avatar_url:'',follower_count:0,following_count:0,likes_count:0,video_count:0},videos:{data:[]}}}));
  await page.route('**/api/tiktok/publish',route=>route.fulfill({status:502,json:{error:'Hasil belum pasti'}}));
- await page.goto('/dashboard');await page.getByRole('tab',{name:'Buat post'}).click();
- await page.getByLabel('Tautan video HTTPS').fill('https://example.com/video.mp4');
- await page.getByRole('button',{name:'Tinjau publikasi'}).click();
+ await page.goto('/dashboard');await page.getByRole('tab',{name:'Publish'}).click();
+ await page.getByLabel('URL video').fill('https://example.com/video.mp4');
+ await page.getByRole('button',{name:'Review'}).click();
  await page.locator('#publication-consent').click();
- await page.getByRole('button',{name:'Kirim ke inbox TikTok'}).click();
+ await page.getByRole('button',{name:'Kirim ke Inbox'}).click();
  await expect(page.getByRole('button',{name:'Buka blokir publikasi'})).toBeDisabled();
- await page.reload();await page.getByRole('tab',{name:'Buat post'}).click();
+ await page.reload();await page.getByRole('tab',{name:'Publish'}).click();
  await expect(page.getByRole('button',{name:'Buka blokir publikasi'})).toBeDisabled();
  await page.getByLabel('Saya sudah memeriksa TikTok dan memastikan aman untuk memulai publikasi baru.').check();
  await page.getByRole('button',{name:'Buka blokir publikasi'}).click();
@@ -164,7 +164,7 @@ test('uncertain publication stays blocked after reload',async ({page,context})=>
 test('studio design overview and library views',async ({page,context})=>{
  await context.addCookies([{name:'creatorpulse_access_token',value:'mock-only',url:'http://localhost:3000'}]);
  await page.route('**/api/tiktok/analytics',route=>route.fulfill({json:{user_info:{open_id:'design-account',display_name:'Test Creator',avatar_url:'',follower_count:1000,following_count:20,likes_count:500,video_count:1},videos:{data:[{id:'design-v',title:'Sample video',cover_image_url:'',create_time:1,share_url:'https://www.tiktok.com/',view_count:100,like_count:10,comment_count:2,share_count:1}]}}}));
- for(const width of [1440,768,390,320]){await page.setViewportSize({width,height:900});await page.goto('/dashboard');await expect(page.getByRole('heading',{name:'Performa konten'})).toBeVisible();await expect(page.getByRole('heading',{name:'Video teratas'})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'test-results/design-overview-'+width+'.png',fullPage:true});}
+ for(const width of [1440,768,390,320]){await page.setViewportSize({width,height:900});await page.goto('/dashboard');await expect(page.getByRole('heading',{name:'Performa'})).toBeVisible();await expect(page.getByRole('heading',{name:'Video teratas'})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'test-results/design-overview-'+width+'.png',fullPage:true});}
  await page.getByRole('tab',{name:'Konten',exact:true}).click();await page.getByRole('button',{name:'Tampilan grid'}).click();await expect(page.getByRole('button',{name:'Tampilan grid'})).toHaveAttribute('aria-pressed','true');await expect(page.getByText('Sample video',{exact:true})).toBeVisible();await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'test-results/ux-content-grid-mobile.png',fullPage:true});await page.getByRole('button',{name:'Tampilan daftar'}).click();await expect(page.getByRole('button',{name:'Tampilan daftar'})).toHaveAttribute('aria-pressed','true');await page.setViewportSize({width:1440,height:900});await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'test-results/ux-content-list-desktop.png',fullPage:true});
 });
 
@@ -231,19 +231,19 @@ test('AI workspace: clear setup state, discoverable copy action, no overflow', a
  await page.route('**/api/gateway/v1/health',route=>route.fulfill({json:{configured:false}}));
  for(const width of [1440,768,390,320]){
   await page.setViewportSize({width,height:900});await page.goto('/dashboard');
-  await expect(page.getByRole('heading',{name:'Performa konten'})).toBeVisible();
-  await expect(page.getByRole('button',{name:'Salin instruksi Hermes'})).toHaveCount(0);
+  await expect(page.getByRole('heading',{name:'Performa'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Copy Prompt'})).toHaveCount(0);
   await page.getByRole('tab',{name:'AI Agent'}).click();
   await expect(page.getByRole('heading',{name:'Integrasi AI',exact:true})).toBeVisible();
   await expect(page.getByText('Belum disiapkan',{exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'Salin instruksi Hermes'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Copy Prompt'})).toBeVisible();
   await expect(page.getByLabel('Kunci operator',{exact:true})).toHaveCount(0);
-  await expect(page.getByRole('link',{name:'Panduan Local Bridge'})).toBeVisible();
+  await expect(page.getByRole('link',{name:'Panduan Bridge'})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   if(width<768){const toggle=page.getByRole('button',{name:'Buka menu'});await expect(toggle).toBeVisible();expect(await toggle.locator('svg').evaluate(el=>el.getBoundingClientRect().width)).toBeGreaterThanOrEqual(20);}
   await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'test-results/ux-ai-setup-'+width+'.png',fullPage:true});
  }
- await page.getByText('Lihat teks instruksi',{exact:true}).click();
+ await page.getByText('Lihat prompt',{exact:true}).click();
  await expect(page.getByLabel('Instruksi pemasangan Hermes')).toHaveValue(/branch main/);
 });
 test('AI workspace: health failure is actionable and operator key has one entry point',async ({page,context})=>{
@@ -259,13 +259,13 @@ test('AI workspace: health failure is actionable and operator key has one entry 
  await page.getByRole('button',{name:'Coba lagi',exact:true}).click();
  await expect(page.getByText('Konfigurasi tersedia',{exact:true})).toBeVisible();
  await expect(page.getByLabel('Kunci operator',{exact:true})).toHaveCount(1);
- await page.getByLabel('Kunci operator',{exact:true}).fill('mock-operator');await page.getByRole('button',{name:'Muat data operator'}).click();
- await expect(page.getByRole('heading',{name:'Persetujuan publikasi'})).toBeVisible();
+ await page.getByLabel('Kunci operator',{exact:true}).fill('mock-operator');await page.getByRole('button',{name:'Buka akses'}).click();
+ await expect(page.getByRole('heading',{name:'Approval'})).toBeVisible();
  await expect(page.getByLabel('Kunci operator',{exact:true})).toHaveCount(0);
  await expect(page.getByText('Belum ada rencana publikasi.',{exact:true})).toBeVisible();
  await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'test-results/ux-ai-operator-mobile.png',fullPage:true});
  await page.setViewportSize({width:1440,height:900});await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'test-results/ux-ai-operator-desktop.png',fullPage:true});
- await page.getByRole('button',{name:'Kunci sesi'}).click();await expect(page.getByRole('heading',{name:'Operasional agent'})).toHaveCount(0);
+ await page.getByRole('button',{name:'Kunci sesi'}).click();await expect(page.getByRole('heading',{name:'Workspace Agent'})).toHaveCount(0);
  await expect(page.getByLabel('Kunci operator',{exact:true})).toHaveValue('');
 });
 
@@ -290,8 +290,8 @@ test('navigation highlights exactly the current tab immediately and mobile edito
  await page.getByRole('tab',{name:'AI Agent'}).click();await page.mouse.move(1400,80);
  const state=await page.getByRole('tab').evaluateAll(els=>els.map(el=>({selected:el.getAttribute('aria-selected'),color:getComputedStyle(el).backgroundColor})));
  expect(state.filter(x=>x.selected==='true')).toHaveLength(1);expect(state.filter(x=>x.selected==='false').every(x=>x.color==='rgba(0, 0, 0, 0)')).toBe(true);expect(state.find(x=>x.selected==='true').color).not.toBe('rgba(0, 0, 0, 0)');
- await page.setViewportSize({width:390,height:844});await page.getByRole('tab',{name:'Buat post'}).click();
- const editor=page.getByText('Unggah & Publikasikan Video',{exact:true}),notes=page.getByText('Catatan Penting',{exact:true});await expect(editor).toBeVisible();await expect(notes).toBeVisible();expect((await editor.boundingBox()).y).toBeLessThan((await notes.boundingBox()).y);
+ await page.setViewportSize({width:390,height:844});await page.getByRole('tab',{name:'Publish'}).click();
+ const editor=page.getByRole('heading',{name:'Upload & Publish',exact:true}),notes=page.getByText('Catatan',{exact:true});await expect(editor).toBeVisible();await expect(notes).toBeVisible();expect((await editor.boundingBox()).y).toBeLessThan((await notes.boundingBox()).y);
 });
 
 test('mobile dashboard has compact toolbar, native bottom navigation and readable input sizes',async({page,context})=>{
@@ -305,8 +305,8 @@ test('mobile dashboard has compact toolbar, native bottom navigation and readabl
   expect(await page.getByRole('heading',{level:1}).evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeLessThanOrEqual(20);
   expect(await page.locator('[data-metric-value]').evaluateAll(els=>els.every(el=>el.scrollWidth<=el.clientWidth+1))).toBe(true);
   await page.mouse.move(width-2,2);await page.screenshot({path:'test-results/mobile-native-overview-'+width+'.png'});
-  await page.getByRole('tab',{name:'Buat post'}).click();await expect(page.getByLabel('Tautan video HTTPS')).toBeVisible();expect(await page.getByLabel('Tautan video HTTPS').evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
-  expect(await page.getByRole('button',{name:'Tautan HTTPS',exact:true}).evaluate(el=>Math.round(el.getBoundingClientRect().top))).toBe(await page.getByRole('button',{name:'File perangkat',exact:true}).evaluate(el=>Math.round(el.getBoundingClientRect().top)));
+  await page.getByRole('tab',{name:'Publish'}).click();await expect(page.getByLabel('URL video')).toBeVisible();const editorTitle=page.getByRole('heading',{name:'Upload & Publish',exact:true});await expect(editorTitle).toBeVisible();expect(await editorTitle.evaluate(el=>({font:parseFloat(getComputedStyle(el).fontSize),height:el.getBoundingClientRect().height}))).toEqual(expect.objectContaining({font:14,height:expect.any(Number)}));expect(await editorTitle.evaluate(el=>el.getBoundingClientRect().height)).toBeLessThanOrEqual(22);expect(await page.getByLabel('URL video').evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
+  expect(await page.getByRole('button',{name:'URL',exact:true}).evaluate(el=>Math.round(el.getBoundingClientRect().top))).toBe(await page.getByRole('button',{name:'File',exact:true}).evaluate(el=>Math.round(el.getBoundingClientRect().top)));
   await page.mouse.move(width-2,2);await page.screenshot({path:'test-results/mobile-native-publish-'+width+'.png'});
   await page.getByRole('tab',{name:'AI Agent'}).click();await expect(page.getByText('Belum disiapkan',{exact:true})).toBeVisible();await page.screenshot({path:'test-results/mobile-native-agent-'+width+'.png'});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
