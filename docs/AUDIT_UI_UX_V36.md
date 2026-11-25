@@ -15,3 +15,6 @@ Scope: source review of production commit 7f27516; browser regression tests use 
 | Medium | Mobile additions untested | Regression at 320/390/768/1440 widths, setup/error/configured screens and screenshots |
 
 Remaining: visual review of authenticated live dashboard and real agent approval states, actual mobile browser/Safari, full accessibility/contrast testing, larger queue/trend data, more ergonomic status history, publication review and long-form workflow. Test screenshots are generated in CI; passing overflow checks alone does not guarantee visual quality. Do not release automatically merely because this audit exists.
+
+## Follow-up: user screenshot
+The desktop sidebar showed each inactive tab as a raised white card due to unconditional shadow-sm in the shared tab primitive; icon/text lacked align-items:center. Replaced it with a flat compact 13rem sidebar, centered icons, concise active account status, smaller spacing and a single active highlight. Removed redundant account explanation. Added desktop computed-style assertions (no row shadow, centered items, max 46px row height). User screenshot is production V3.6 before this revision.

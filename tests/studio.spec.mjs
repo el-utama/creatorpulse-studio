@@ -263,3 +263,16 @@ test('AI workspace: health failure is actionable and operator key has one entry 
  await page.getByRole('button',{name:'Kunci sesi'}).click();await expect(page.getByRole('heading',{name:'Operasional agent'})).toHaveCount(0);
  await expect(page.getByLabel('Kunci operator',{exact:true})).toHaveValue('');
 });
+
+test('desktop sidebar uses flat compact rows and centers icons',async({page,context})=>{
+ await context.addCookies([{name:'creatorpulse_access_token',value:'mock-only',url:'http://localhost:3000'}]);
+ await page.route('**/api/tiktok/analytics',route=>route.fulfill({json:{user_info:{open_id:'sidebar-test',display_name:'Utama',avatar_url:'',follower_count:10,following_count:2,likes_count:20,video_count:0},videos:{data:[]}}}));
+ await page.setViewportSize({width:1440,height:900});await page.goto('/dashboard');await expect(page.getByRole('heading',{name:'Halo, Utama'})).toBeVisible();
+ const tabs=page.getByRole('tab');await expect(tabs).toHaveCount(5);
+ for(const tab of await tabs.all()){
+  const style=await tab.evaluate(el=>({shadow:getComputedStyle(el).boxShadow,align:getComputedStyle(el).alignItems,height:el.getBoundingClientRect().height}));
+  expect(style.shadow).toBe('none');expect(style.align).toBe('center');expect(style.height).toBeLessThanOrEqual(46);
+ }
+ expect(await page.locator('.studio-sidebar').evaluate(el=>el.getBoundingClientRect().width)).toBeLessThanOrEqual(210);
+ await page.screenshot({path:'test-results/ux-compact-sidebar-desktop.png',fullPage:true});
+});
