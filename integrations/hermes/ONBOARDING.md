@@ -2,14 +2,11 @@
 
 Start with Sandbox, not Production. The dedicated profile names are `creatorpulse-sandbox` and `creatorpulse`. One repository, separate checkouts/branches and runtime state. Keep existing default Hermes and messaging untouched.
 
-## Copy-paste prompt — Sandbox
+## Sandbox — repository-native execution
+Hermes should execute [SANDBOX_RUNBOOK.md](SANDBOX_RUNBOOK.md) from the sandbox checkout. The root AGENTS.md is the entry point for fresh setup and recovery. All safe host work is an agent task; only privileged setup, private credential provisioning and enrollment are owner tasks.
+
 ```text
-Siapkan profil Hermes khusus creatorpulse-sandbox (CreatorPulse Lab), hanya untuk sandbox. Jangan ubah profil default, provider/model existing, WhatsApp/Telegram, bot, jadwal atau koneksi lain. Jangan clone profil atau menyalin seluruh .env/memori. Jangan posting.
-1. Ambil repo https://github.com/el-utama/creatorpulse-studio branch sandbox ke direktori terpisah; jangan timpa pekerjaan lokal. Catat commit. Baca integrations/hermes/ONBOARDING.md.
-2. Periksa hermes profile create --help; buat profil bersih dengan --no-credentials --no-alias jika tersedia. Jangan jadikan default. Konfigurasikan hanya provider/model NVIDIA NIM yang sudah disetujui secara lokal pada profil baru; jika opsi tidak tersedia, berhenti dan laporkan.
-3. Gunakan path profil khusus yang benar. Jalankan python integrations/hermes/bootstrap.py --environment sandbox --hermes-home <path-profil> (dry-run). Owner menyiapkan Local Bridge sandbox, Vercel dan enrollment; jangan meminta secret di chat. Owner hanya memberikan path file hermes.env khusus sandbox atau memasang agent key secara lokal.
-4. Setelah rencana benar, ulangi dengan --apply dan opsional --agent-env <path-hermes.env>. Jangan memakai file vercel.env/bridge.env atau kredensial operator.
-5. Jalankan pemeriksaan adapter dan hermes -p creatorpulse-sandbox mcp test creatorpulse jika didukung. Uji list_accounts dan analytics read-only dalam sesi terminal profil khusus; jangan restart gateway pesan. Laporkan commit, environment, profil dan blocker tanpa secret. Jangan membuat atau menjalankan publikasi.
+Set up or resume CreatorPulse Sandbox on the local host. Use the existing clean sandbox checkout of https://github.com/el-utama/creatorpulse-studio (or clone it if absent); fast-forward only, never reset local work. Read AGENTS.md and integrations/hermes/SANDBOX_RUNBOOK.md and execute the runbook end to end. Inspect before making changes, perform safe local tasks yourself, consolidate any owner-only action, and return a single redacted verification report. Do not change default Hermes, messaging, production, or publish.
 ```
 
 ## Production (only after Sandbox acceptance)
