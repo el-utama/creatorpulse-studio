@@ -244,7 +244,8 @@ test('AI workspace: clear setup state, discoverable copy action, no overflow', a
   await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'test-results/ux-ai-setup-'+width+'.png',fullPage:true});
  }
  await page.getByText('Lihat prompt',{exact:true}).click();
- await expect(page.getByLabel('Instruksi pemasangan Hermes')).toHaveValue(/branch main/);
+ await expect(page.getByLabel('Instruksi pemasangan Hermes')).toHaveValue(/Open the canonical Sandbox or Production domain/);
+ await expect(page.getByRole('button',{name:'Copy Prompt'})).toBeDisabled();
 });
 test('AI workspace: health failure is actionable and operator key has one entry point',async ({page,context})=>{
  await context.addCookies([{name:'creatorpulse_access_token',value:'mock-only',url:'http://localhost:3000'}]);
@@ -371,4 +372,29 @@ test('R1 draft guard and global agent refresh with unified history',async({page,
  await page.getByRole('button',{name:'Kunci sesi'}).click();await expect(history.getByText('Agent record',{exact:true})).toHaveCount(0);
  await page.getByLabel('History source').selectOption('all');await expect(history.getByText('manual-record',{exact:true}).filter({visible:true})).toBeVisible();
  await page.screenshot({path:'test-results/r1-history-390.png',fullPage:true});
+});
+
+test('Hermes prompt matches canonical environment and never defaults to production',async({page,context})=>{
+ for(const [host,branch,profile,environment] of [
+ ['creatorpulse-studio-git-sandbox-total-management1.vercel.app','sandbox','creatorpulse-sandbox','sandbox'],
+ ['creatorpulse-studio-six.vercel.app','main','creatorpulse','production']]){
+  const origin='https://'+host;
+  await context.addCookies([{name:'creatorpulse_access_token',value:'mock-only',url:origin}]);
+  const pattern=origin+'/**';
+  await page.route(pattern,async route=>{
+    const u=new URL(route.request().url());
+    if(u.pathname==='/api/gateway/v1/health')return route.fulfill({json:{configured:false}});
+    if(u.pathname==='/api/tiktok/analytics')return route.fulfill({json:{user_info:{open_id:'prompt-fixture',display_name:'Fixture',avatar_url:'',follower_count:0,following_count:0,likes_count:0,video_count:0},videos:{data:[]}}});
+    const response=await route.fetch({url:'http://localhost:3000'+u.pathname+u.search,maxRedirects:0});
+    await route.fulfill({response});
+  });
+  await page.goto(origin+'/dashboard');await nav(page,'AI Agent').click();
+  await expect(page.getByRole('button',{name:'Copy Prompt'})).toBeEnabled();
+  await page.getByText('Lihat prompt',{exact:true}).click();
+  const prompt=await page.getByLabel('Instruksi pemasangan Hermes').inputValue();
+  expect(prompt).toContain('branch '+branch+' ');
+  expect(prompt).toContain('--environment '+environment+' ');
+  expect(prompt).toContain('profil Hermes khusus '+profile+' ');
+  await page.unroute(pattern);
+ }
 });
