@@ -21,3 +21,5 @@ The desktop sidebar showed each inactive tab as a raised white card due to uncon
 
 ## Actual Chromium render inspection
 Downloaded run 45515455553 artifacts and inspected rendered 1440px overview and 320/390px screens. Sidebar is visually flat and compact. Mobile menu icon was collapsed by large horizontal padding inside a fixed-width button; fixed using icon sizing, zero padding and non-shrinking SVG. Setup steps were too tall on mobile; condensed to numbered rows. Operator flow actually loaded data, but rendered English headings caused the assertion failure; fixed labels. CSS transparent shadow layers are not visible shadows; test checks zero-opacity layers as well as none. Actual production user session is not available, mock fixtures exercise the same app code.
+
+Run 45516191509, commit 80fe660: 7 SQLite + 4 onboarding + 15 dashboard + 6 gateway tests passed; production npm audit found zero vulnerabilities. Playwright gateway run erased the first run screenshots because both used the default output directory. Separate output directory and upload before gateway tests added; landing, content, publishing and activity screenshots now captured as well.
