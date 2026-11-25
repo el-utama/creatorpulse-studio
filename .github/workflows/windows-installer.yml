@@ -1,0 +1,43 @@
+name: Windows installer validation
+on:
+  pull_request:
+  push:
+    branches: [sandbox]
+    paths:
+      - 'integrations/hermes/*.ps1'
+      - '.github/workflows/windows-installer.yml'
+permissions:
+  contents: read
+jobs:
+  parse-and-preflight:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse scripts using Windows PowerShell 5.1 (never execute owner installer)
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($name in @('windows-owner-start.ps1','windows-preflight.ps1')) {
+            $tokens = $null
+            $errors = $null
+            $path = Join-Path $pwd "integrations/hermes/$name"
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile($path,[ref]$tokens,[ref]$errors)
+            if ($errors.Count) {
+              $errors | ForEach-Object { Write-Host $_.Message }
+              throw "PowerShell syntax failed: $name"
+            }
+            if ($name -eq 'windows-owner-start.ps1') {
+              $parameters = @($ast.ParamBlock.Parameters | ForEach-Object { $_.Name.VariablePath.UserPath })
+              if ($parameters.Count -ne 2 -or 'PythonArchive' -notin $parameters -or 'PythonSha256' -notin $parameters) { throw 'Installer parameter contract changed.' }
+              $raw = Get-Content -LiteralPath $path -Raw
+              if ([regex]::Matches($raw,'\$ErrorActionPreference = ''Stop''').Count -ne 1) { throw 'Duplicate installer body.' }
+            }
+            Write-Host "Syntax valid: $name"
+          }
+      - name: Run read-only Windows preflight
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $r = & ./integrations/hermes/windows-preflight.ps1 | ConvertFrom-Json
+          if (-not $r.host -or -not $r.identity) { throw 'Preflight report invalid.' }
+          Write-Host 'Preflight JSON valid.'
