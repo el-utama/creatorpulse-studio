@@ -20,10 +20,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { AccountManager } from "@/components/AccountManager";
 import { StudioOverview } from "@/components/StudioOverview";
+import { GatewayPanel } from "@/components/GatewayPanel";
 import { VideoList } from "@/components/VideoList";
 import { VideoUploadForm, type PublishPayload } from "@/components/VideoUploadForm";
 import { PublishStatusChecker } from "@/components/PublishStatusChecker";
-import { RefreshCw, ShieldAlert, LayoutDashboard, Film, PlusSquare, ListChecks } from "lucide-react";
+import { RefreshCw, ShieldAlert, LayoutDashboard, Film, PlusSquare, ListChecks, Bot } from "lucide-react";
 
 interface UserProfile {
   open_id: string;
@@ -193,30 +194,29 @@ export default function DashboardPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 lg:mb-8">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-                {({analytics:"Ringkasan",content:"Perpustakaan konten",publish:"Buat publikasi",status:"Aktivitas publikasi"} as Record<string,string>)[activeTab] || "Studio Kreator"}
+                {({analytics:"Ringkasan",content:"Perpustakaan konten",publish:"Buat publikasi",status:"Aktivitas publikasi",agent:"Integrasi AI"} as Record<string,string>)[activeTab] || "Studio Kreator"}
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground">
-                Workspace / {({analytics:"Analitik akun",content:"Konten TikTok",publish:"Editor publikasi",status:"Riwayat & status"} as Record<string,string>)[activeTab]}
+                {({analytics:"Analitik akun",content:"Konten TikTok",publish:"Editor publikasi",status:"Riwayat & status",agent:"Koneksi & operasional Hermes"} as Record<string,string>)[activeTab]}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <div className="w-full sm:w-56"><AccountManager name={profile?.display_name} disabled={publishing}/></div>
-              {lastUpdated && <span className="text-xs text-muted-foreground">Diperbarui {lastUpdated}</span>}
-              <Button onClick={() => setActiveTab("publish")} disabled={!profile || publishing}><PlusSquare className="mr-2 h-4 w-4" aria-hidden="true"/> Buat postingan</Button>
-              <Button
+              {lastUpdated && activeTab!=="agent" && <span className="text-xs text-muted-foreground">Diperbarui {lastUpdated}</span>}
+              {activeTab!=="agent"&&<Button
                 variant="outline"
                 size="sm"
                 onClick={fetchAnalytics}
                 disabled={analyticsLoading || publishing || moreLoading}
-                className="flex items-center gap-1.5 w-full sm:w-auto"
+                className="flex items-center gap-1.5 ml-auto sm:ml-0"
               >
                 <RefreshCw className="h-4 w-4" />
                 {analyticsLoading ? "Memuat..." : "Muat ulang"}
-              </Button>
+              </Button>}
             </div>
           </div>
 
-          {analyticsError && (
+          {analyticsError && activeTab!=="agent" && (
             <Card
               className="border-destructive bg-destructive/5"
               role="alert"
@@ -234,12 +234,13 @@ export default function DashboardPage() {
 
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-7 lg:items-start">
-            <aside className="studio-sidebar"><div className="hidden lg:block px-3 pb-4"><p className="text-[10px] uppercase tracking-[0.2em] font-semibold text-slate-400">Workspace</p><div className="mt-3 flex items-center gap-3 min-w-0"><div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-indigo-100 text-indigo-700 grid place-items-center font-semibold">{profile?.avatar_url?<img src={profile.avatar_url} alt="" className="h-full w-full object-cover"/>:profile?.display_name?.slice(0,1)||"CP"}</div><div className="min-w-0"><p className="truncate text-sm font-semibold">{profile?.display_name||"CreatorPulse"}</p><p className="text-xs text-slate-500">{profile?"Akun TikTok terhubung":"Workspace kreator"}</p></div></div></div><TabsList aria-label="Navigasi studio" className="studio-nav grid h-auto w-full grid-cols-4 gap-1 bg-transparent p-0 lg:grid-cols-1 lg:justify-start">
-              <TabsTrigger value="analytics" className="studio-tab flex min-h-12 flex-col gap-1 px-1 text-[11px] sm:text-sm lg:flex-row lg:justify-start lg:px-3"><LayoutDashboard className="h-4 w-4" aria-hidden="true"/> Ringkasan</TabsTrigger>
-              <TabsTrigger value="content" className="studio-tab flex min-h-12 flex-col gap-1 px-1 text-[11px] sm:text-sm lg:flex-row lg:justify-start lg:px-3"><Film className="h-4 w-4" aria-hidden="true"/> Konten</TabsTrigger>
-              <TabsTrigger value="publish" className="studio-tab flex min-h-12 flex-col gap-1 px-1 text-[11px] sm:text-sm lg:flex-row lg:justify-start lg:px-3"><PlusSquare className="h-4 w-4" aria-hidden="true"/> Buat post</TabsTrigger>
-              <TabsTrigger value="status" className="studio-tab flex min-h-12 flex-col gap-1 px-1 text-[11px] sm:text-sm lg:flex-row lg:justify-start lg:px-3"><ListChecks className="h-4 w-4" aria-hidden="true"/> Aktivitas</TabsTrigger>
-            </TabsList><div className="hidden lg:block mt-5 border-t pt-4 px-3 text-xs text-slate-500 leading-relaxed">Kelola beberapa akun<br/>Satu akun aktif per browser</div></aside>
+            <aside className="studio-sidebar"><div className="hidden lg:block px-3 pb-4"><p className="text-[10px] uppercase tracking-[0.2em] font-semibold text-slate-400">Workspace</p><div className="mt-3 flex items-center gap-3 min-w-0"><div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-indigo-100 text-indigo-700 grid place-items-center font-semibold">{profile?.avatar_url?<img src={profile.avatar_url} alt="" className="h-full w-full object-cover"/>:profile?.display_name?.slice(0,1)||"CP"}</div><div className="min-w-0"><p className="truncate text-sm font-semibold">{profile?.display_name||"CreatorPulse"}</p><p className="text-xs text-slate-500">{profile?"Akun TikTok terhubung":"Workspace kreator"}</p></div></div></div><TabsList aria-label="Navigasi studio" className="studio-nav grid h-auto w-full grid-cols-5 gap-1 bg-transparent p-0 lg:grid-cols-1 lg:justify-start">
+              <TabsTrigger value="analytics" className="studio-tab flex min-h-12 flex-col gap-1 px-1 text-[10px] min-[375px]:text-xs sm:text-sm lg:flex-row lg:justify-start lg:px-3"><LayoutDashboard className="h-4 w-4" aria-hidden="true"/> Ringkasan</TabsTrigger>
+              <TabsTrigger value="content" className="studio-tab flex min-h-12 flex-col gap-1 px-1 text-[10px] min-[375px]:text-xs sm:text-sm lg:flex-row lg:justify-start lg:px-3"><Film className="h-4 w-4" aria-hidden="true"/> Konten</TabsTrigger>
+              <TabsTrigger value="publish" className="studio-tab flex min-h-12 flex-col gap-1 px-1 text-[10px] min-[375px]:text-xs sm:text-sm lg:flex-row lg:justify-start lg:px-3"><PlusSquare className="h-4 w-4" aria-hidden="true"/> Buat post</TabsTrigger>
+              <TabsTrigger value="status" className="studio-tab flex min-h-12 flex-col gap-1 px-1 text-[10px] min-[375px]:text-xs sm:text-sm lg:flex-row lg:justify-start lg:px-3"><ListChecks className="h-4 w-4" aria-hidden="true"/> Aktivitas</TabsTrigger>
+              <TabsTrigger value="agent" className="studio-tab flex min-h-12 flex-col gap-1 px-1 text-[10px] min-[375px]:text-xs sm:text-sm lg:flex-row lg:justify-start lg:px-3"><Bot className="h-4 w-4" aria-hidden="true"/> AI Agent</TabsTrigger>
+            </TabsList><div className="hidden lg:block mt-5 border-t pt-4 px-3 text-xs text-slate-500 leading-relaxed">Maksimal 3 akun TikTok<br/>Satu akun aktif untuk dashboard</div></aside>
             <div className="min-w-0">
 
             {/* Tab: Analytics */}
@@ -399,6 +400,7 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
             </TabsContent>
+            <TabsContent value="agent" className="mt-4 space-y-4 lg:mt-0"><GatewayPanel accountName={profile?.display_name} /></TabsContent>
             </div>
           </Tabs>
         </div>
