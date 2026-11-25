@@ -75,4 +75,15 @@ class OnboardingTests(unittest.TestCase):
                 req=opener.return_value.open.call_args.args[0]
                 self.assertEqual(req.full_url,"https://creatorpulse-studio-git-sandbox-total-management1.vercel.app/api/gateway/v1/accounts")
                 self.assertEqual(req.get_header("X-creatorpulse-environment"),"sandbox")
+    def test_preview_bypass_only_sandbox(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            secret=Path(tmp)/"bypass";secret.write_text("x"*32)
+            with patch.object(proxy,"BYPASS_FILE",str(secret)),patch.object(proxy,"ENVIRONMENT","production"),patch.object(proxy.urllib.request,"build_opener") as opener:
+                with self.assertRaises(ValueError): proxy.request("/health")
+                opener.assert_not_called()
+            with patch.object(proxy,"BYPASS_FILE",str(secret)),patch.object(proxy,"ENVIRONMENT","sandbox"),patch.object(proxy.urllib.request,"build_opener") as opener:
+                opener.return_value.open.side_effect=ValueError("stop")
+                with self.assertRaises(ValueError): proxy.request("/health")
+                req=opener.return_value.open.call_args.args[0]
+                self.assertEqual(req.get_header("X-vercel-protection-bypass"),"x"*32)
 if __name__=="__main__": unittest.main()

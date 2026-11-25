@@ -29,10 +29,15 @@ def atomic_write(path, content):
 def load_yaml():
     try: import yaml;return yaml
     except ImportError: raise ValueError("PyYAML unavailable in this Python. Run with the existing Hermes Python environment; do not install or change Hermes blindly.")
-def install(home, apply=False, agent_env=None, *, environment):
+def install(home, apply=False, agent_env=None, *, environment, preview_bypass_file=None):
     home=profile_home(home,environment)
     prefix=key_prefix(environment)
     import re
+    if preview_bypass_file:
+        if environment!="sandbox": raise ValueError("Preview bypass is sandbox-only.")
+        preview_bypass_file=Path(preview_bypass_file).expanduser().resolve()
+        if not preview_bypass_file.is_file(): raise ValueError("Preview bypass file is missing.")
+        if not re.fullmatch(r"[A-Za-z0-9_-]{20,256}",preview_bypass_file.read_text(encoding="utf-8").strip()): raise ValueError("Invalid Preview bypass file.")
     yaml=load_yaml()
     config=home/"config.yaml"
     if not config.is_file(): raise ValueError("Existing Hermes config.yaml not found; no new profile will be created.")
@@ -58,7 +63,9 @@ def install(home, apply=False, agent_env=None, *, environment):
         if len(lines)!=1 or len(rows)!=1 or not rows[0].startswith(prefix) or not re.fullmatch(r"[A-Za-z0-9_-]{32,}",rows[0][len(prefix):]): raise ValueError("Invalid agent-only credential file.")
         if current and current[0]!=rows[0]: raise ValueError("Existing different agent key; no overwrite.")
         if not current: envtext=envtext.rstrip()+"\nCREATORPULSE_AGENT_KEY="+rows[0]+"\n";current=rows
-    entry={"command":sys.executable,"args":[str(dest/"proxy.py"),"--environment",environment,"--env-file",str(env)],"enabled":True,"timeout":60,"supports_parallel_tool_calls":False,"tools":{"resources":False,"prompts":False}}
+    adapter_args=[str(dest/"proxy.py"),"--environment",environment,"--env-file",str(env)]
+    if preview_bypass_file: adapter_args.extend(["--preview-bypass-file",str(preview_bypass_file)])
+    entry={"command":sys.executable,"args":adapter_args,"enabled":True,"timeout":60,"supports_parallel_tool_calls":False,"tools":{"resources":False,"prompts":False}}
     updated=dict(data);updated["mcp_servers"]={**servers,"creatorpulse":entry}
     rendered=yaml.safe_dump(updated,sort_keys=False,allow_unicode=True)
     if yaml.safe_load(rendered)!=updated: raise ValueError("Config roundtrip failed.")
@@ -74,7 +81,7 @@ def install(home, apply=False, agent_env=None, *, environment):
     atomic_write(skill,(ROOT/"skills"/"creatorpulse"/"SKILL.md").read_text(encoding="utf-8").replace("{{ENVIRONMENT}}",environment).replace("{{DASHBOARD_URL}}",HOSTS[environment]+"/dashboard"))
     if agent_env and envtext!=(env.read_text(encoding="utf-8") if env.exists() else ""): atomic_write(env,envtext)
     atomic_write(config,rendered)
-    proc=subprocess.run([sys.executable,str(dest/"proxy.py"),"--environment",environment,"--env-file",str(env),"--check"],capture_output=True,text=True,timeout=90)
+    proc=subprocess.run([sys.executable,*adapter_args,"--check"],capture_output=True,text=True,timeout=90)
     try: connection=json.loads(proc.stdout)
     except ValueError: connection={"gateway":"blocked","reason":"Connection check returned invalid output."}
     return {"mode":"installed","environment":environment,"profile":str(home),"backup":str(backup),"model_and_messaging":"unchanged","connection":connection,"next":"Use an explicit dedicated-profile terminal session; no messaging changes or posts were made."}
@@ -82,9 +89,10 @@ def main():
     p=argparse.ArgumentParser()
     p.add_argument("--environment",choices=HOSTS,required=True)
     p.add_argument("--hermes-home",required=True)
+    p.add_argument("--preview-bypass-file",help="Optional owner-approved Sandbox automation bypass file (secret only).")
     p.add_argument("--agent-env",help="Path to agent-only credential file; never an operator/bridge secret file.")
     p.add_argument("--apply",action="store_true",help="Without this, only show plan.")
     a=p.parse_args()
-    try: result=install(profile_home(a.hermes_home,a.environment),a.apply,a.agent_env,environment=a.environment);print(json.dumps(result,ensure_ascii=False));return 0 if not a.apply or result.get("connection",{}).get("gateway")=="connected" and result.get("connection",{}).get("accounts",0)>0 else 2
+    try: result=install(profile_home(a.hermes_home,a.environment),a.apply,a.agent_env,environment=a.environment,preview_bypass_file=a.preview_bypass_file);print(json.dumps(result,ensure_ascii=False));return 0 if not a.apply or result.get("connection",{}).get("gateway")=="connected" and result.get("connection",{}).get("accounts",0)>0 else 2
     except (ValueError,OSError,subprocess.TimeoutExpired) as e: print(json.dumps({"status":"blocked","reason":str(e)}));return 1
 if __name__=="__main__": raise SystemExit(main())

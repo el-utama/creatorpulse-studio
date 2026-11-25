@@ -7,7 +7,7 @@ export function gatewayEnvironment(): "sandbox"|"production"|"local"|"unconfigur
  const env=process.env.VERCEL_ENV;
  if(!env)return "local";
  const expected=env==="preview"?"sandbox":env==="production"?"production":null;
- if(!expected||process.env.APP_URL!==hosts[expected]||process.env.TIKTOK_REDIRECT_URI!==hosts[expected]+"/api/auth/tiktok/callback")return "unconfigured";
+ if(!expected||process.env.VERCEL_GIT_COMMIT_REF!==(expected==="sandbox"?"sandbox":"main")||process.env.APP_URL!==hosts[expected]||process.env.TIKTOK_REDIRECT_URI!==hosts[expected]+"/api/auth/tiktok/callback")return "unconfigured";
  return expected;
 }
 export function config(){

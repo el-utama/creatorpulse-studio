@@ -12,6 +12,7 @@ from urllib.parse import urlencode
 
 from environment import HOSTS, key_prefix
 ENVIRONMENT = None
+BYPASS_FILE = None
 SLOT = re.compile(r"[a-f0-9]{32}")
 UUID = re.compile(r"[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}")
 VERSIONS = ("2025-03-26", "2025-06-18", "2025-11-25")
@@ -50,6 +51,12 @@ def request(path, key=None, body=None, method="GET"):
     if key and not key.startswith(key_prefix(ENVIRONMENT)): raise ValueError("Wrong-environment credential.")
     headers={"Accept":"application/json","X-CreatorPulse-Environment":ENVIRONMENT}
     if key: headers["Authorization"]="Bearer "+key
+    if BYPASS_FILE:
+        if ENVIRONMENT!="sandbox": raise ValueError("Preview protection credentials are sandbox-only.")
+        try: bypass=Path(BYPASS_FILE).read_text(encoding="utf-8").strip()
+        except OSError: raise ValueError("Cannot read the local Preview protection credential.") from None
+        if not re.fullmatch(r"[A-Za-z0-9_-]{20,256}",bypass): raise ValueError("Invalid Preview protection credential file.")
+        headers["x-vercel-protection-bypass"]=bypass
     if body is not None: headers["Content-Type"]="application/json"
     data=json.dumps(body).encode() if body is not None else None
     req=urllib.request.Request(HOSTS[ENVIRONMENT]+"/api/gateway/v1"+path, data=data, method=method, headers=headers)
@@ -107,15 +114,18 @@ def rpc(message, get_key):
     else: response["error"]={"code":-32601,"message":"Method not found"}
     return response
 def main():
-    global ENVIRONMENT
+    global ENVIRONMENT,BYPASS_FILE
     parser=argparse.ArgumentParser()
     parser.add_argument("--environment",choices=HOSTS,required=True)
     parser.add_argument("--env-file")
+    parser.add_argument("--preview-bypass-file",help="Optional owner-authorized local file containing ONLY the Vercel automation bypass secret; sandbox only.")
     parser.add_argument("--call",choices=BY_NAME.keys())
     parser.add_argument("--args",default="{}")
     parser.add_argument("--check",action="store_true")
     args=parser.parse_args()
     ENVIRONMENT=args.environment
+    BYPASS_FILE=args.preview_bypass_file
+    if BYPASS_FILE and ENVIRONMENT!="sandbox": parser.error("Preview protection credentials are sandbox-only.")
     get_key=lambda:key_from_env(args.env_file,ENVIRONMENT)
     if args.check:
         try:
