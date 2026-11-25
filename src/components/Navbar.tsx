@@ -83,14 +83,14 @@ export function Navbar() {
         <div className="md:hidden flex items-center">
           <Button
             variant="ghost"
-            size="lg"
+            size="icon"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label={mobileMenuOpen ? "Tutup menu" : "Buka menu"}
             aria-expanded={mobileMenuOpen}
             aria-controls="mobile-menu"
-            className="h-11 w-11"
+            className="h-11 w-11 shrink-0 p-0 text-slate-700"
           >
-            {mobileMenuOpen ? <X className="h-6 w-6" aria-hidden="true" /> : <Menu className="h-6 w-6" aria-hidden="true" />}
+            {mobileMenuOpen ? <X className="h-6 w-6 shrink-0" aria-hidden="true" /> : <Menu className="h-6 w-6 shrink-0" aria-hidden="true" />}
           </Button>
         </div>
       </div>

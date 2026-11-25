@@ -236,6 +236,7 @@ test('AI workspace: clear setup state, discoverable copy action, no overflow', a
   await expect(page.getByLabel('Kunci operator',{exact:true})).toHaveCount(0);
   await expect(page.getByRole('link',{name:'Panduan Local Bridge'})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  if(width<768){const toggle=page.getByRole('button',{name:'Buka menu'});await expect(toggle).toBeVisible();expect(await toggle.locator('svg').evaluate(el=>el.getBoundingClientRect().width)).toBeGreaterThanOrEqual(20);}
   await page.screenshot({path:'test-results/ux-ai-setup-'+width+'.png',fullPage:true});
  }
  await page.getByText('Lihat teks instruksi',{exact:true}).click();
@@ -271,7 +272,7 @@ test('desktop sidebar uses flat compact rows and centers icons',async({page,cont
  const tabs=page.getByRole('tab');await expect(tabs).toHaveCount(5);
  for(const tab of await tabs.all()){
   const style=await tab.evaluate(el=>({shadow:getComputedStyle(el).boxShadow,align:getComputedStyle(el).alignItems,height:el.getBoundingClientRect().height}));
-  expect(style.shadow).toBe('none');expect(style.align).toBe('center');expect(style.height).toBeLessThanOrEqual(46);
+  expect(style.shadow==='none'||style.shadow.replaceAll('rgba(0, 0, 0, 0) 0px 0px 0px 0px','').replace(/[,\s]/g,'')==='').toBe(true);expect(style.align).toBe('center');expect(style.height).toBeLessThanOrEqual(46);
  }
  expect(await page.locator('.studio-sidebar').evaluate(el=>el.getBoundingClientRect().width)).toBeLessThanOrEqual(210);
  await page.screenshot({path:'test-results/ux-compact-sidebar-desktop.png',fullPage:true});

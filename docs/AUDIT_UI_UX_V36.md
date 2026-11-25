@@ -18,3 +18,6 @@ Remaining: visual review of authenticated live dashboard and real agent approval
 
 ## Follow-up: user screenshot
 The desktop sidebar showed each inactive tab as a raised white card due to unconditional shadow-sm in the shared tab primitive; icon/text lacked align-items:center. Replaced it with a flat compact 13rem sidebar, centered icons, concise active account status, smaller spacing and a single active highlight. Removed redundant account explanation. Added desktop computed-style assertions (no row shadow, centered items, max 46px row height). User screenshot is production V3.6 before this revision.
+
+## Actual Chromium render inspection
+Downloaded run 45515455553 artifacts and inspected rendered 1440px overview and 320/390px screens. Sidebar is visually flat and compact. Mobile menu icon was collapsed by large horizontal padding inside a fixed-width button; fixed using icon sizing, zero padding and non-shrinking SVG. Setup steps were too tall on mobile; condensed to numbered rows. Operator flow actually loaded data, but rendered English headings caused the assertion failure; fixed labels. CSS transparent shadow layers are not visible shadows; test checks zero-opacity layers as well as none. Actual production user session is not available, mock fixtures exercise the same app code.
