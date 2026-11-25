@@ -247,7 +247,7 @@ test('AI workspace: health failure is actionable and operator key has one entry 
  let fail=true;
  await page.route('**/api/gateway/v1/health',route=>route.fulfill(fail?{status:503,json:{error:'Unavailable'}}:{json:{configured:true}}));
  await page.route('**/api/gateway/v1/posts',route=>route.fulfill({json:{posts:[]}}));
- await page.route('**/api/gateway/v1/trends?*',route=>route.fulfill({json:{observations:[]}}));
+ await page.route(/\/api\/gateway\/v1\/trends(?:\?|$)/,route=>route.fulfill({json:{observations:[]}}));
  await page.route('**/api/gateway/v1/accounts',route=>route.fulfill({json:{accounts:[]}}));
  await page.setViewportSize({width:390,height:844});await page.goto('/dashboard');await page.getByRole('tab',{name:'AI Agent'}).click();
  await expect(page.getByText('Status belum dapat diperiksa',{exact:true})).toBeVisible();fail=false;
