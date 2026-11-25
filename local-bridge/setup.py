@@ -14,7 +14,7 @@ target = root / ".secrets" / environment
 if environment=="production" and any((root/".secrets"/n).exists() for n in ["bridge.env","vercel.env","hermes.env"]):
     raise SystemExit("Legacy bridge secrets exist. Preserve them; explicit migration required.")
 os.umask(0o077)
-target.mkdir(mode=0o700, exist_ok=True)
+target.mkdir(mode=0o700, parents=True, exist_ok=True)
 names = ["bridge.env", "vercel.env", "hermes.env"]
 if any((target / n).exists() for n in names):
     raise SystemExit("Secrets already exist; refusing to overwrite. Restore existing files if necessary.")
