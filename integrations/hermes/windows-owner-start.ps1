@@ -20,21 +20,49 @@ if (-not (Test-Path -LiteralPath (Join-Path $bridge 'run.py') -PathType Leaf)) {
 $keyFile = Join-Path $bridge '.secrets\sandbox\bridge.env'
 $dbFile = Join-Path $bridge 'data\sandbox\creatorpulse.sqlite3'
 if (-not (Test-Path -LiteralPath $keyFile -PathType Leaf) -or -not (Test-Path -LiteralPath $dbFile -PathType Leaf)) { throw 'Existing credentials or database missing; do not regenerate or overwrite.' }
-$allowed = @('S-1-5-18','S-1-5-32-544',$account.SID.Value)
-$items = @((Get-Item -LiteralPath $root -Force)) + @(Get-ChildItem -LiteralPath $root -Recurse -Force)
-foreach ($item in $items) {
-    if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Unexpected reparse point under protected root.' }
-    $acl = Get-Acl -LiteralPath $item.FullName
-    foreach ($rule in $acl.Access) {
-        if ($rule.AccessControlType -eq 'Allow' -and $rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value -notin $allowed) { throw 'Unexpected allowed identity under protected root. Review ACLs before running.' }
+# Refuse to traverse junctions/symlinks. Enumerate one level at a time before any ACL write.
+function Get-BridgeTree([string]$Path) {
+    $item = Get-Item -LiteralPath $Path -Force
+    if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Unexpected reparse point under protected root; no ACL changes made.' }
+    $item
+    if ($item.PSIsContainer) {
+        foreach ($child in Get-ChildItem -LiteralPath $item.FullName -Force) {
+            Get-BridgeTree -Path $child.FullName
+        }
     }
 }
-# Owner must explicitly confirm that code and all parent ACLs were reviewed independently.
-if ((Read-Host 'Type REVIEWED after reviewing protected code, directory ACLs and this script') -cne 'REVIEWED') { throw 'Owner review required.' }
-& icacls.exe $root /setowner '*S-1-5-32-544' /T /Q | Out-Null
-if ($LASTEXITCODE -ne 0) { throw 'Could not secure file ownership.' }
+# Replace the DACL, not merely add three ACEs while retaining old permissions.
+function Set-BridgeItemAcl($Item, [Security.Principal.SecurityIdentifier]$ServiceSid) {
+    $adminsSid = [Security.Principal.SecurityIdentifier]::new('S-1-5-32-544')
+    $systemSid = [Security.Principal.SecurityIdentifier]::new('S-1-5-18')
+    $acl = Get-Acl -LiteralPath $Item.FullName
+    $acl.SetAccessRuleProtection($true,$false)
+    foreach ($rule in @($acl.GetAccessRules($true,$false,[Security.Principal.SecurityIdentifier]))) {
+        $acl.RemoveAccessRuleSpecific($rule)
+    }
+    $inherit = if ($Item.PSIsContainer) { [Security.AccessControl.InheritanceFlags]'ContainerInherit, ObjectInherit' } else { [Security.AccessControl.InheritanceFlags]::None }
+    foreach ($sid in @($systemSid,$adminsSid,$ServiceSid)) {
+        $rights = if ($sid -eq $ServiceSid) { [Security.AccessControl.FileSystemRights]::Modify } else { [Security.AccessControl.FileSystemRights]::FullControl }
+        $rule = [Security.AccessControl.FileSystemAccessRule]::new($sid,$rights,$inherit,[Security.AccessControl.PropagationFlags]::None,[Security.AccessControl.AccessControlType]::Allow)
+        $acl.AddAccessRule($rule)
+    }
+    $acl.SetOwner($adminsSid)
+    Set-Acl -LiteralPath $Item.FullName -AclObject $acl
+    $actual = Get-Acl -LiteralPath $Item.FullName
+    $allowed = @($systemSid.Value,$adminsSid.Value,$ServiceSid.Value)
+    $rules = @($actual.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]))
+    if (-not $actual.AreAccessRulesProtected -or $actual.GetOwner([Security.Principal.SecurityIdentifier]).Value -ne $adminsSid.Value -or $rules.Count -ne 3 -or @($rules | Where-Object { $_.IdentityReference.Value -notin $allowed -or $_.AccessControlType -ne 'Allow' }).Count -or @($rules.IdentityReference.Value | Sort-Object -Unique).Count -ne 3) { throw 'ACL verification failed; do not start Bridge.' }
+}
 if (Get-ScheduledTask -TaskName $taskName -TaskPath '\' -ErrorAction SilentlyContinue) { throw 'Task already exists; inspect instead of replacing.' }
 if (Get-NetTCPConnection -LocalPort 8766 -State Listen -ErrorAction SilentlyContinue) { throw 'Port 8766 occupied; stop only the identified old Bridge first.' }
+if ($root -ne 'C:\ProgramData\CreatorPulseBridge') { throw 'Unexpected service root.' }
+$items = @(Get-BridgeTree -Path $root)
+$top = @(Get-ChildItem -LiteralPath $root -Force)
+if (@($top | Where-Object { $_.Name -notin @('local-bridge','python','python-3.13.17-embed-amd64.zip') }).Count) { throw 'Unexpected contents in protected root; inspect before changing permissions.' }
+Write-Host "Installer will replace permissions only on $root and its $($items.Count - 1) descendants. SYSTEM and Administrators: FullControl; CreatorPulseBridge: Modify. Other entries removed. Existing contents and secrets retained."
+if ((Read-Host 'Type REVIEWED after independently reviewing this script, protected code and scope') -cne 'REVIEWED') { throw 'Owner review required.' }
+foreach ($item in $items) { Set-BridgeItemAcl -Item $item -ServiceSid $account.SID }
+Write-Host 'Protected ACLs normalized and verified.'
 $runtime = Join-Path $root 'python'
 $python = Join-Path $runtime 'python.exe'
 if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
