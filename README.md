@@ -4,6 +4,10 @@ Workspace operasional kreator TikTok untuk satu operator dengan maksimum tiga ak
 
 **Status:** R1 merged to main (d3df911); canonical Sandbox Preview verified live by owner for OAuth/dashboard. Production deployment remains a separate release gate. Hermes environment-aware onboarding is under validation on sandbox; no live Bridge or Hermes enrollment implied.
 
+## Hermes: install or resume from repository
+
+Agents must start with [AGENTS.md](AGENTS.md) and execute the [Sandbox installation and recovery runbook](integrations/hermes/SANDBOX_RUNBOOK.md). It includes safe Windows preflight and owner-only persistent startup. Do not repeat completed steps or relay individual terminal commands.
+
 ## Dokumentasi aktif
 
 | Dokumen | Kegunaan |
