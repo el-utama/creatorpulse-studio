@@ -41,3 +41,36 @@ jobs:
           $r = & ./integrations/hermes/windows-preflight.ps1 | ConvertFrom-Json
           if (-not $r.host -or -not $r.identity) { throw 'Preflight report invalid.' }
           Write-Host 'Preflight JSON valid.'
+      - name: Test ACL repair on disposable fixture (not host service root)
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tokens = $null
+          $errors = $null
+          $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $pwd 'integrations/hermes/windows-owner-start.ps1'),[ref]$tokens,[ref]$errors)
+          if ($errors.Count) { throw 'Parser errors' }
+          foreach ($name in @('Get-BridgeTree','Set-BridgeItemAcl')) {
+            $fn = $ast.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name},$false)
+            if (-not $fn) { throw "Missing helper $name" }
+            . ([scriptblock]::Create($fn.Extent.Text))
+          }
+          $fixture = Join-Path $env:RUNNER_TEMP ('cp-acl-' + [guid]::NewGuid())
+          try {
+            $null = New-Item -ItemType Directory -Path $fixture
+            $file = Join-Path $fixture 'fixture.txt'
+            Set-Content -LiteralPath $file -Value 'test only'
+            $everyone = [Security.Principal.SecurityIdentifier]::new('S-1-1-0')
+            $service = [Security.Principal.SecurityIdentifier]::new('S-1-5-32-545')
+            $acl = Get-Acl -LiteralPath $file
+            $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($everyone,'Read','Allow'))
+            Set-Acl -LiteralPath $file -AclObject $acl
+            $items = @(Get-BridgeTree -Path $fixture)
+            if ($items.Count -ne 2) { throw 'Tree enumeration failed' }
+            foreach ($item in $items) { Set-BridgeItemAcl -Item $item -ServiceSid $service }
+            $actual = Get-Acl -LiteralPath $file
+            if (@($actual.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]) | Where-Object {$_.IdentityReference -eq $everyone}).Count) { throw 'Unexpected Everyone ACE retained' }
+            if ((Get-Content -LiteralPath $file) -ne 'test only') { throw 'Fixture contents changed' }
+            Write-Host 'ACL normalization fixture passed.'
+          } finally {
+            if (Test-Path -LiteralPath $fixture) { Remove-Item -LiteralPath $fixture -Recurse -Force }
+          }
