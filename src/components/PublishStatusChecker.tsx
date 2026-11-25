@@ -85,7 +85,7 @@ export function PublishStatusChecker({ publishId, onStatusChange }: PublishStatu
   return (
     <Card className="shadow-none" aria-live="polite">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-        <CardTitle className="text-xs font-medium">Status Publikasi</CardTitle>
+        <CardTitle className="text-xs font-medium">Status</CardTitle>
         {loading ? (
           <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
         ) : status === "PUBLISH_COMPLETE" || status === "SUCCESS" ? (

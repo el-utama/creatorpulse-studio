@@ -195,7 +195,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between gap-2 mb-3 md:gap-3 md:mb-6 lg:mb-8">
             <div className="min-w-0 flex-1">
               <h1 className="text-lg leading-tight md:text-3xl font-semibold tracking-tight text-foreground">
-                <span className="md:hidden">{({analytics:"Ringkasan",content:"Konten",publish:"Buat post",status:"Aktivitas",agent:"Integrasi AI"} as Record<string,string>)[activeTab]}</span><span className="hidden md:inline">{({analytics:"Ringkasan",content:"Perpustakaan konten",publish:"Buat publikasi",status:"Aktivitas publikasi",agent:"Integrasi AI"} as Record<string,string>)[activeTab] || "Studio Kreator"}</span>
+                <span className="md:hidden">{({analytics:"Ringkasan",content:"Konten",publish:"Publish",status:"Aktivitas",agent:"Integrasi AI"} as Record<string,string>)[activeTab]}</span><span className="hidden md:inline">{({analytics:"Ringkasan",content:"Konten",publish:"Publish",status:"Aktivitas",agent:"Integrasi AI"} as Record<string,string>)[activeTab] || "Studio Kreator"}</span>
               </h1>
               <p className="hidden md:block text-sm text-muted-foreground">
                 {({analytics:"Analitik akun",content:"Konten TikTok",publish:"Editor publikasi",status:"Riwayat & status",agent:"Koneksi & operasional Hermes"} as Record<string,string>)[activeTab]}
@@ -240,7 +240,7 @@ export default function DashboardPage() {
             <aside className="studio-sidebar">
  <div className="hidden min-w-0 lg:block px-2 pb-3"><p className="mb-3 text-[11px] font-medium text-slate-500">Akun aktif</p><div className="flex items-center gap-2.5 min-w-0"><div className="h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-indigo-100 text-indigo-700 grid place-items-center text-sm font-semibold">{profile?.avatar_url?<img src={profile.avatar_url} alt="" className="h-full w-full object-cover"/>:profile?.display_name?.slice(0,1)||"CP"}</div><div className="min-w-0"><p className="truncate text-sm font-semibold">{profile?.display_name||"CreatorPulse"}</p><p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500"><span className={"h-1.5 w-1.5 shrink-0 rounded-full "+(profile?"bg-emerald-600":"bg-slate-400")}/>{profile?"Terhubung":"Belum terhubung"}</p></div></div></div>
  <TabsList aria-label="Navigasi studio" className="studio-nav grid h-auto w-full grid-cols-5 gap-1 bg-transparent p-0 lg:grid-cols-1 lg:justify-start">
- {([{value:"analytics",label:"Ringkasan",Icon:LayoutDashboard},{value:"content",label:"Konten",Icon:Film},{value:"publish",label:"Buat post",Icon:PlusSquare},{value:"status",label:"Aktivitas",Icon:ListChecks},{value:"agent",label:"AI Agent",Icon:Bot}]).map(({value,label,Icon})=><TabsTrigger key={value} value={value} className="studio-tab flex min-h-12 min-w-0 flex-col items-center justify-center gap-0.5 px-0.5 py-1.5 text-[10px] min-[375px]:text-[11px] md:text-sm lg:min-h-11 lg:flex-row lg:justify-start lg:gap-2.5 lg:px-2.5"><Icon className="h-5 w-5 shrink-0 lg:h-4 lg:w-4" aria-hidden="true"/><span className="truncate">{label}</span></TabsTrigger>)}
+ {([{value:"analytics",label:"Ringkasan",Icon:LayoutDashboard},{value:"content",label:"Konten",Icon:Film},{value:"publish",label:"Publish",Icon:PlusSquare},{value:"status",label:"Aktivitas",Icon:ListChecks},{value:"agent",label:"AI Agent",Icon:Bot}]).map(({value,label,Icon})=><TabsTrigger key={value} value={value} className="studio-tab flex min-h-12 min-w-0 flex-col items-center justify-center gap-0.5 px-0.5 py-1.5 text-[10px] min-[375px]:text-[11px] md:text-sm lg:min-h-11 lg:flex-row lg:justify-start lg:gap-2.5 lg:px-2.5"><Icon className="h-5 w-5 shrink-0 lg:h-4 lg:w-4" aria-hidden="true"/><span className="truncate">{label}</span></TabsTrigger>)}
  </TabsList>
  <p className="hidden lg:block mt-3 border-t pt-3 px-2 text-xs text-slate-500">Maksimal 3 akun TikTok</p>
  </aside>
@@ -293,7 +293,7 @@ export default function DashboardPage() {
                   ) : (
                     <><VideoList videos={videos} />
                     {moreError && <p role="alert" className="mt-3 text-sm text-destructive">{moreError}</p>}
-                    {cursor!==null && <Button type="button" variant="outline" className="mt-4 w-full" onClick={loadMore} disabled={moreLoading}>{moreLoading?"Memuat video…":"Muat video lainnya"}</Button>}
+                    {cursor!==null && <Button type="button" variant="outline" className="mt-4 w-full" onClick={loadMore} disabled={moreLoading}>{moreLoading?"Memuat video…":"Muat lagi"}</Button>}
                     <p className="mt-2 text-xs text-muted-foreground" aria-live="polite">{videos.length} video dimuat. Pencarian hanya pada video ini.</p></>
                   )}
                 </CardContent>
@@ -320,7 +320,7 @@ export default function DashboardPage() {
                     <Card>
                       <CardHeader>
                         <CardTitle className="text-sm font-semibold">
-                          Catatan Penting
+                          Catatan
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="pt-3">
@@ -356,7 +356,7 @@ export default function DashboardPage() {
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-semibold">
-                    Riwayat Publikasi
+                    Riwayat
                   </CardTitle>
                   <CardDescription className="text-xs">
                     Pilih publikasi untuk cek status. Riwayat tersimpan di browser ini.

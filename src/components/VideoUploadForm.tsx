@@ -113,9 +113,9 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
   return (
     <Card className="overflow-hidden rounded-2xl border-slate-200 shadow-none">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-          <Video className="h-5 w-5 text-indigo-700" aria-hidden="true" />
-          Unggah & Publikasikan Video
+        <CardTitle className="flex items-center gap-1.5 text-sm md:text-base">
+          <Video className="h-4 w-4 shrink-0 text-indigo-700" aria-hidden="true" />
+          Upload & Publish
         </CardTitle>
         <CardDescription className="text-sm">
           Akun tujuan: <strong className="break-words">{accountName}</strong>.
@@ -125,7 +125,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
         {/* Tujuan publikasi */}
         <div className="space-y-2 rounded-lg border bg-slate-50 p-3 md:p-4">
           <Label htmlFor="mode" className="text-xs font-medium text-muted-foreground">
-            Mode publikasi
+            Mode
           </Label>
           <div
             role="group"
@@ -142,7 +142,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
                   : "text-muted-foreground hover:bg-muted"
               }`}
             >
-              Draft / Inbox
+              Inbox
             </button>
             <button
               disabled={publishing}
@@ -159,11 +159,11 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
           </div>
         </div>
 
-        <div className="space-y-2"><h3 className="text-sm font-medium">Sumber video</h3><div role="group" aria-label="Sumber video" className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap"><Button type="button" variant={source === "url" ? "default" : "outline"} className="min-w-0 px-2 text-xs sm:px-4 sm:text-sm" aria-pressed={source === "url"} disabled={publishing} onClick={() => {if (source === "url") return;setSource("url");setDuration(null);setConsent(false);setReview(false);}}>Tautan HTTPS</Button><Button type="button" variant={source === "file" ? "default" : "outline"} className="min-w-0 px-2 text-xs sm:px-4 sm:text-sm" aria-pressed={source === "file"} disabled={publishing} onClick={() => {if (source === "file") return;setSource("file");setDuration(null);setConsent(false);setReview(false);}}>File perangkat</Button></div></div>
+        <div className="space-y-2"><h3 className="text-sm font-medium">Sumber video</h3><div role="group" aria-label="Sumber video" className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap"><Button type="button" variant={source === "url" ? "default" : "outline"} className="min-w-0 px-2 text-xs sm:px-4 sm:text-sm" aria-pressed={source === "url"} disabled={publishing} onClick={() => {if (source === "url") return;setSource("url");setDuration(null);setConsent(false);setReview(false);}}>URL</Button><Button type="button" variant={source === "file" ? "default" : "outline"} className="min-w-0 px-2 text-xs sm:px-4 sm:text-sm" aria-pressed={source === "file"} disabled={publishing} onClick={() => {if (source === "file") return;setSource("file");setDuration(null);setConsent(false);setReview(false);}}>File</Button></div></div>
         {source === "url" ? (
           <div className="space-y-2">
             <Label htmlFor="video-url" className="text-xs font-medium">
-              Tautan video HTTPS
+              URL video
             </Label>
             <Input
               id="video-url"
@@ -175,14 +175,14 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
             />
             {mode === "profile" && validUrl && <video key={videoUrl} aria-label="Pratinjau video" src={videoUrl ?? undefined} controls preload="metadata" className="w-full max-h-[360px] bg-black rounded-lg" onLoadedMetadata={e=>setDuration(e.currentTarget.duration)} onError={()=>setDuration(null)}/>}
             <p className="text-xs text-muted-foreground">
-              Gunakan URL yang terverifikasi di TikTok Developer.
+              URL harus terverifikasi di TikTok Developer.
             </p>
           </div>
         ) : (
           <div className="space-y-2">
             <Label htmlFor="video-file" className="flex items-center gap-2 cursor-pointer focus-within:ring-2 focus-within:ring-ring border border-dashed rounded-lg px-3 py-4 text-center text-sm text-muted-foreground hover:border-tiktok-primary/50 transition-colors">
               <Upload className="h-4 w-4 text-tiktok-primary" aria-hidden="true" />
-              <span>Pilih file video (.mp4 / .mov)</span>
+              <span>Pilih MP4 / MOV</span>
               <input
                 id="video-file"
                 ref={fileInputRef}
@@ -232,14 +232,14 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
         {/* Caption */}
         <div className="space-y-1.5">
           <Label htmlFor="caption" className="text-xs font-medium">
-            Keterangan video
+            Caption
           </Label>
           <Textarea
             id="caption"
             rows={3}
             maxLength={2200}
             disabled={publishing}
-            placeholder="Tulis keterangan video di sini..."
+            placeholder="Tulis caption…"
             value={caption}
             onChange={(e) => { setCaption(e.target.value); setConsent(false); setReview(false); }}
           />
@@ -249,7 +249,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
         <div className="space-y-1.5">
           {capabilities && <p className="text-sm text-muted-foreground">Akun: {capabilities.creator_nickname} (@{capabilities.creator_username}) · Maks. {capabilities.max_video_post_duration_sec} detik</p>}
           <Label htmlFor="privacy" className="text-xs font-medium">
-            Visibilitas video
+            Privasi
           </Label>
           {!capabilities && <p role="status" className="text-sm">{capabilityError ? capabilityError + " Pilih Inbox lalu kembali ke Direct Post untuk mencoba lagi." : "Memuat pengaturan akun…"}</p>}
           {capabilities && capabilities.privacy_level_options.length === 0 && <p role="alert" className="text-sm text-destructive">Akun ini belum memiliki pilihan visibilitas yang diizinkan. Gunakan Inbox atau coba kembali setelah izin tersedia.</p>}
@@ -259,7 +259,7 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
             onValueChange={(v) => { setPrivacy(v); setConsent(false); setReview(false); }}
           >
             <SelectTrigger id="privacy" className="h-11">
-              <SelectValue placeholder="Pilih visibilitas" />
+              <SelectValue placeholder="Pilih privasi" />
             </SelectTrigger>
             <SelectContent>
               {capabilities?.privacy_level_options.map(value => <SelectItem key={value} value={value}>{({PUBLIC_TO_EVERYONE:"Semua orang",FOLLOWER_OF_CREATOR:"Pengikut",MUTUAL_FOLLOW_FRIENDS:"Teman yang saling mengikuti",SELF_ONLY:"Hanya saya"} as Record<string,string>)[value] ?? value}</SelectItem>)}
@@ -308,10 +308,10 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
         </div>
 
         <p className="text-sm text-muted-foreground">{validDuration ? `Durasi video: ${Math.round(duration ?? 0)} detik` : "Video harus dapat dipratinjau dan durasinya sesuai batas akun sebelum dipublikasikan."}</p>
-        <fieldset className="space-y-3 rounded-lg border p-3"><legend className="px-1 text-sm font-medium">Pengungkapan konten</legend><label className="flex items-center gap-2 text-sm"><Checkbox disabled={publishing} checked={commercial} onCheckedChange={v=>{setCommercial(v===true);setBrandOrganic(false);setBrandContent(false);setConsent(false);setReview(false);}}/> Konten promosi atau komersial</label>{commercial && <><label className="flex items-center gap-2 text-sm"><Checkbox disabled={publishing} checked={brandOrganic} onCheckedChange={v=>{setBrandOrganic(v===true);setConsent(false);setReview(false);}}/> Merek atau bisnis sendiri</label><label className="flex items-center gap-2 text-sm"><Checkbox checked={brandContent} disabled={publishing || privacy==="SELF_ONLY" || privacy==="FOLLOWER_OF_CREATOR"} onCheckedChange={v=>{setBrandContent(v===true);setConsent(false);setReview(false);}}/> Kemitraan berbayar dengan pihak ketiga</label><p className="text-xs text-muted-foreground">{brandContent?"Label: kemitraan berbayar. Pilih visibilitas publik atau teman.":brandOrganic?"Label: konten promosi.":"Pilih minimal satu kategori. Kemitraan berbayar tidak dapat bersifat privat."}</p></>}<label className="flex items-center gap-2 text-sm"><Checkbox disabled={publishing} checked={isAigc} onCheckedChange={v=>{setIsAigc(v===true);setConsent(false);setReview(false);}}/> Konten dihasilkan AI</label></fieldset>
+        <fieldset className="space-y-3 rounded-lg border p-3"><legend className="px-1 text-sm font-medium">Pengungkapan konten</legend><label className="flex items-center gap-2 text-sm"><Checkbox disabled={publishing} checked={commercial} onCheckedChange={v=>{setCommercial(v===true);setBrandOrganic(false);setBrandContent(false);setConsent(false);setReview(false);}}/> Konten promosi atau komersial</label>{commercial && <><label className="flex items-center gap-2 text-sm"><Checkbox disabled={publishing} checked={brandOrganic} onCheckedChange={v=>{setBrandOrganic(v===true);setConsent(false);setReview(false);}}/> Merek atau bisnis sendiri</label><label className="flex items-center gap-2 text-sm"><Checkbox checked={brandContent} disabled={publishing || privacy==="SELF_ONLY" || privacy==="FOLLOWER_OF_CREATOR"} onCheckedChange={v=>{setBrandContent(v===true);setConsent(false);setReview(false);}}/> Kemitraan berbayar dengan pihak ketiga</label><p className="text-xs text-muted-foreground">{brandContent?"Label: kemitraan berbayar. Pilih privasi publik atau teman.":brandOrganic?"Label: konten promosi.":"Pilih minimal satu kategori. Kemitraan berbayar tidak dapat bersifat privat."}</p></>}<label className="flex items-center gap-2 text-sm"><Checkbox disabled={publishing} checked={isAigc} onCheckedChange={v=>{setIsAigc(v===true);setConsent(false);setReview(false);}}/> Konten dihasilkan AI</label></fieldset>
         </>}
-        {!review && <Button type="button" variant="outline" disabled={!ready || publishing} onClick={() => setReview(true)}>Tinjau publikasi</Button>}
-        {review && <section className="space-y-3 rounded-xl border border-indigo-200 bg-indigo-50/40 p-4" aria-label="Tinjauan publikasi"><h3 className="font-semibold">Konfirmasi publikasi</h3><p className="text-sm">Akun: {accountName}</p><p className="text-sm break-all">Video: {source === "url" ? videoUrl : file?.name}</p><p className="text-sm">{mode === "inbox" ? "Dikirim ke inbox; selesaikan posting di TikTok." : `Visibilitas: ${({PUBLIC_TO_EVERYONE:"Semua orang",FOLLOWER_OF_CREATOR:"Pengikut",MUTUAL_FOLLOW_FRIENDS:"Teman",SELF_ONLY:"Hanya saya"} as Record<string,string>)[privacy] ?? privacy}`}</p>
+        {!review && <Button type="button" variant="outline" disabled={!ready || publishing} onClick={() => setReview(true)}>Review</Button>}
+        {review && <section className="space-y-3 rounded-xl border border-indigo-200 bg-indigo-50/40 p-4" aria-label="Tinjauan publikasi"><h3 className="font-semibold">Review</h3><p className="text-sm">Akun: {accountName}</p><p className="text-sm break-all">Video: {source === "url" ? videoUrl : file?.name}</p><p className="text-sm">{mode === "inbox" ? "Dikirim ke inbox; selesaikan posting di TikTok." : `Visibilitas: ${({PUBLIC_TO_EVERYONE:"Semua orang",FOLLOWER_OF_CREATOR:"Pengikut",MUTUAL_FOLLOW_FRIENDS:"Teman",SELF_ONLY:"Hanya saya"} as Record<string,string>)[privacy] ?? privacy}`}</p>
         {mode === "profile" && <p className="text-sm whitespace-pre-wrap break-words">Keterangan: {caption || "(tanpa caption)"}</p>}
         {mode === "profile" && <p className="text-sm">Dengan memposting, Anda menyetujui <a className="underline" href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noreferrer">ketentuan penggunaan musik TikTok</a>{commercial && brandContent && <> dan <a className="underline" href="https://www.tiktok.com/legal/page/global/bc-policy/en" target="_blank" rel="noreferrer">kebijakan konten bermerek</a></>}. Konten mungkin memerlukan beberapa menit untuk diproses.</p>}
         {/* Consent */}
@@ -357,11 +357,11 @@ export function VideoUploadForm({ accountName, avatarUrl, onPublish, publishing 
           className="w-full py-2.5 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
           title={!canPublish ? "Centang persetujuan dan lengkapi semua input sebelum publish" : undefined}
         >
-          {publishing ? "Mengirim video…" : mode === "inbox" ? "Kirim ke inbox TikTok" : "Publikasikan ke TikTok"}
+          {publishing ? "Mengirim video…" : mode === "inbox" ? "Kirim ke Inbox" : "Publish"}
         </Button>
         {review && !consent && (
           <p className="text-xs text-muted-foreground mt-2">
-            Persetujuan eksplisit diperlukan sebelum tombol publikasi diaktifkan.
+            Centang persetujuan untuk melanjutkan.
           </p>
         )}
       </CardFooter>
