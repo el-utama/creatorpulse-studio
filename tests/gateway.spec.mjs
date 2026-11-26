@@ -71,6 +71,25 @@ test('enroll and monitor without browser, separate credentials and sourced trend
   expect(secondRecords.accounts.map(a=>a.id)).toEqual(firstRecords.accounts.map(a=>a.id));
   expect(secondRecords.accounts.some(a=>a.id===id)).toBe(true);
   expect(firstRecords.hermesValidation).toEqual(receipt);expect(secondRecords.hermesValidation).toEqual(receipt);
+  // Separate browser directory and shared enrollment, including vault-only accounts.
+  const directory=await browserInstance.newContext();
+  try{
+   await directory.addCookies([{name:'creatorpulse_access_token',value:'mock-only',url:'http://localhost:3000'}]);
+   const page=await directory.newPage();await page.goto('/dashboard');
+   await expect(page.getByText('Public posts',{exact:true}).first()).toBeVisible();
+   await page.goto('/dashboard?view=accounts');
+   await expect(page.getByRole('heading',{name:'Account directory'})).toBeVisible();
+   await expect(page.getByText('This browser',{exact:true}).first()).toBeVisible();
+   await expect(page.getByText('Unlock operator access to view shared agent enrollment.',{exact:false})).toBeVisible();
+   expect((await directory.request.post(base+'operator-session',{headers:{...marker,...operator}})).status()).toBe(200);
+   await page.reload();
+   await expect(page.getByRole('heading',{name:'Other enrolled accounts'})).toBeVisible();
+   await expect(page.getByText('Account A',{exact:true}).first()).toBeVisible();
+   for(const width of [1440,390,320]){
+    await page.setViewportSize({width,height:844});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+   }
+  }finally{await directory.close();}
   // Even a stale client submitting enroll directly must not rotate the vault.
   const beforeDuplicate=await second.cookies();
   const stale=await second.request.post(base+'enroll',{headers:marker});expect(stale.ok()).toBe(true);expect((await stale.json()).alreadyEnrolled).toBe(true);
