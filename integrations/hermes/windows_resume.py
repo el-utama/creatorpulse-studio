@@ -190,6 +190,23 @@ def report_validation(commit, count, key, bypass_file):
         return {"state": "unverified"}
 
 
+def finish_validation(cmd, commit, key, bypass_file):
+    count = validate_adapter(cmd)
+    hermes = shutil.which("hermes")
+    if not hermes:
+        return result("HERMES_CLI_UNVERIFIED",commit=commit,adapter_readonly="passed",accounts=count)
+    # Inspect installed command support before invocation. Never run an agent chat or messaging gateway.
+    help_result = run([hermes,"-p","creatorpulse-sandbox","mcp","test","--help"],timeout=30)
+    if help_result.returncode or "test" not in help_result.stdout.lower():
+        return result("HERMES_CLI_TEST_UNSUPPORTED",commit=commit,adapter_readonly="passed",accounts=count)
+    tested = run([hermes,"-p","creatorpulse-sandbox","mcp","test","creatorpulse"],timeout=120)
+    if tested.returncode:
+        return result("HERMES_CLI_TEST_FAILED",commit=commit,adapter_readonly="passed",accounts=count)
+    report = report_validation(commit, count, key, bypass_file)
+    return result("READONLY_VALIDATED",commit=commit,adapter_readonly="passed",hermes_cli_test_exit=0,accounts=count,dashboard_validation=report,
+                  caveat="Known old paths passed access probes; isolation elsewhere is owner-attested. Persistence across reboot and default Hermes messaging are not independently tested here.")
+
+
 def execute():
     if os.name != "nt":
         return result("WINDOWS_REQUIRED")
@@ -275,20 +292,7 @@ def execute():
         installed = bootstrap.install(profile,True,source,environment="sandbox",preview_bypass_file=bypass if extra else None)
         if next_gate(preflight,receipt,installed.get("connection",{})) != "ACTIVATE_MCP":
             return result("BOOTSTRAP_CONNECTION_UNVERIFIED",commit=commit)
-    count = validate_adapter(cmd)
-    hermes = shutil.which("hermes")
-    if not hermes:
-        return result("HERMES_CLI_UNVERIFIED",commit=commit,adapter_readonly="passed",accounts=count)
-    # Inspect installed command support before invocation. Never run an agent chat or messaging gateway.
-    help_result = run([hermes,"-p","creatorpulse-sandbox","mcp","test","--help"],timeout=30)
-    if help_result.returncode or "test" not in help_result.stdout.lower():
-        return result("HERMES_CLI_TEST_UNSUPPORTED",commit=commit,adapter_readonly="passed",accounts=count)
-    tested = run([hermes,"-p","creatorpulse-sandbox","mcp","test","creatorpulse"],timeout=120)
-    if tested.returncode:
-        return result("HERMES_CLI_TEST_FAILED",commit=commit,adapter_readonly="passed",accounts=count)
-    report = report_validation(commit, count, key, bypass if extra else None)
-    return result("READONLY_VALIDATED",commit=commit,adapter_readonly="passed",hermes_cli_test_exit=0,accounts=count,dashboard_validation=report,
-                  caveat="Known old paths passed access probes; isolation elsewhere is owner-attested. Persistence across reboot and default Hermes messaging are not independently tested here.")
+    return finish_validation(cmd, commit, key, bypass if extra else None)
 
 
 if __name__ == "__main__":
