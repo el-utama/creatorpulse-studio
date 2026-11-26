@@ -85,7 +85,38 @@ test('enroll and monitor without browser, separate credentials and sourced trend
   await expect(secondPage.locator('time[datetime="'+receipt.report.reportedAt+'"]')).toBeVisible();
   await expect(secondPage.getByText('Already enrolled · shared across devices',{exact:true})).toBeVisible();
   await expect(secondPage.getByRole('button',{name:'Hubungkan akun',exact:true})).toHaveCount(0);
+  // Real shared SQLite history for the same enrolled account; mock TikTok only.
+  const sent=await context.request.post('/api/tiktok/publish',{multipart:{accountId:'account-a',requestId:crypto.randomUUID(),mode:'inbox',videoUrl:'https://example.com/shared-history.mp4',consent:'true'}});
+  expect(sent.status()).toBe(200);const publicationId=(await sent.json()).publish_id;
+  const historyUrl='/api/tiktok/history?account='+id;
+  const firstHistory=await (await context.request.get(historyUrl,{headers:marker})).json();
+  expect(firstHistory.access).toBe('operator');expect(firstHistory.records.some(r=>r.id===publicationId)).toBe(true);
+  expect((await (await second.request.get(historyUrl,{headers:marker})).json()).records).toEqual(firstHistory.records);
+  expect((await request.get(historyUrl,{headers:marker})).status()).toBe(401);
+  expect((await request.get(historyUrl,{headers:{...marker,...agent}})).status()).toBe(403);
+  expect((await request.get(historyUrl,{headers:{...marker,...operator}})).status()).toBe(403);
+  expect((await second.request.get('/api/tiktok/history?account='+'f'.repeat(32),{headers:marker})).status()).toBe(403);
+  expect((await second.request.get(historyUrl,{headers:{...marker,Origin:'https://other.invalid'}})).status()).toBe(403);
+  // Reproduce the failure: browser retains the account metadata but cannot read analytics.
+  const accessName='creatorpulse_account_'+id+'_a',refreshName='creatorpulse_account_'+id+'_r';
+  const browserAccess=(await second.cookies()).find(c=>c.name===accessName);
+  expect(browserAccess).toBeTruthy();
+  await second.addCookies([{...browserAccess,value:'expired'}]);await second.clearCookies({name:refreshName});
+  expect((await second.request.get('/api/tiktok/analytics?account='+id)).status()).toBe(401);
+  expect((await second.request.get(historyUrl)).status()).toBe(401);
+  const fallback=await second.request.get(historyUrl,{headers:marker});expect(fallback.status()).toBe(200);
+  expect((await fallback.json()).records).toEqual(firstHistory.records);
+  await secondPage.goto('/dashboard?view=status');
+  await expect(secondPage.getByRole('button',{name:'Details '+publicationId})).toBeVisible();
+  await secondPage.getByRole('button',{name:'Details '+publicationId}).click();
+  await expect(secondPage.getByText('Live status check requires a readable TikTok browser session. The stored record is available.',{exact:true})).toBeVisible();
+  await secondPage.getByRole('button',{name:'Refresh history'}).click();
+  await expect(secondPage.getByRole('button',{name:'Details '+publicationId})).toBeVisible();
   expect((await second.request.post(base+'operator-session/lock',{headers:marker})).status()).toBe(200);
+  expect((await second.request.get(historyUrl,{headers:marker})).status()).toBe(401);
+  await secondPage.reload();
+  await expect(secondPage.getByText('Publication history not fully verified. Refresh or check the browser account session.',{exact:true})).toBeVisible();
+  await expect(secondPage.getByRole('button',{name:'Details '+publicationId})).toHaveCount(0);
   expect((await (await context.request.get(base+'operator-session',{headers:marker})).json()).authenticated).toBe(true);
  }finally{await second.close();}
 
