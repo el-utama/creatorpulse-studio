@@ -77,7 +77,7 @@ export async function POST(request:Request,ctx:Ctx){
    if(p[2]==="execute")return reply(await execute(p[1]));
    if(p[2]==="status")return reply(await checkStatus(p[1]));
   }
-  if(p.join("/") === "trends"){const body=await request.json().catch(()=>null);return reply({observation:await recordTrend(body),provenance:"agent_submitted_unverified"},201);}
+  if(p.join("/") === "trends"){const body=await request.json().catch(()=>null);const saved=await recordTrend(body);return reply({...saved,provenance:"agent_submitted_unverified"},saved.duplicate?200:201);}
   if(p[0]==="accounts"&&p.length===3&&p[2]==="disconnect"){await authorizeGateway(request,true);await removeVault(p[1]);return reply({success:true});}
   return reply({error:"Endpoint tidak ditemukan. Gunakan antrean posts."},404);
  }catch(e){return fail(e);}
