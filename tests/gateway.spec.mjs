@@ -127,7 +127,8 @@ test('enroll and monitor without browser, separate credentials and sourced trend
    await expect(page.getByLabel('Filter accounts').locator('option[value="'+id+'"]')).toHaveCount(1);
    const accountName=data.accounts.find(a=>a.id===id).name;
    await page.setViewportSize({width:1280,height:720});
-   await page.getByRole('button',{name:'Open shared account '+accountName,exact:true}).click();
+   await page.getByRole('button',{name:'Select shared account '+accountName,exact:true}).click();
+   await expect(page.getByRole('heading',{level:1,name:'Content',exact:true})).toBeVisible();
    await expect(page.getByLabel('Filter accounts')).toHaveValue(id);
    await page.setViewportSize({width:900,height:720});
    await page.getByRole('navigation',{name:'Workspace navigation'}).getByRole('button',{name:'Accounts',exact:true}).click();

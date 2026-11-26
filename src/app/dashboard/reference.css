@@ -248,3 +248,12 @@ html:has(.r1-review-dialog[open]),html:has(.r1-review-dialog[open]) body{overflo
  .r1 .r1-operator{padding-left:4px}
  .r1 .r1-content-toolbar .r1-toolbar-left{grid-template-columns:minmax(0,1fr)}
 }
+
+/* Account scope is independent of the current page and of the manual publish target. */
+.r1 .r1-scope{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:0 0 16px;min-width:0}
+.r1 .r1-scope .r1-field{max-width:100%;min-width:0;gap:8px}
+.r1 .r1-scope .r1-field>span{white-space:nowrap}
+.r1 .r1-scope select{min-width:0;max-width:240px;flex:1;min-height:38px}
+.r1 .r1-side-accounts button:disabled{opacity:.5;cursor:not-allowed}
+.r1 .r1-account-directory [data-account-selected=true]{background:var(--accent-soft)}
+@media(max-width:639px){.r1 .r1-scope .r1-field{width:100%}.r1 .r1-scope select{max-width:100%;min-width:0;font-size:16px;min-height:42px}}

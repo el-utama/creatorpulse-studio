@@ -6,11 +6,11 @@ import type {LocalMedia} from "@/lib/gateway/posts";
 import {useEffect,useState,useRef} from "react";
 import type {HermesValidationState} from "@/lib/gateway/hermes-validation";
 import {ShieldCheck,TrendingUp,RefreshCw,Bot,Film,ChevronRight,Trash2} from "lucide-react";
-export type GatewaySummary={refreshedAt:number;hermesValidation?:HermesValidationState;accounts:{id:string;name:string}[];posts:{id:string;accountName:string;caption:string;mode:string;state:string;status?:string;approvedUntil?:number;updatedAt?:string}[]};
+export type GatewaySummary={refreshedAt:number;hermesValidation?:HermesValidationState;accounts:{id:string;name:string}[];posts:{id:string;accountId:string;accountName:string;caption:string;mode:string;state:string;status?:string;approvedUntil?:number;updatedAt?:string}[]};
 type Post={statusSource?:"stored"|"tiktok";publishId?:string;localMedia?:LocalMedia;updatedAt?:string;id:string;accountId:string;accountName:string;videoUrl:string;caption:string;mode:"inbox"|"profile";duration?:number;approvedCaption?:string;direct?:ReviewSettings;state:string;status?:string;error?:string;approvedUntil?:number;events:{action:string;at:string;actor:string}[]};
 type Trend={id:string;topic:string;type:string;region:string;source:string;sourceUrl:string;observedAt:string;evidence:string;changePct:number|null;metric:string|null};
 const labels:Record<string,string>={draft:"Menunggu tinjauan",approved:"Disetujui",sending:"Pengiriman berlangsung / belum pasti",submitted:"Diterima TikTok",uncertain:"Hasil belum pasti",cancelled:"Dibatalkan"};
-export function AgentWorkspace({onSessionExpired,section="agent",onSummary,agentStatus,agentSettings,browserAccounts=[],lockAction,refreshRevision,historyAgentId,onHistoryClose}:{onSessionExpired:()=>void;section?:"agent"|"queue"|"review"|"history";onSummary:(data:GatewaySummary|null)=>void;agentStatus?:React.ReactNode;agentSettings?:React.ReactNode;browserAccounts?:{slot:string;name:string}[];lockAction?:React.ReactNode;refreshRevision:number;historyAgentId:string|null;onHistoryClose:()=>void}){
+export function AgentWorkspace({onSessionExpired,section="agent",accountFilter="all",onSummary,agentStatus,agentSettings,browserAccounts=[],lockAction,refreshRevision,historyAgentId,onHistoryClose}:{onSessionExpired:()=>void;section?:"agent"|"queue"|"review"|"history";accountFilter?:string;onSummary:(data:GatewaySummary|null)=>void;agentStatus?:React.ReactNode;agentSettings?:React.ReactNode;browserAccounts?:{slot:string;name:string}[];lockAction?:React.ReactNode;refreshRevision:number;historyAgentId:string|null;onHistoryClose:()=>void}){
  const operation=useRef(false),alive=useRef(true),refreshRef=useRef<()=>void>(()=>{});
  const [refreshedAt,setRefreshedAt]=useState(0);
  const [hermesValidation,setHermesValidation]=useState<HermesValidationState|undefined>(undefined);
@@ -26,11 +26,11 @@ export function AgentWorkspace({onSessionExpired,section="agent",onSummary,agent
  useEffect(()=>{alive.current=true;return()=>{alive.current=false}},[]);
  useEffect(()=>{refreshRef.current()},[refreshRevision]);
  useEffect(()=>{const timer=setInterval(()=>refreshRef.current(),30000);const resume=()=>{if(!document.hidden)refreshRef.current()};document.addEventListener("visibilitychange",resume);return()=>{clearInterval(timer);document.removeEventListener("visibilitychange",resume)}},[]);
- useEffect(()=>{onSummary(loaded?{refreshedAt,hermesValidation,accounts:vault,posts:posts.map(({id,accountName,caption,approvedCaption,mode,state,status,approvedUntil,updatedAt})=>({id,accountName,caption:approvedCaption??caption,mode,state,status,approvedUntil,updatedAt}))}:null);},[loaded,vault,posts,refreshedAt,hermesValidation,onSummary]);
- useEffect(()=>{setSelected(null);setConfirmed(false)},[section]);
+ useEffect(()=>{onSummary(loaded?{refreshedAt,hermesValidation,accounts:vault,posts:posts.map(({id,accountId,accountName,caption,approvedCaption,mode,state,status,approvedUntil,updatedAt})=>({id,accountId,accountName,caption:approvedCaption??caption,mode,state,status,approvedUntil,updatedAt}))}:null);},[loaded,vault,posts,refreshedAt,hermesValidation,onSummary]);
+ useEffect(()=>{setSelected(null);setConfirmed(false)},[section,accountFilter]);
  const needsReview=(p:Post)=>p.state==="draft"||(p.state==="approved"&&(p.approvedUntil||0)<Date.now());
  const activeSelected=section==="history"?historyAgentId:selected;
- const visiblePosts=posts.filter(p=>section==="review"?needsReview(p):section==="history"?["submitted","cancelled","rejected"].includes(p.state):!["submitted","cancelled","rejected"].includes(p.state));
+ const visiblePosts=posts.filter(p=>accountFilter==="all"||p.accountId===accountFilter).filter(p=>section==="review"?needsReview(p):section==="history"?["submitted","cancelled","rejected"].includes(p.state):!["submitted","cancelled","rejected"].includes(p.state));
  const stateP=(p:Post)=><span className={"r1-pill "+(needsReview(p)||p.state==="uncertain"?"r1-warn":p.state==="submitted"&&p.status==="PUBLISH_COMPLETE"?"r1-good":"r1-neutral")}>{p.status==="PUBLISH_COMPLETE"?"API complete":p.status==="FAILED"?"Failed":p.status==="SEND_TO_USER_INBOX"?"Sent to inbox":needsReview(p)?"Needs review":({approved:"Approved",sending:"Sending / uncertain",submitted:"Submitted",uncertain:"Uncertain",cancelled:"Cancelled",rejected:"Rejected"} as Record<string,string>)[p.state]||p.state}</span>;
  const toggle=(p:Post)=>{setSelected(selected===p.id?null:p.id);setConfirmed(false)};
 

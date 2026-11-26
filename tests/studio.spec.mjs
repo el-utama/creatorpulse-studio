@@ -335,10 +335,13 @@ test('R1 operational reference screenshots, real fixture counts and lock isolati
  await page.setViewportSize({width:1440,height:900});await page.goto('/dashboard');await expect(page.getByText('24.8K',{exact:true})).toBeVisible();
  await nav(page,'AI Agent').click();await page.getByLabel('Kunci operator',{exact:true}).fill('fixture-operator');await page.getByRole('button',{name:'Buka akses'}).click();await expect(page.getByText('Bridge data loaded',{exact:true})).toBeVisible();
  await page.setViewportSize({width:1280,height:420});
- await page.getByRole('button',{name:'Open shared account Studio Beta',exact:true}).click();
+ await page.getByRole('button',{name:'Select shared account Studio Beta',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'AI Agent',exact:true,level:1})).toBeVisible();
+ await expect(page.getByLabel('Workspace account')).toHaveValue(accounts[1].slot);
+ await nav(page,'Content').click();
  await expect(page.getByLabel('Filter accounts')).toHaveValue(accounts[1].slot);
  await expect(page.locator('.r1-library').getByText('Behind the scenes',{exact:true}).filter({visible:true})).toBeVisible();
- await expect(page.getByRole('button',{name:'Open shared account Studio Beta',exact:true})).toHaveAttribute('aria-pressed','true');
+ await expect(page.getByRole('button',{name:'Select shared account Studio Beta',exact:true})).toHaveAttribute('aria-pressed','true');
  expect(await page.locator('.r1-sidebar').evaluate(el=>el.scrollHeight>el.clientHeight)).toBe(true);
  for(const width of [1025,1024,900,768,390,320,1280]){
   await page.setViewportSize({width,height:720});
