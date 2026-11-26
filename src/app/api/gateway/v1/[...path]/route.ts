@@ -55,6 +55,9 @@ export async function POST(request:Request,ctx:Ctx){
    const user=await profileIdentity(token);
    if(slotForId(user.open_id)!==slot)throw new GatewayError(409,"Akun aktif berubah.");
    const {epoch,alreadyEnrolled}=await enrollAccount({slot,openId:user.open_id,name:user.display_name||"Akun TikTok",access:token,refresh:refresh||"",expiresAt:Date.now()+60000,updatedAt:new Date().toISOString()});
+   // A duplicate request must not replace the existing browser session either.
+   // The browser has independently authenticated this same account above.
+   if(alreadyEnrolled)return reply({success:true,id:slot,name:user.display_name,alreadyEnrolled:true});
    // Move the active browser session onto the vault; do not keep rotating refresh tokens in cookies.
    const options={httpOnly:true,secure:process.env.NODE_ENV==="production",sameSite:"lax" as const,path:"/"};
    jar.set(n.access,"",{...options,maxAge:0});jar.set(n.refresh,"",{...options,maxAge:0});
