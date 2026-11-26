@@ -307,3 +307,20 @@ html:has(.r1-review-dialog[open]),html:has(.r1-review-dialog[open]) body{overflo
   .r1 :is(.r1-account-directory,.r1-library,.r1-queue)>.r1-mobile-only{display:block}
  }
 }
+
+/* Compact data rows can also be selected by a desktop container query.
+   Their geometry must not depend on a mobile viewport media query. */
+.r1 .r1-account-mobile-row{display:flex;align-items:center;gap:10px;padding:12px 14px;border-top:1px solid var(--line);min-width:0}
+.r1 .r1-account-mobile-row>.r1-grow{flex:1 1 0%;width:0;min-width:0}
+.r1 .r1-account-mobile-row>.r1-right{min-width:64px;flex-shrink:0}
+.r1 .r1-account-mobile-row>.r1-right .r1-num{font-size:14px;font-weight:700}
+.r1 .r1-account-mobile-row .r1-handle{font-size:12px;white-space:normal;overflow-wrap:anywhere}
+.r1 .r1-account-mobile-row .r1-account-name{font-size:14px}
+.r1 .r1-directory-mobile .r1-account-sub{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;align-items:center;gap:8px;padding:0 14px 12px}
+.r1 .r1-directory-mobile>div{min-width:0;border-bottom:1px solid var(--line)}
+.r1 .r1-directory-mobile>div:last-child{border-bottom:0}
+.r1 .r1-queue-mobile-row{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;padding:14px 16px;border-top:1px solid var(--line);min-width:0}
+.r1 .r1-queue-mobile-row .r1-bottom{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;padding-left:0}
+.r1 .r1-queue-mobile-row .r1-btn{min-height:40px;flex-shrink:0}
+@media(min-width:640px){.r1 .r1-queue-mobile-row{grid-template-columns:minmax(0,1fr) auto;align-items:center}.r1 .r1-queue-mobile-row .r1-bottom{justify-content:flex-end;flex-wrap:wrap}}
+@media(max-width:639px){.r1 .r1-account-mobile-row,.r1 .r1-queue-mobile-row{padding-inline:12px}.r1 .r1-queue-mobile-row .r1-btn{min-height:44px}}

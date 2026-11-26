@@ -129,11 +129,23 @@ test('realistic data density keeps dates, headers and full captions usable',asyn
   await page.setViewportSize({width,height:800});
   for(const view of ['Overview','Accounts','Content','Publishing']){
    await nav(page,view).click();await expect(page.getByRole('heading',{level:1,name:view,exact:true})).toBeVisible();await fit();
+   if(view==='Overview'){
+    const performance=page.locator('.r1-performance');
+    const account=performance.locator('.r1-account-name').filter({hasText:accounts[0].name,visible:true});
+    await expect(account).toBeVisible();
+    expect(await account.evaluate(el=>el.getBoundingClientRect().width)).toBeGreaterThan(70);
+    const compact=performance.locator('.r1-account-mobile-row:visible');
+    if(await compact.count())expect(await compact.first().evaluate(el=>getComputedStyle(el).display)).toBe('flex');
+   }
    if(view==='Content'){
     await expect(page.getByText(longTitle,{exact:true}).filter({visible:true})).toBeVisible();
     const dates=await page.locator('.r1-video-table:visible .r1-date').evaluateAll(els=>els.map(el=>getComputedStyle(el).whiteSpace));
     expect(dates.every(v=>v==='nowrap')).toBe(true);
-    if(width===1440){await expect(page.getByRole('columnheader',{name:'Comments',exact:true})).toBeVisible();}
+    if(width===1440||width===1600){
+     const header=page.locator('.r1-video-table:visible th[scope="col"]').filter({hasText:/^Comments$/});
+     await expect(header).toBeVisible();
+     expect(await header.evaluate(el=>{const r=document.createRange();r.selectNodeContents(el);return r.getClientRects().length})).toBe(1);
+    }
    }
    if(view==='Publishing'){
     const preview=page.locator('.r1-queue .r1-caption-preview').filter({hasText:'FINAL CAPTION MARKER',visible:true});
