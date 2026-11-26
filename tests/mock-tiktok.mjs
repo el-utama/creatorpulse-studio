@@ -40,6 +40,7 @@ globalThis.fetch = async (input, options) => {
     if (url.pathname.endsWith('/creator_info/query/')) return reply({creator_nickname:'Test Creator',creator_username:'test',privacy_level_options:['SELF_ONLY','PUBLIC_TO_EVERYONE'],comment_disabled:true,duet_disabled:true,stitch_disabled:true,max_video_post_duration_sec:60});
     if (url.pathname.endsWith('/video/init/')) {
       const source = body.source_info;
+      if(source?.video_url?.includes('ambiguous-init')) return Response.json({error:{code:'internal_error'}},{status:500});
       if(source?.video_url?.includes('unverified')) return Response.json({error:{code:'url_ownership_unverified'}},{status:400});
       if (!source || source.source_type || !['FILE_UPLOAD','PULL_FROM_URL'].includes(source.source)) return Response.json({error:{code:'invalid_param'}},{status:400});
       if (source.source === 'PULL_FROM_URL' && !source.video_url?.startsWith('https://')) return Response.json({error:{code:'invalid_param'}},{status:400});

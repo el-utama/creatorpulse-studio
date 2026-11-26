@@ -362,3 +362,16 @@ test('definitive init rejection cannot execute again and status is stored only',
  const status=await (await request.post(url+'/status',{headers:agent})).json();expect(status.statusSource).toBe('stored');expect(status.state).toBe('rejected');expect(status.events).toEqual(rejected.events);
  expect((await request.post(url+'/archive',{headers:operator})).status()).toBe(200);
 });
+
+test('ambiguous upstream init failure remains uncertain without a publish ID',async ({request})=>{
+ const accounts=await (await request.get('/api/gateway/v1/accounts',{headers:agent})).json();
+ const base='/api/gateway/v1/posts',data={requestId:crypto.randomUUID(),accountId:accounts.accounts[0].id,videoUrl:'https://example.com/ambiguous-init.mp4',caption:'Uncertain fixture',mode:'inbox'};
+ expect((await request.post(base,{headers:agent,data})).status()).toBe(201);
+ const url=base+'/'+data.requestId;
+ expect((await request.post(url+'/approve',{headers:operator,data:{...data,confirm:true}})).status()).toBe(200);
+ const sent=await request.post(url+'/execute',{headers:agent});expect(sent.status()).toBe(200);
+ const post=await sent.json();expect(post.state).toBe('uncertain');expect(post.publishId).toBeUndefined();
+ expect((await request.post(url+'/execute',{headers:agent})).status()).toBe(409);
+ const stored=await (await request.post(url+'/status',{headers:agent})).json();expect(stored.statusSource).toBe('stored');expect(stored.state).toBe('uncertain');
+ expect((await request.post(url+'/archive',{headers:operator})).status()).toBe(409);
+});

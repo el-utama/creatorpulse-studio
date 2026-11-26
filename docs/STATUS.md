@@ -4,6 +4,8 @@
 
 ## Release hold — 2026-11-26 owner evidence
 
+Remediation in progress: `media_diagnostic.py` and skill v1.1.6 provide a read-only media diagnostic and release-hold guidance. Commit `3a85c3f` separates recognized definitive TikTok initialization rejection from uncertain submission and returns `statusSource` (`stored` or `tiktok`) for status requests; no historical records are reclassified. The UI now labels agent PUBLISH_COMPLETE as API complete, not playback verification. CI and live deployment still require verification. No new uploads or schedules are authorized.
+
 Owner screenshots show a TikTok video page/thumbnail but playback fails, Safari has one browser account and locked operator access while Firefox has two and unlocked access, and approval layout is unacceptable. **Hold scheduler and Production promotion.** Supervised API transport/status passed, but playback/user acceptance FAILED; do not repeat the upload. See [deep audit and release gates](AUDIT_2026-11-26.md). The partial UI fixes are not a completed cross-browser architecture migration. No new publication is authorized by this checkpoint.
 
 ## Product priority (owner decision)
