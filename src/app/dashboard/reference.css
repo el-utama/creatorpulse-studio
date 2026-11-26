@@ -207,4 +207,42 @@
 
 /* Visual re-audit: tablet review should remain a readable dialog, not a full-width sheet. */
 @media(min-width:640px){.r1 .r1-review-dialog{width:min(700px,calc(100% - 32px));max-height:90dvh}}
-@media(max-width:1024px){html:has(.r1){scroll-padding-top:70px;scroll-padding-bottom:calc(78px + env(safe-area-inset-bottom,0px))}.r1 .r1-main :is(button,a,input,select,textarea){scroll-margin-block:12px}}
+/* Scroll ownership: document for the workspace; sidebar for a short desktop;
+   modal body only while reviewing. Never hide the native scrollbar globally. */
+html:has(.r1){scroll-padding-top:76px;scroll-padding-bottom:16px;scrollbar-gutter:stable}
+html:has(.r1-review-dialog[open]),html:has(.r1-review-dialog[open]) body{overflow:hidden;overscroll-behavior:none}
+.r1 .r1-topbar{min-width:0;box-sizing:border-box}
+.r1 .r1-topbar>.r1-desktop-only,.r1 .r1-topbar>.r1-mobile-only{min-width:0;flex:1}
+.r1 .r1-topbar .r1-brand>div,.r1 .r1-crumb strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.r1 .r1-brandmark{flex-shrink:0}
+.r1 .r1-top-controls{flex:0 0 auto;gap:8px}
+.r1 .r1-operator{min-width:44px;min-height:40px;justify-content:center;white-space:nowrap}
+.r1 .r1-topbar .r1-btn.r1-icon-only{flex-shrink:0}
+.r1 .r1-main :is(button,a,input,select,textarea){scroll-margin-block:10px}
+.r1 #integration-settings{scroll-margin-top:10px}
+.r1 .r1-review-dialog .r1-review-body{flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;scroll-padding-block:12px}
+.r1 .r1-review-dialog{max-height:calc(100dvh - 24px)}
+/* Content toolbar: explicit tracks instead of competing intrinsic flex sizes. */
+.r1 .r1-content-toolbar{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);align-items:center;gap:12px}
+.r1 .r1-content-toolbar .r1-toolbar-left{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);width:100%;gap:8px}
+.r1 .r1-content-toolbar .r1-toolbar-right{display:grid;grid-template-columns:minmax(0,1fr) auto;width:100%;gap:8px}
+.r1 .r1-content-toolbar .r1-field{width:100%;max-width:none;min-width:0}
+.r1 .r1-content-toolbar .r1-field :is(input,select){flex:1 1 0;width:0;max-width:none;min-width:0}
+.r1 .r1-content-toolbar .r1-toggle{flex-shrink:0}
+.r1 .r1-content-toolbar .r1-toggle button{width:36px;height:34px}
+@media(max-width:1024px){
+ html:has(.r1){scrollbar-gutter:auto;scroll-padding-top:66px;scroll-padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))}
+ .r1 .r1-main{padding-bottom:calc(100px + env(safe-area-inset-bottom,0px))}
+ .r1 .r1-topbar .r1-btn.r1-icon-only{width:44px;min-width:44px}
+ .r1 .r1-operator{min-height:44px}
+ .r1 .r1-content-toolbar .r1-toggle button{width:44px;height:44px}
+ .r1 .r1-content-toolbar .r1-toggle{padding:0}
+}
+@media(max-width:639px){
+ .r1 .r1-content-toolbar{grid-template-columns:minmax(0,1fr);gap:8px}
+}
+@media(max-width:380px){
+ .r1 .r1-top-controls{gap:4px}
+ .r1 .r1-operator{padding-left:4px}
+ .r1 .r1-content-toolbar .r1-toolbar-left{grid-template-columns:minmax(0,1fr)}
+}
