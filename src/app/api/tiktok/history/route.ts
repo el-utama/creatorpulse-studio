@@ -1,6 +1,5 @@
 import {NextResponse} from "next/server";
-import {cookies} from "next/headers";
-import {accounts,sameOrigin,validSlot} from "@/lib/accounts";
+import {sameOrigin,validSlot} from "@/lib/accounts";
 import {GatewayError,gatewayEnvironment} from "@/lib/gateway/store";
 import {authorizeGateway} from "@/lib/gateway/operator-session";
 import {loadAccount} from "@/lib/gateway/vault";
@@ -12,14 +11,14 @@ function requestedSlot(request:Request){const slot=new URL(request.url).searchPa
 export async function GET(request:Request){
  try{
  const slot=requestedSlot(request);
- // Explicit operator read of an already-enrolled browser account; no TikTok API
+ // Explicit operator read of an enrolled workspace account; no TikTok API
  // or token refresh is required for stored history. Never use this for writes.
  if(request.headers.get("x-creatorpulse-operator-session")==="1"){
   if(!["sandbox","local"].includes(gatewayEnvironment()))throw new GatewayError(403,"Operator history access unavailable.");
   if(await authorizeGateway(request,true)!=="browser")throw new GatewayError(403,"Browser operator session required.");
-  if(!slot||!accounts(await cookies()).some(a=>a.slot===slot))throw new GatewayError(403,"Account is not connected in this browser.");
+  if(!slot)throw new GatewayError(403,"Enrolled account required.");
   if(!await historyCapability())throw new GatewayError(503,"Central history requires the updated Local Bridge.");
-  await loadAccount(slot);
+  try{await loadAccount(slot);}catch(e){if(e instanceof GatewayError&&e.status===404)throw new GatewayError(403,"Enrolled account required.");throw e;}
   return reply({configured:true,records:await listManual(slot),limit:200,access:"operator"});
  }
  if(!historyConfigured())return reply({configured:false,records:[]});

@@ -116,6 +116,24 @@ test('enroll and monitor without browser, separate credentials and sourced trend
   const firstHistory=await (await context.request.get(historyUrl,{headers:marker})).json();
   expect(firstHistory.access).toBe('operator');expect(firstHistory.records.some(r=>r.id===publicationId)).toBe(true);
   expect((await (await second.request.get(historyUrl,{headers:marker})).json()).records).toEqual(firstHistory.records);
+  const sharedOnly=await browserInstance.newContext();
+  try{
+   await sharedOnly.addCookies([{name:'creatorpulse_access_token',value:'mock-only',url:'http://localhost:3000'}]);
+   expect((await sharedOnly.request.get(historyUrl,{headers:marker})).status()).toBe(401);
+   expect((await sharedOnly.request.post(base+'operator-session',{headers:{...marker,...operator}})).status()).toBe(200);
+   const sharedHistory=await sharedOnly.request.get(historyUrl,{headers:marker});expect(sharedHistory.status()).toBe(200);expect((await sharedHistory.json()).records).toEqual(firstHistory.records);
+   expect((await sharedOnly.request.get('/api/tiktok/analytics?account='+id)).status()).toBe(401);
+   const page=await sharedOnly.newPage();await page.goto('/dashboard?view=content');
+   await expect(page.getByLabel('Filter accounts').locator('option[value="'+id+'"]')).toHaveCount(1);
+   await page.getByLabel('Filter accounts').selectOption(id);
+   await expect(page.getByText('Video terbaru',{exact:true}).filter({visible:true})).toBeVisible();
+   await page.getByRole('button',{name:'Load more'}).click();
+   await expect(page.getByText('Video lama',{exact:true}).filter({visible:true})).toBeVisible();
+   await page.goto('/dashboard?view=status');await expect(page.getByRole('button',{name:'Details '+publicationId})).toBeVisible();
+   await page.getByRole('button',{name:'Details '+publicationId}).click();await expect(page.getByText('Live status check requires a readable TikTok browser session. The stored record is available.',{exact:true})).toBeVisible();
+   await page.getByRole('button',{name:'Kunci sesi'}).click();await expect(page.getByRole('button',{name:'Details '+publicationId})).toHaveCount(0);
+   expect((await sharedOnly.request.get(historyUrl,{headers:marker})).status()).toBe(401);
+  }finally{await sharedOnly.close();}
   expect((await request.get(historyUrl,{headers:marker})).status()).toBe(401);
   expect((await request.get(historyUrl,{headers:{...marker,...agent}})).status()).toBe(403);
   expect((await request.get(historyUrl,{headers:{...marker,...operator}})).status()).toBe(403);
