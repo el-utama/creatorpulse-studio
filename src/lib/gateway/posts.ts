@@ -1,12 +1,25 @@
-import {GatewayError,redis,seal,unseal,withSlotLock} from "./store";
+import {createHash} from "node:crypto";
+import {GatewayError,redis,seal,unseal,withSlotLock,gatewayEnvironment} from "./store";
 import {loadAccount,readAccount,profileIdentity,vaultToken} from "./vault";
 import {directSettings,verifyDirect,directPayload,type DirectSettings} from "./direct";
-import {initPublish,fetchPublishStatus,getCreatorCapabilities} from "@/lib/tiktok";
+import {initPublish,fetchPublishStatus,getCreatorCapabilities,uploadVideoChunk} from "@/lib/tiktok";
 import {explainTikTok,explainFailure} from "@/lib/tiktok-errors";
 const hash="creatorpulse:v3:posts";
 const uuid=(id:unknown):id is string=>typeof id==="string"&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id);
 type State="draft"|"approved"|"sending"|"submitted"|"uncertain"|"cancelled";
-type Post={id:string;accountId:string;accountName:string;videoUrl:string;caption:string;mode:"inbox"|"profile";duration?:number;direct?:DirectSettings;approvedCaption?:string;state:State;createdAt:string;updatedAt:string;approvedUntil?:number;approvedEpoch?:string;publishId?:string;status?:string;error?:string;events:{action:string;at:string;actor:string}[]};
+export type LocalMedia={name:string;size:number;sha256:string};
+export const MAX_LOCAL_VIDEO=4*1024*1024;
+function requireLocalSandbox(){
+ if(!["sandbox","local"].includes(gatewayEnvironment()))throw new GatewayError(403,"Local agent upload is Sandbox-only.");
+}
+function localMedia(input:unknown):LocalMedia{
+ requireLocalSandbox();
+ if(!input||typeof input!=="object")throw new GatewayError(400,"Invalid local video metadata.");
+ const x=input as Record<string,unknown>;
+ if(typeof x.name!=="string"||x.name.length>180||!x.name.toLowerCase().endsWith(".mp4")||/[\\/\x00-\x1f]/.test(x.name)||typeof x.size!=="number"||!Number.isSafeInteger(x.size)||x.size<12||x.size>MAX_LOCAL_VIDEO||typeof x.sha256!=="string"||!/^[a-f0-9]{64}$/.test(x.sha256))throw new GatewayError(400,"Choose an MP4 up to 4 MiB with a valid SHA-256.");
+ return {name:x.name,size:x.size,sha256:x.sha256};
+}
+type Post={localMedia?:LocalMedia;id:string;accountId:string;accountName:string;videoUrl:string;caption:string;mode:"inbox"|"profile";duration?:number;direct?:DirectSettings;approvedCaption?:string;state:State;createdAt:string;updatedAt:string;approvedUntil?:number;approvedEpoch?:string;publishId?:string;status?:string;error?:string;events:{action:string;at:string;actor:string}[]};
 async function load(id:string){
  if(!uuid(id))throw new GatewayError(400,"ID publikasi tidak valid.");
  const active=await redis<string|null>(["HGET",hash,id]);
@@ -23,15 +36,18 @@ async function change(post:Post,raw:string,patch:Partial<Post>,action:string,act
 }
 export async function prepare(input:unknown){
  const x=input as Record<string,unknown>|null;
- if(!x||!uuid(x.requestId)||typeof x.accountId!=="string"||typeof x.videoUrl!=="string"||x.videoUrl.length>2000||typeof x.caption!=="string"||x.caption.length>2200||(x.mode!=="inbox"&&x.mode!=="profile"))throw new GatewayError(400,"ID permintaan, akun, URL, caption dan mode publikasi wajib valid.");
- let url:URL;try{url=new URL(x.videoUrl);if(url.protocol!=="https:"||url.username||url.password||url.hash)throw Error();}catch{throw new GatewayError(400,"Gunakan URL HTTPS dari domain yang diverifikasi TikTok.");}
+ if(!x||!uuid(x.requestId)||typeof x.accountId!=="string"||typeof x.caption!=="string"||x.caption.length>2200||(x.mode!=="inbox"&&x.mode!=="profile"))throw new GatewayError(400,"ID permintaan, akun, URL, caption dan mode publikasi wajib valid.");
+ const media=x.localMedia===undefined?undefined:localMedia(x.localMedia);
+ let videoUrl="";
+ if(media){if(x.videoUrl!==undefined&&x.videoUrl!=="")throw new GatewayError(400,"Choose one video source.");}
+ else{try{if(typeof x.videoUrl!=="string"||x.videoUrl.length>2000)throw Error();const url=new URL(x.videoUrl);if(url.protocol!=="https:"||url.username||url.password||url.hash)throw Error();videoUrl=url.href;}catch{throw new GatewayError(400,"Gunakan URL HTTPS dari domain yang diverifikasi TikTok.");}}
  if(x.mode==="profile"&&(typeof x.duration!=="number"||!Number.isFinite(x.duration)||x.duration<=0||x.duration>86400))throw new GatewayError(400,"Durasi video wajib valid untuk Direct Post.");
  const {account}=await loadAccount(x.accountId);
  const at=new Date().toISOString();
- const post:Post={id:x.requestId,accountId:account.slot,accountName:account.name,videoUrl:url.href,caption:x.caption,mode:x.mode as "inbox"|"profile",...(x.mode==="profile"?{duration:x.duration as number}:{}),state:"draft",createdAt:at,updatedAt:at,events:[{action:"prepared",at,actor:"agent"}]};
+ const post:Post={id:x.requestId,accountId:account.slot,accountName:account.name,videoUrl,...(media?{localMedia:media}:{}),caption:x.caption,mode:x.mode as "inbox"|"profile",...(x.mode==="profile"?{duration:x.duration as number}:{}),state:"draft",createdAt:at,updatedAt:at,events:[{action:"prepared",at,actor:"agent"}]};
  const result=await redis<number>(["EVAL","-- post_create\nif redis.call('HEXISTS',KEYS[1],ARGV[1])==1 then return 2 end if redis.call('HLEN',KEYS[1])>=100 then return 0 end redis.call('HSET',KEYS[1],ARGV[1],ARGV[2]) return 1",1,hash,post.id,seal(post,"post:"+post.id)]);
  if(result===0)throw new GatewayError(409,"Antrean mencapai kapasitas 100 rencana aktif; arsipkan rencana terminal.");
- if(result===2){const {post:old}=await load(post.id);if(old.accountId!==post.accountId||old.videoUrl!==post.videoUrl||old.caption!==post.caption||old.mode!==post.mode||old.duration!==post.duration)throw new GatewayError(409,"ID permintaan sudah digunakan untuk payload berbeda.");return old;}
+ if(result===2){const {post:old}=await load(post.id);if(old.accountId!==post.accountId||old.videoUrl!==post.videoUrl||JSON.stringify(old.localMedia)!==JSON.stringify(post.localMedia)||old.caption!==post.caption||old.mode!==post.mode||old.duration!==post.duration)throw new GatewayError(409,"ID permintaan sudah digunakan untuk payload berbeda.");return old;}
  return post;
 }
 export async function getPost(id:string){const {post,archived}=await load(id);return {...post,archived};}
@@ -45,6 +61,7 @@ export async function approve(id:string,input:unknown){
  const {post,raw}=await load(id);
  if(post.state!=="draft"&&!(post.state==="approved"&&(post.approvedUntil||0)<Date.now()))throw new GatewayError(409,"Rencana tidak dapat disetujui.");
  if(!x||x.confirm!==true||x.accountId!==post.accountId||x.videoUrl!==post.videoUrl||x.caption!==post.caption||x.mode!==post.mode)throw new GatewayError(400,"Konfirmasi harus sesuai dengan rencana yang ditinjau.");
+ if(post.localMedia){requireLocalSandbox();if(x.mediaSha256!==post.localMedia.sha256)throw new GatewayError(400,"Review the matching local file before approval.");}
  const {account}=await loadAccount(post.accountId);
  let settings:DirectSettings|undefined,approvedCaption:string|undefined;
  if(post.mode==="profile"){
@@ -59,8 +76,12 @@ export async function cancel(id:string){
  if(!["draft","approved"].includes(post.state))throw new GatewayError(409,"Rencana sudah dikirim atau tidak dapat dibatalkan.");
  return change(post,raw,{state:"cancelled"},"cancelled","operator");
 }
-export async function execute(id:string){
+export async function execute(id:string,video?:Uint8Array){
  const {post,raw,archived}=await load(id);
+ if(post.localMedia){
+  requireLocalSandbox();
+  if(!video||video.length!==post.localMedia.size||Buffer.from(video.subarray(4,8)).toString("ascii")!=="ftyp"||createHash("sha256").update(video).digest("hex")!==post.localMedia.sha256)throw new GatewayError(400,"Local video does not match the reviewed file.");
+ }else if(video!==undefined)throw new GatewayError(400,"This draft requires an HTTPS URL, not file bytes.");
  if(post.state==="submitted")return post;
  if(archived)throw new GatewayError(409,"Rencana telah diarsipkan.");
  if(post.state!=="approved"||(post.approvedUntil||0)<=Date.now())throw new GatewayError(409,"Persetujuan tidak tersedia atau kedaluwarsa. Jangan mengulang permintaan yang belum pasti.");
@@ -79,8 +100,9 @@ export async function execute(id:string){
  if(claimed.post.state!=="sending")throw new GatewayError(409,"Status eksekusi berubah.");
  let publishId:string|undefined;
  try{
-  const result=await initPublish(token,{source_info:{source:"PULL_FROM_URL",video_url:sending.videoUrl},...(sending.mode==="profile"?{post_info:directPayload(sending.approvedCaption??sending.caption,directSettings(sending.direct))}:{})},sending.mode);
+  const result=await initPublish(token,{source_info:video?{source:"FILE_UPLOAD",video_size:video.length,chunk_size:video.length,total_chunk_count:1}:{source:"PULL_FROM_URL",video_url:sending.videoUrl},...(sending.mode==="profile"?{post_info:directPayload(sending.approvedCaption??sending.caption,directSettings(sending.direct))}:{})},sending.mode);
   publishId=result.publish_id;
+  if(video){if(!result.upload_url)throw new Error("Missing upload URL");await uploadVideoChunk(result.upload_url,video,"video/mp4");}
   return await change(claimed.post,claimed.raw,{state:"submitted",publishId,status:"PROCESSING_UPLOAD"},"tiktok_accepted","agent");
  }catch(error){
   const message=explainTikTok(error,"Hasil pengiriman belum pasti. Jangan kirim ulang.");
