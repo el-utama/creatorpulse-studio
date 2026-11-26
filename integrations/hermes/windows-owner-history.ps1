@@ -282,13 +282,15 @@ function Get-BridgeBlobSha([string]$Source) {
     try { return ([BitConverter]::ToString($sha.ComputeHash([byte[]]($header + $bytes)))).Replace('-','').ToLowerInvariant() }
     finally { $sha.Dispose() }
 }
-function Assert-PrivatePath([string]$Path,[string]$ServiceSid,[bool]$Writable=$false) {
+function Assert-PrivatePath([string]$Path,[string]$ServiceSid,[bool]$Writable=$false,[bool]$AllowInherited=$false) {
     $item = Get-Item -LiteralPath $Path -Force
     if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Protected path contains a reparse point.' }
     $acl = Get-Acl -LiteralPath $Path
     $allowed = @('S-1-5-18','S-1-5-32-544',$ServiceSid)
     $rules = @($acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]))
-    if (-not $acl.AreAccessRulesProtected -or $acl.GetOwner([Security.Principal.SecurityIdentifier]).Value -notin @('S-1-5-18','S-1-5-32-544') -or $rules.Count -ne 3 -or @($rules.IdentityReference.Value | Sort-Object -Unique).Count -ne 3) { throw 'Protected path ACL is not the known service ACL.' }
+    $trustedOwners = @('S-1-5-18','S-1-5-32-544')
+    if ($Writable) { $trustedOwners += $ServiceSid }
+    if ((-not $AllowInherited -and -not $acl.AreAccessRulesProtected) -or $acl.GetOwner([Security.Principal.SecurityIdentifier]).Value -notin $trustedOwners -or $rules.Count -ne 3 -or @($rules.IdentityReference.Value | Sort-Object -Unique).Count -ne 3) { throw 'Protected path ACL is not the known service ACL.' }
     $writeMask = [Security.AccessControl.FileSystemRights]('Write,Delete,ChangePermissions,TakeOwnership,DeleteSubdirectoriesAndFiles')
     foreach ($r in $rules) {
         if ($r.IdentityReference.Value -notin $allowed -or $r.AccessControlType -ne 'Allow') { throw 'Unexpected protected path ACL.' }
@@ -344,11 +346,26 @@ $secret = Join-Path $bridge '.secrets\sandbox\bridge.env'
 $service = Get-LocalUser -Name 'CreatorPulseBridge'
 if (-not $service.Enabled) { throw 'Restricted service account is unavailable.' }
 $sid = $service.SID.Value
-foreach ($p in @($root,$bridge,$code,(Join-Path $root 'python'),$python,$launcher,(Join-Path $bridge '.secrets'),(Join-Path $bridge '.secrets\sandbox'),$secret,(Join-Path $bridge 'run.py'),(Join-Path $bridge 'data'))) {
+foreach ($p in @($root,$bridge,$code,$launcher,(Join-Path $bridge '.secrets'),(Join-Path $bridge '.secrets\sandbox'),$secret,(Join-Path $bridge 'run.py'),(Join-Path $bridge 'data'))) {
     Assert-PrivatePath $p $sid
 }
+# The previous installer extracted Python after ACL normalization. Inherited ACLs
+# are acceptable only when the complete tree has exactly the same trusted identities,
+# trusted owners and no service write permission.
+$runtimePaths = [Collections.Generic.Stack[string]]::new()
+$runtimePaths.Push((Join-Path $root 'python'))
+while ($runtimePaths.Count) {
+    $runtimePath = $runtimePaths.Pop()
+    Assert-PrivatePath $runtimePath $sid $false $true
+    $runtimeItem = Get-Item -LiteralPath $runtimePath -Force
+    if ($runtimeItem.PSIsContainer) {
+        foreach ($child in @(Get-ChildItem -LiteralPath $runtimePath -Force)) { $runtimePaths.Push($child.FullName) }
+    }
+}
+$signature = Get-AuthenticodeSignature -LiteralPath $python
+if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'Python Software Foundation') { throw 'Existing Python signer could not be verified.' }
 Assert-PrivatePath $data $sid $true
-Assert-PrivatePath $db $sid $true
+Assert-PrivatePath $db $sid $true $true
 $task = Get-ScheduledTask -TaskName 'CreatorPulseBridge-Sandbox' -TaskPath '\'
 $taskSid = try { ([Security.Principal.NTAccount]::new($task.Principal.UserId)).Translate([Security.Principal.SecurityIdentifier]).Value } catch { $task.Principal.UserId }
 $actions = @($task.Actions)
@@ -361,6 +378,7 @@ $installed = Get-BridgeBlobSha ([Text.Encoding]::UTF8.GetString($oldBytes))
 if ($installed -notin @('ac5239c5fb104e6f0af75f64ef29dc38d5fcf5e8',$expected)) { throw 'Unrecognized installed bridge.py revision; report mismatch without editing.' }
 $rows = @([IO.File]::ReadAllLines($secret) | Where-Object { $_.StartsWith('CREATORPULSE_BRIDGE_TOKEN=') })
 if ($rows.Count -ne 1) { throw 'Existing Sandbox credential unavailable.' }
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $token = $rows[0].Substring('CREATORPULSE_BRIDGE_TOKEN='.Length).Trim()
 if ($token -notmatch '^cp_sandbox_bridge_[A-Za-z0-9_-]{32,}$') { throw 'Wrong environment credential.' }
 Wait-Bridge $token $sid $false
@@ -379,10 +397,10 @@ $changed = $false
 try {
     Stop-KnownTask
     $stopped = $true
-    & $python -I -B -c 'import sqlite3,sys; s=sqlite3.connect(sys.argv[1]); d=sqlite3.connect(sys.argv[2]); s.backup(d); assert d.execute("PRAGMA quick_check").fetchone()[0]=="ok"; d.close(); s.close()' $db $backup
+    & $python -I -B -c "import sqlite3,sys; s=sqlite3.connect(sys.argv[1]); d=sqlite3.connect(sys.argv[2]); s.backup(d); assert d.execute('PRAGMA quick_check').fetchone()[0]=='ok'; d.close(); s.close()" $db $backup
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $backup -PathType Leaf)) { throw 'SQLite backup failed.' }
     Set-Acl -LiteralPath $backup -AclObject $dbAcl
-    Assert-PrivatePath $backup $sid $true
+    Assert-PrivatePath $backup $sid $true $true
     [IO.File]::WriteAllBytes($codeBackup,$oldBytes)
     Set-Acl -LiteralPath $codeBackup -AclObject $codeAcl
     Assert-PrivatePath $codeBackup $sid
@@ -390,7 +408,7 @@ try {
     [IO.File]::WriteAllText($code,$payload,$utf8)
     Assert-PrivatePath $code $sid
     if ((Get-BridgeBlobSha ([IO.File]::ReadAllText($code))) -ne $expected) { throw 'Installed source verification failed.' }
-    & $python -I -B -c 'import sys; compile(open(sys.argv[1],encoding="utf-8").read(),sys.argv[1],"exec")' $code
+    & $python -I -B -c "import sys; compile(open(sys.argv[1],encoding='utf-8').read(),sys.argv[1],'exec')" $code
     if ($LASTEXITCODE -ne 0) { throw 'Updated Python source failed compilation.' }
     Start-ScheduledTask -TaskName 'CreatorPulseBridge-Sandbox' -TaskPath '\'
     Wait-Bridge $token $sid $true

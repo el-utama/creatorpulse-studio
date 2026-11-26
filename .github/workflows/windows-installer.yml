@@ -52,6 +52,36 @@ jobs:
           $expected = git rev-parse HEAD:local-bridge/bridge.py
           if ((Get-BridgeBlobSha (Get-BridgePayload)) -ne $expected) { throw 'Embedded payload differs from reviewed Git source' }
           Write-Host 'History upgrade payload verified against Git blob.'
+      - name: Verify history updater accepts safe inherited runtime ACL but rejects extra access
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tokens = $null; $errors = $null
+          $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $pwd 'integrations/hermes/windows-owner-history.ps1'),[ref]$tokens,[ref]$errors)
+          $fn = $ast.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Assert-PrivatePath'},$false)
+          . ([scriptblock]::Create($fn.Extent.Text))
+          $installer = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $pwd 'integrations/hermes/windows-owner-start.ps1'),[ref]$tokens,[ref]$errors)
+          $fn = $installer.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Set-BridgeItemAcl'},$false)
+          . ([scriptblock]::Create($fn.Extent.Text))
+          $fixture = Join-Path $env:RUNNER_TEMP ('history-acl-' + [guid]::NewGuid())
+          try {
+            $null = New-Item -ItemType Directory -Path $fixture
+            $sid = [Security.Principal.SecurityIdentifier]::new('S-1-5-32-545')
+            Set-BridgeItemAcl (Get-Item $fixture) $sid ReadAndExecute
+            $child = Join-Path $fixture 'runtime.py'
+            Set-Content -LiteralPath $child -Value 'fixture'
+            $acl = Get-Acl -LiteralPath $child
+            $acl.SetOwner([Security.Principal.SecurityIdentifier]::new('S-1-5-32-544'))
+            Set-Acl -LiteralPath $child -AclObject $acl
+            Assert-PrivatePath $child $sid.Value $false $true
+            $acl = Get-Acl -LiteralPath $child
+            $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new([Security.Principal.SecurityIdentifier]::new('S-1-1-0'),'Read','Allow'))
+            Set-Acl -LiteralPath $child -AclObject $acl
+            $blocked = $false
+            try { Assert-PrivatePath $child $sid.Value $false $true } catch { $blocked = $true }
+            if (-not $blocked) { throw 'Unexpected runtime access accepted' }
+            Write-Host 'Safe inherited runtime ACL fixture passed.'
+          } finally { Remove-Item -LiteralPath $fixture -Recurse -Force }
       - name: Test deterministic recovery state machine
         shell: powershell
         run: |

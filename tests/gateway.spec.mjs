@@ -169,6 +169,11 @@ test('manual history persists across authenticated browser contexts and migratio
  expect((await two.request.post('/api/tiktok/publish/status',{data:{publish_ids:[id]}})).ok()).toBe(true);
  rows=(await (await one.request.get(url)).json()).records;expect(rows.find(r=>r.id===id).status).toBe('PUBLISH_COMPLETE');
  const old={id:'legacy-history-test',createdAt:'2025-01-01T00:00:00.000Z',mode:'inbox'};
+ const oldPage=await one.newPage();await oldPage.addInitScript(record=>localStorage.setItem('creatorpulse:publications:mock-stable-account',JSON.stringify([record])),old);
+ await oldPage.goto('/dashboard?view=status');
+ await expect.poll(async()=>{const r=await two.request.get(url);return (await r.json()).records.some(x=>x.id===old.id)}).toBe(true);
+ expect(await oldPage.evaluate(()=>JSON.parse(localStorage.getItem('creatorpulse:publications:mock-stable-account')).length)).toBe(1);
+ expect((await other.request.post(url,{data:old})).ok()).toBe(false);
  for(let i=0;i<2;i++)expect((await one.request.post(url,{data:old})).ok()).toBe(true);
  rows=(await (await two.request.get(url)).json()).records;expect(rows.filter(r=>r.id===old.id)).toHaveLength(1);expect(rows.find(r=>r.id===old.id).imported).toBe(1);
  expect((await two.request.post(url,{headers:{Origin:'https://other.invalid'},data:old})).status()).toBe(403);

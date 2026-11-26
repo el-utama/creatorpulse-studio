@@ -49,6 +49,7 @@ globalThis.fetch = async (input, options) => {
       if(!inbox&&source?.video_url?.endsWith('/direct.mp4')&&(body.post_info?.title!=='Edited by human'||body.post_info?.is_aigc!==true||body.post_info?.disable_comment!==true))return Response.json({error:{code:'invalid_param'}},{status:400});
       return reply({publish_id:(inbox?'server-inbox-':'server-direct-')+(++initCount),...(source.source==='FILE_UPLOAD'?{upload_url:'https://open-upload.tiktokapis.com/video/?test=1'}:{})});
     }
+    if (url.pathname.endsWith('/status/fetch/')&&body.publish_id==='legacy-history-test'&&auth!=='Bearer mock-only')return Response.json({error:{code:'invalid_param'}},{status:403});
     if (url.pathname.endsWith('/status/fetch/')) return body.publish_id ? reply(body.publish_id==='failed-test'?{status:'FAILED',fail_reason:'video_pull_failed'}:{status:'PUBLISH_COMPLETE'}) : Response.json({error:{code:'invalid_param'}},{status:400});
     return Response.json({error:{code:'unmocked_endpoint'}},{status:502});
   }
