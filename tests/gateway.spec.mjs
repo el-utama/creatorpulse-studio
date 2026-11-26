@@ -49,8 +49,11 @@ test('enroll and monitor without browser, separate credentials and sourced trend
   expect(secondRecords.accounts.map(a=>a.id)).toEqual(firstRecords.accounts.map(a=>a.id));
   expect(secondRecords.accounts.some(a=>a.id===id)).toBe(true);
   // Even a stale client submitting enroll directly must not rotate the vault.
+  const beforeDuplicate=await second.cookies();
   const stale=await second.request.post(base+'enroll',{headers:marker});expect(stale.ok()).toBe(true);expect((await stale.json()).alreadyEnrolled).toBe(true);
-  expect((await second.cookies()).find(c=>c.name===bindingName)?.value).toBe(originalBinding);
+  const accountCookies=all=>all.filter(c=>c.name.startsWith('creatorpulse_account_'+id+'_')).map(c=>[c.name,c.value]).sort();
+  expect(accountCookies(await second.cookies())).toEqual(accountCookies(beforeDuplicate));
+  expect((await context.cookies()).find(c=>c.name===bindingName)?.value).toBe(originalBinding);
   expect((await (await second.request.get(base+'accounts',{headers:marker})).json()).accounts).toEqual(firstRecords.accounts);
   expect((await context.request.get('/api/tiktok/analytics')).status()).toBe(200);
   expect((await second.request.get('/api/tiktok/analytics')).status()).toBe(200);
