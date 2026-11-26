@@ -3,10 +3,10 @@ import {GatewayError,redis,seal,unseal,withSlotLock,gatewayEnvironment} from "./
 import {loadAccount,readAccount,profileIdentity,vaultToken} from "./vault";
 import {directSettings,verifyDirect,directPayload,type DirectSettings} from "./direct";
 import {initPublish,fetchPublishStatus,getCreatorCapabilities,uploadVideoChunk} from "@/lib/tiktok";
-import {explainTikTok,explainFailure} from "@/lib/tiktok-errors";
+import {TikTokApiError,explainTikTok,explainFailure} from "@/lib/tiktok-errors";
 const hash="creatorpulse:v3:posts";
 const uuid=(id:unknown):id is string=>typeof id==="string"&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id);
-type State="draft"|"approved"|"sending"|"submitted"|"uncertain"|"cancelled";
+type State="draft"|"approved"|"sending"|"submitted"|"uncertain"|"cancelled"|"rejected";
 export type LocalMedia={name:string;size:number;sha256:string};
 export const MAX_LOCAL_VIDEO=4*1024*1024;
 function requireLocalSandbox(){
@@ -111,25 +111,27 @@ export async function execute(id:string,video?:Uint8Array){
   }
   return await change(claimed.post,claimed.raw,{state:"submitted",publishId,status:"PROCESSING_UPLOAD"},"tiktok_accepted","agent");
  }catch(error){
-  const message=explainTikTok(error,"Hasil pengiriman belum pasti. Jangan kirim ulang.");
-  try{return await change(claimed.post,claimed.raw,{state:"uncertain",publishId,error:message},"execution_uncertain","agent");}catch{throw new GatewayError(503,"Hasil belum pasti; periksa TikTok sebelum tindakan berikutnya.");}
+  // Only explicit, recognized init rejections without an accepted ID are definitive.
+  const rejected=!publishId&&error instanceof TikTokApiError&&[400,401,403,429].includes(error.status)&&["access_token_invalid","scope_not_authorized","url_ownership_unverified","invalid_param","privacy_level_option_mismatch","spam_risk_too_many_posts","spam_risk_too_many_pending_share","rate_limit_exceeded","unaudited_client_can_only_post_to_private_accounts"].includes(error.code);
+  const message=explainTikTok(error,rejected?"TikTok menolak permintaan.":"Hasil pengiriman belum pasti. Jangan kirim ulang.");
+  try{return await change(claimed.post,claimed.raw,{state:rejected?"rejected":"uncertain",publishId,error:message},rejected?"execution_rejected":"execution_uncertain","agent");}catch{throw new GatewayError(503,"Hasil belum pasti; periksa TikTok sebelum tindakan berikutnya.");}
  }
  });
 }
 export async function checkStatus(id:string){
  const {post,raw,archived}=await load(id);
- if(archived||!post.publishId||!["submitted","uncertain","sending"].includes(post.state))return post;
+ if(archived||!post.publishId||!["submitted","uncertain","sending"].includes(post.state))return {...post,statusSource:"stored" as const};
  // Do not race the in-flight transfer. A stale sending record with an accepted ID is recoverable by status only.
- if(post.state==="sending"&&Date.now()-Date.parse(post.updatedAt)<120000)return post;
+ if(post.state==="sending"&&Date.now()-Date.parse(post.updatedAt)<120000)return {...post,statusSource:"stored" as const};
  const result=await readAccount(post.accountId,t=>fetchPublishStatus(t,post.publishId!));
- if(post.status===result.status&&post.error===(result.status==="FAILED"?explainFailure(result.fail_reason):undefined))return post;
- return change(post,raw,{...(post.state==="sending"?{state:"uncertain" as const}:{}),status:result.status,error:result.status==="FAILED"?explainFailure(result.fail_reason):undefined},"status_checked","agent");
+ if(post.state!=="sending"&&post.status===result.status&&post.error===(result.status==="FAILED"?explainFailure(result.fail_reason):undefined))return {...post,statusSource:"tiktok" as const};
+ return {...await change(post,raw,{...(post.state==="sending"?{state:"uncertain" as const}:{}),status:result.status,error:result.status==="FAILED"?explainFailure(result.fail_reason):undefined},"status_checked","agent"),statusSource:"tiktok" as const};
 }
 
 export async function archive(id:string){
  const {post,raw,archived}=await load(id);
  if(archived)return {id,archived:true};
- if(post.state!=="cancelled"&&!(post.state==="submitted"&&["PUBLISH_COMPLETE","FAILED","SEND_TO_USER_INBOX"].includes(post.status||"")))throw new GatewayError(409,"Hanya rencana batal atau terminal yang dapat diarsipkan.");
+ if(post.state!=="cancelled"&&post.state!=="rejected"&&!(post.state==="submitted"&&["PUBLISH_COMPLETE","FAILED","SEND_TO_USER_INBOX"].includes(post.status||"")))throw new GatewayError(409,"Hanya rencana batal atau terminal yang dapat diarsipkan.");
  const ok=await redis<number>(["ARCHIVE_POST",id,raw]);
  if(ok!==1)throw new GatewayError(409,"Status berubah, muat ulang.");
  return {id,archived:true};

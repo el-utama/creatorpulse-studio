@@ -198,7 +198,7 @@ test('immutable inbox draft, operator approval and exactly one execution claim',
  const again=await (await request.post(url+'/execute',{headers:agent})).json();expect(again.publishId).toBe(accepted[0].publishId);
  expect(again.state).toBe('submitted');
  expect((await request.post(url+'/cancel',{headers:operator})).status()).toBe(409);
- const status=await (await request.post(url+'/status',{headers:agent})).json();expect(status.status).toBe('PUBLISH_COMPLETE');
+ const status=await (await request.post(url+'/status',{headers:agent})).json();expect(status.status).toBe('PUBLISH_COMPLETE');expect(status.statusSource).toBe('tiktok');
  expect(status.events.some(x=>x.action==='approved'&&x.actor==='operator')).toBe(true);
  expect((await request.post(base,{headers:agent,data:{...data,requestId:crypto.randomUUID(),mode:'profile'}})).status()).toBe(400);
 });
@@ -347,4 +347,18 @@ test('manual history persists across authenticated browser contexts and migratio
  expect((await request.post(url,{data:old})).status()).toBe(401);
  const page=await two.newPage();await page.goto('/dashboard?view=status');await expect(page.getByRole('button',{name:'Details '+id})).toBeVisible();await expect(page.getByRole('button',{name:'Details '+old.id})).toBeVisible();
  }finally{await one.close();await two.close();await other.close();}
+});
+
+test('definitive init rejection cannot execute again and status is stored only',async ({request})=>{
+ const accounts=await (await request.get('/api/gateway/v1/accounts',{headers:agent})).json();
+ const base='/api/gateway/v1/posts',data={requestId:crypto.randomUUID(),accountId:accounts.accounts[0].id,videoUrl:'https://example.com/unverified.mp4',caption:'Rejected fixture',mode:'inbox'};
+ const created=await request.post(base,{headers:agent,data});expect(created.status()).toBe(201);
+ const url=base+'/'+data.requestId;
+ const before=await (await request.post(url+'/status',{headers:agent})).json();expect(before.statusSource).toBe('stored');
+ expect((await request.post(url+'/approve',{headers:operator,data:{...data,confirm:true}})).status()).toBe(200);
+ const executed=await request.post(url+'/execute',{headers:agent});expect(executed.status()).toBe(200);
+ const rejected=await executed.json();expect(rejected.state).toBe('rejected');expect(rejected.publishId).toBeUndefined();expect(rejected.events.at(-1).action).toBe('execution_rejected');
+ expect((await request.post(url+'/execute',{headers:agent})).status()).toBe(409);
+ const status=await (await request.post(url+'/status',{headers:agent})).json();expect(status.statusSource).toBe('stored');expect(status.state).toBe('rejected');expect(status.events).toEqual(rejected.events);
+ expect((await request.post(url+'/archive',{headers:operator})).status()).toBe(200);
 });
