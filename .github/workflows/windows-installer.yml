@@ -175,6 +175,73 @@ jobs:
             if ((Invoke-HistoryAclGate $root $userSid $sid) -ne $false) { throw 'Clean retry was not idempotent' }
             Write-Host 'Actual history entry point: owner decline, Production guard, scoped ACL repair and clean retry passed.'
           } finally { Remove-Item -LiteralPath $base -Recurse -Force }
+      - name: Exercise legacy bytecode quarantine in actual history upgrade flow
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tokens = $null; $errors = $null
+          $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $pwd 'integrations/hermes/windows-owner-history.ps1'),[ref]$tokens,[ref]$errors)
+          if ($errors.Count) { throw 'History updater parse failed' }
+          $top = @($ast.EndBlock.Statements)
+          $pre = @($top | Where-Object { $_.Extent.Text -eq '$legacyCache = Get-HistoryCachePath $bridge $sid' })
+          $flow = @($top | Where-Object { $_ -is [System.Management.Automation.Language.TryStatementAst] -and $_.Extent.Text -match 'Stop-KnownTask' })
+          if ($pre.Count -ne 1 -or $flow.Count -ne 1 -or $pre[0].Extent.StartOffset -ge $flow[0].Extent.StartOffset) { throw 'Cache preflight missing from actual entry point' }
+          $body = @($flow[0].Body.Statements)
+          $stop = @($body | Where-Object {$_.Extent.Text -eq 'Stop-KnownTask'})
+          $move = @($body | Where-Object {$_.Extent.Text -eq '$cacheArchive = Move-HistoryCache $bridge $sid'})
+          $start = @($body | Where-Object {$_.Extent.Text -eq "Start-ScheduledTask -TaskName 'CreatorPulseBridge-Sandbox' -TaskPath '\'"})
+          if ($stop.Count -ne 1 -or $move.Count -ne 1 -or $start.Count -ne 1 -or $stop[0].Extent.StartOffset -ge $move[0].Extent.StartOffset -or $move[0].Extent.StartOffset -ge $start[0].Extent.StartOffset) { throw 'Quarantine must execute after task stop and before restart' }
+          if ($flow[0].CatchClauses.Extent.Text -notmatch 'Get-HistoryCachePath \$bridge \$sid') { throw 'Rollback must reject active cache' }
+          foreach ($name in @('Assert-PrivatePath','Get-HistoryCachePath','Move-HistoryCache')) {
+            $fn = $ast.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name},$false)
+            if (-not $fn) { throw "Missing function: $name" }
+            . ([scriptblock]::Create($fn.Extent.Text))
+          }
+          $installer = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $pwd 'integrations/hermes/windows-owner-start.ps1'),[ref]$tokens,[ref]$errors)
+          $fn = $installer.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Set-BridgeItemAcl'},$false)
+          . ([scriptblock]::Create($fn.Extent.Text))
+          $bridge = Join-Path $env:RUNNER_TEMP ('history-cache-' + [guid]::NewGuid())
+          try {
+            $null = New-Item -ItemType Directory -Path $bridge
+            foreach ($relative in @('data\sandbox','.secrets\sandbox','__pycache__')) { $null = New-Item -ItemType Directory -Force -Path (Join-Path $bridge $relative) }
+            $source = Join-Path $bridge 'bridge.py'
+            $cache = Join-Path $bridge '__pycache__'
+            $pyc = Join-Path $cache 'bridge.cpython-313.pyc'
+            Set-Content -LiteralPath $source -Value 'marker = "source"' -Encoding Ascii
+            Set-Content -LiteralPath $pyc -Value 'untrusted fixture bytes' -Encoding Ascii
+            $service = [Security.Principal.SecurityIdentifier]::new('S-1-5-32-545')
+            $sid = $service.Value
+            foreach ($item in @((Get-Item -LiteralPath $bridge)) + @(Get-ChildItem -LiteralPath $bridge -Recurse -Force)) { Set-BridgeItemAcl $item $service ReadAndExecute }
+            $hash = (Get-FileHash -LiteralPath $pyc -Algorithm SHA256).Hash
+            $sddl = (Get-Acl -LiteralPath $pyc).Sddl
+            . ([scriptblock]::Create($pre[0].Extent.Text))
+            if ($legacyCache -ne $cache -or -not (Test-Path -LiteralPath $pyc)) { throw 'Preflight must be non-mutating' }
+            $prod = Join-Path $bridge 'data\production'
+            $null = New-Item -ItemType Directory -Path $prod
+            $blocked = $false
+            try { $null = Move-HistoryCache $bridge $sid } catch { $blocked = $_.Exception.Message -like '*Other environment*' }
+            if (-not $blocked -or -not (Test-Path -LiteralPath $pyc)) { throw 'Production guard failed' }
+            Remove-Item -LiteralPath $prod
+            $extra = Join-Path $cache 'not-cache.txt'
+            Set-Content -LiteralPath $extra -Value 'fixture'
+            $blocked = $false
+            try { $null = Get-HistoryCachePath $bridge $sid } catch { $blocked = $_.Exception.Message -like '*Unexpected Python cache content*' }
+            if (-not $blocked) { throw 'Unexpected cache contents were accepted' }
+            Remove-Item -LiteralPath $extra
+            $shadow = Join-Path $bridge 'bridge.cp313-win_amd64.pyd'
+            Set-Content -LiteralPath $shadow -Value 'fixture'
+            $blocked = $false
+            try { $null = Get-HistoryCachePath $bridge $sid } catch { $blocked = $_.Exception.Message -like '*Unexpected Python import shadow*' }
+            if (-not $blocked) { throw 'Native import shadow was accepted' }
+            Remove-Item -LiteralPath $shadow
+            . ([scriptblock]::Create($move[0].Extent.Text))
+            $archived = Join-Path $cacheArchive 'bridge.cpython-313.pyc'
+            if ((Test-Path -LiteralPath $cache) -or (Get-FileHash -LiteralPath $archived -Algorithm SHA256).Hash -ne $hash -or (Get-Acl -LiteralPath $archived).Sddl -cne $sddl) { throw 'Quarantine failed to preserve bytes/ACL or active cache remains' }
+            if (Move-HistoryCache $bridge $sid) { throw 'Clean retry must be idempotent' }
+            & python -I -B -c "import sys; sys.path.insert(0,sys.argv[1]); import bridge; assert bridge.marker == 'source'" $bridge
+            if ($LASTEXITCODE -ne 0 -or (Test-Path -LiteralPath $cache)) { throw 'Restart import did not use source or recreated cache' }
+            Write-Host 'Actual history cache flow: preflight, Production guard, unexpected-content and shadow rejection, quarantine with preserved ACL/bytes, clean source import and retry passed.'
+          } finally { Remove-Item -LiteralPath $bridge -Recurse -Force }
       - name: Test deterministic recovery state machine
         shell: powershell
         run: |
