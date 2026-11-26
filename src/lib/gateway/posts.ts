@@ -96,13 +96,19 @@ export async function execute(id:string,video?:Uint8Array){
  if(latest.account.access!==token)throw new GatewayError(409,"Sesi akun berubah; periksa kembali sebelum mengirim.");
  if((post.approvedUntil||0)<=Date.now())throw new GatewayError(409,"Persetujuan kedaluwarsa.");
  const sending=await change(post,raw,{state:"sending"},"execution_claimed","agent");
- const claimed=await load(id);
+ let claimed=await load(id);
  if(claimed.post.state!=="sending")throw new GatewayError(409,"Status eksekusi berubah.");
  let publishId:string|undefined;
  try{
   const result=await initPublish(token,{source_info:video?{source:"FILE_UPLOAD",video_size:video.length,chunk_size:video.length,total_chunk_count:1}:{source:"PULL_FROM_URL",video_url:sending.videoUrl},...(sending.mode==="profile"?{post_info:directPayload(sending.approvedCaption??sending.caption,directSettings(sending.direct))}:{})},sending.mode);
   publishId=result.publish_id;
-  if(video){if(!result.upload_url)throw new Error("Missing upload URL");await uploadVideoChunk(result.upload_url,video,"video/mp4");}
+  if(video){
+   // Persist TikTok's accepted ID before sending bytes. Never retry an uncertain transfer.
+   await change(claimed.post,claimed.raw,{publishId},"upload_initialized","agent");
+   claimed=await load(id);
+   if(!result.upload_url)throw new Error("Missing upload URL");
+   await uploadVideoChunk(result.upload_url,video,"video/mp4");
+  }
   return await change(claimed.post,claimed.raw,{state:"submitted",publishId,status:"PROCESSING_UPLOAD"},"tiktok_accepted","agent");
  }catch(error){
   const message=explainTikTok(error,"Hasil pengiriman belum pasti. Jangan kirim ulang.");
@@ -112,7 +118,7 @@ export async function execute(id:string,video?:Uint8Array){
 }
 export async function checkStatus(id:string){
  const {post,raw,archived}=await load(id);
- if(archived||!post.publishId||!["submitted","uncertain"].includes(post.state))return post;
+ if(archived||!post.publishId||!["submitted","uncertain","sending"].includes(post.state))return post;
  const result=await readAccount(post.accountId,t=>fetchPublishStatus(t,post.publishId!));
  if(post.status===result.status&&post.error===(result.status==="FAILED"?explainFailure(result.fail_reason):undefined))return post;
  return change(post,raw,{status:result.status,error:result.status==="FAILED"?explainFailure(result.fail_reason):undefined},"status_checked","agent");
