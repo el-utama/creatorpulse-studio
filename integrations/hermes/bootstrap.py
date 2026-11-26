@@ -29,6 +29,25 @@ def atomic_write(path, content):
 def load_yaml():
     try: import yaml;return yaml
     except ImportError: raise ValueError("PyYAML unavailable in this Python. Run with the existing Hermes Python environment; do not install or change Hermes blindly.")
+def rendered_skill(environment):
+    return (ROOT/"skills"/"creatorpulse"/"SKILL.md").read_text(encoding="utf-8").replace("{{ENVIRONMENT}}",environment).replace("{{DASHBOARD_URL}}",HOSTS[environment]+"/dashboard")
+
+def sync_managed_skill(home, *, environment):
+    """Refresh only the dedicated profile's CreatorPulse skill; no MCP/config reinstall."""
+    home=profile_home(home,environment)
+    skill=home/"skills"/"creatorpulse"/"SKILL.md"
+    if any(p.is_symlink() for p in (home/"skills",skill.parent,skill)):
+        raise ValueError("Skill path is redirected.")
+    rendered=rendered_skill(environment)
+    if skill.exists():
+        old=skill.read_text(encoding="utf-8")
+        if old==rendered:
+            return "current"
+        if not old.startswith("---\nname: creatorpulse\n") or ("# CreatorPulse content operations — "+environment+"\n") not in old:
+            raise ValueError("Existing unrelated skill; no overwrite.")
+    atomic_write(skill,rendered)
+    return "updated"
+
 def install(home, apply=False, agent_env=None, *, environment, preview_bypass_file=None):
     home=profile_home(home,environment)
     prefix=key_prefix(environment)
@@ -78,7 +97,7 @@ def install(home, apply=False, agent_env=None, *, environment, preview_bypass_fi
         if src.exists(): shutil.copyfile(src,backup/name)
     atomic_write(dest/"proxy.py",(ROOT/"proxy.py").read_text(encoding="utf-8"))
     atomic_write(dest/"environment.py",(ROOT/"environment.py").read_text(encoding="utf-8"))
-    atomic_write(skill,(ROOT/"skills"/"creatorpulse"/"SKILL.md").read_text(encoding="utf-8").replace("{{ENVIRONMENT}}",environment).replace("{{DASHBOARD_URL}}",HOSTS[environment]+"/dashboard"))
+    atomic_write(skill,rendered_skill(environment))
     if agent_env and envtext!=(env.read_text(encoding="utf-8") if env.exists() else ""): atomic_write(env,envtext)
     atomic_write(config,rendered)
     proc=subprocess.run([sys.executable,*adapter_args,"--check"],capture_output=True,text=True,timeout=90)
