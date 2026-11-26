@@ -1,13 +1,14 @@
 # Non-elevated verification only. No credential contents are printed.
 [CmdletBinding()]
-param([Parameter(Mandatory=$true)][ValidateSet('Syntax','Receipt')][string]$Mode)
+param([Parameter(Mandatory=$true)][ValidateSet('Syntax','Receipt','HistorySyntax')][string]$Mode)
 $ErrorActionPreference = 'Stop'
 try {
     $tokens = $null
     $errors = $null
-    $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot 'windows-owner-agent.ps1'),[ref]$tokens,[ref]$errors)
+    $file = if ($Mode -eq 'HistorySyntax') { 'windows-owner-history.ps1' } else { 'windows-owner-agent.ps1' }
+    $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot $file),[ref]$tokens,[ref]$errors)
     if ($errors.Count) { exit 1 }
-    if ($Mode -eq 'Syntax') { exit 0 }
+    if ($Mode -in @('Syntax','HistorySyntax')) { exit 0 }
     $fn = $ast.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Assert-AgentCredentialAcl'},$false)
     if (-not $fn) { exit 1 }
     . ([scriptblock]::Create($fn.Extent.Text))

@@ -119,7 +119,7 @@ export async function POST(request: Request) {
       key=await publicationKey(accessToken,requestId,expectedAccountId);
     }
     if(historyConfigured()){
-      if(!await historyCapability())return NextResponse.json({error:"Central publication history is unavailable. Update Local Bridge before submitting new videos."},{status:503});
+      if(!await historyCapability())return NextResponse.json({error:"Central publication history is unavailable. Update Local Bridge before submitting new videos.",not_submitted:true},{status:503});
       const account=slotFor(expectedAccountId),existing=await beginManual(account,requestId.toLowerCase(),mode);
       if(existing){
         if(existing.id)return NextResponse.json({publish_id:existing.id,warning:"Previous submission recovered from central history. Check its status; no new upload was sent."},{status:202});

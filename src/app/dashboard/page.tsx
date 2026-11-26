@@ -107,7 +107,7 @@ export default function DashboardPage() {
 
       if (!res.ok) {
         const errorData = await res.json();
-        if([400,401,403,429].includes(res.status)) {localStorage.removeItem(pendingKey);reserved=false;setPending(false);}
+        if([400,401,403,429].includes(res.status)||errorData.not_submitted===true) {localStorage.removeItem(pendingKey);reserved=false;setPending(false);}
         throw new Error(errorData.error || "Gagal memulai publikasi");
       }
 

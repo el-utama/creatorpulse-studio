@@ -215,6 +215,21 @@ def execute():
     check = run([sys.executable,ROOT/"proxy.py","--environment","sandbox","--env-file",source,*extra,"--check"])
     gateway = parse_json(check)
     state = next_gate(preflight,receipt,gateway)
+    if state in ("OWNER_ENROLL","ACTIVATE_MCP"):
+        history = run([sys.executable,ROOT/"proxy.py","--environment","sandbox","--env-file",source,*extra,"--history-check"])
+        capability = parse_json(history)
+        if history.returncode or type(capability.get("history_version")) is not int:
+            return result("HISTORY_CAPABILITY_UNVERIFIED",commit=commit,action="Check deployment and authenticated Gateway; do not reinstall or elevate.")
+        if capability["history_version"] == 0:
+            helper = ROOT/"windows-owner-history.ps1"
+            syntax = run([*ps,"-File",ROOT/"windows-agent-check.ps1","-Mode","HistorySyntax"])
+            if syntax.returncode:
+                return result("OWNER_HELPER_SYNTAX_FAILED",commit=commit)
+            return result("OWNER_HISTORY_UPGRADE",commit=commit,owner_script=str(helper),
+                          sha256=hashlib.sha256(helper.read_bytes()).hexdigest(),
+                          action="Open the exact reviewed helper location. Owner checks Verify and Windows CI for this revision, independently stages in an administrator-controlled directory, then runs elevated with no arguments and approves UPGRADE. No Hermes elevation or secret access. Resume same controller afterward.")
+        if capability["history_version"] != 1:
+            return result("HISTORY_CAPABILITY_UNVERIFIED",commit=commit)
     if state == "OWNER_ENROLL":
         return result(state,commit=commit,owner_url=DASHBOARD,action="Owner connects TikTok and enrolls at least one account using existing Operator Key. Resume after enrollment.")
     if state != "ACTIVATE_MCP":

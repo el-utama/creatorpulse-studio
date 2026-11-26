@@ -19,7 +19,7 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          foreach ($name in @('windows-owner-start.ps1','windows-preflight.ps1','windows-owner-agent.ps1','windows-agent-check.ps1')) {
+          foreach ($name in @('windows-owner-start.ps1','windows-preflight.ps1','windows-owner-agent.ps1','windows-agent-check.ps1','windows-owner-history.ps1')) {
             $tokens = $null
             $errors = $null
             $path = Join-Path $pwd "integrations/hermes/$name"
@@ -36,6 +36,22 @@ jobs:
             }
             Write-Host "Syntax valid: $name"
           }
+      - name: Verify embedded owner upgrade payload matches repository source
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tokens = $null
+          $errors = $null
+          $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $pwd 'integrations/hermes/windows-owner-history.ps1'),[ref]$tokens,[ref]$errors)
+          if ($errors.Count) { throw 'History upgrade parser failed' }
+          foreach ($name in @('Get-BridgePayload','Get-BridgeBlobSha')) {
+            $fn = $ast.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name},$false)
+            if (-not $fn) { throw "Missing helper $name" }
+            . ([scriptblock]::Create($fn.Extent.Text))
+          }
+          $expected = git rev-parse HEAD:local-bridge/bridge.py
+          if ((Get-BridgeBlobSha (Get-BridgePayload)) -ne $expected) { throw 'Embedded payload differs from reviewed Git source' }
+          Write-Host 'History upgrade payload verified against Git blob.'
       - name: Test deterministic recovery state machine
         shell: powershell
         run: |
@@ -227,6 +243,11 @@ jobs:
             $owner = Invoke-CimMethod -InputObject $proc -MethodName GetOwner
             if ($owner.ReturnValue -ne 0 -or $owner.User -ne $user) { throw 'Fixture identity mismatch' }
             Write-Host 'Real restricted-user scheduled task: authenticated PONG.'
+            $caps = Invoke-RestMethod -Uri 'http://127.0.0.1:8766/storage/v1' -Method Post -Headers @{Authorization="Bearer $token"} -ContentType 'application/json' -Body '["MANUAL_CAPS"]' -TimeoutSec 10
+            if ($caps.result -ne 1) { throw 'History capability missing' }
+            $claim = Invoke-RestMethod -Uri 'http://127.0.0.1:8766/storage/v1' -Method Post -Headers @{Authorization="Bearer $token"} -ContentType 'application/json' -Body '["MANUAL_BEGIN","aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","00000000-0000-4000-8000-000000000001","inbox"]' -TimeoutSec 10
+            $accept = Invoke-RestMethod -Uri 'http://127.0.0.1:8766/storage/v1' -Method Post -Headers @{Authorization="Bearer $token"} -ContentType 'application/json' -Body '["MANUAL_ACCEPT","aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","00000000-0000-4000-8000-000000000001","fixture-history"]' -TimeoutSec 10
+            if ($accept.result -ne 1) { throw 'History write failed' }
             $query = Invoke-RestMethod -Uri 'http://127.0.0.1:8766/storage/v1' -Method Post -Headers @{Authorization="Bearer $token"} -ContentType 'application/json' -Body '["HGETALL","creatorpulse:v3:vault"]' -TimeoutSec 10
             if ($null -eq $query.result -or @($query.result).Count -ne 0) { throw 'Unexpected fixture SQLite read' }
             $db = Join-Path $data 'creatorpulse.sqlite3'
@@ -248,6 +269,9 @@ jobs:
             if ($listener.Count -ne 1 -or $listener[0].LocalAddress -ne '127.0.0.1') { throw 'Restart listener mismatch' }
             $owner = Invoke-CimMethod -InputObject (Get-CimInstance Win32_Process -Filter "ProcessId=$($listener[0].OwningProcess)") -MethodName GetOwner
             if ($owner.ReturnValue -ne 0 -or $owner.User -ne $user) { throw 'Restart identity mismatch' }
+            $history = Invoke-RestMethod -Uri 'http://127.0.0.1:8766/storage/v1' -Method Post -Headers @{Authorization="Bearer $token"} -ContentType 'application/json' -Body '["MANUAL_LIST","aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]' -TimeoutSec 10
+            if (@($history.result).Count -ne 1 -or $history.result[0].id -ne 'fixture-history') { throw 'History not persisted across task restart' }
+            Write-Host 'Manual history persisted across restricted-user task restart.'
             Write-Host 'SQLite read and restricted-user task restart: authenticated PONG.'
           } finally {
             if (Get-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue) {

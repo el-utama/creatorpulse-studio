@@ -122,11 +122,20 @@ def main():
     parser.add_argument("--call",choices=BY_NAME.keys())
     parser.add_argument("--args",default="{}")
     parser.add_argument("--check",action="store_true")
+    parser.add_argument("--history-check",action="store_true")
     args=parser.parse_args()
     ENVIRONMENT=args.environment
     BYPASS_FILE=args.preview_bypass_file
     if BYPASS_FILE and ENVIRONMENT!="sandbox": parser.error("Preview protection credentials are sandbox-only.")
     get_key=lambda:key_from_env(args.env_file,ENVIRONMENT)
+    if args.history_check:
+        try:
+            data=request("/manual-history-capability",get_key())
+            version=data.get("version")
+            if type(version) is not int or version not in (0,1): raise ValueError("Invalid history capability.")
+            print(json.dumps({"history_version":version}));return 0
+        except ValueError:
+            print(json.dumps({"history_check":"unverified"}));return 1
     if args.check:
         try:
             health=request("/health")
