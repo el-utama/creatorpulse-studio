@@ -9,6 +9,7 @@ import {recordTrend,listTrends} from "@/lib/gateway/trends";
 import {readTikTok,explainTikTok,isAuthError} from "@/lib/tiktok-errors";
 import {getCreatorCapabilities} from "@/lib/tiktok";
 import {historyCapability} from "@/lib/manual-history";
+import {recordHermesValidation,readHermesValidation} from "@/lib/gateway/hermes-validation";
 import {sessionToken} from "@/lib/session";
 import {operatorSessionActive,openOperatorSession,clearOperatorSession,requireBrowserRequest,authorizeGateway} from "@/lib/gateway/operator-session";
 const headers={"Cache-Control":"no-store"};
@@ -21,11 +22,13 @@ export async function GET(request:Request,ctx:Ctx){
  if(p.join("/") === "health")return reply({version:"3.7-environment",environment:gatewayEnvironment(),storage:"local_bridge",directPublicEnabled:process.env.TIKTOK_DIRECT_POST_AUDITED==="true",configured:!!config(),posting:config()?"approval_required_inbox_and_direct":"disabled",trends:"observations_only"});
  try{
   if(p.join("/") === "operator-session")return reply({authenticated:await operatorSessionActive(request)});
-  if(await authorizeGateway(request)==="bearer")await limitAgent(request);
+  if(p.join("/") === "hermes-validation"){await authorizeGateway(request,true);return reply(await readHermesValidation());}
+  const access=await authorizeGateway(request);
+  if(access==="bearer")await limitAgent(request);
   if(p.join("/") === "manual-history-capability")return reply({version:await historyCapability()?1:0});
   if(p.join("/") === "posts")return reply({posts:await listPosts()});
   if(p[0]==="posts"&&p.length===2)return reply(await getPost(p[1]));
-  if(p.join("/") === "accounts")return reply({accounts:await listVault(),limit:3});
+  if(p.join("/") === "accounts")return reply({accounts:await listVault(),limit:3,...(access==="browser"&&["sandbox","local"].includes(gatewayEnvironment())?{hermesValidation:await readHermesValidation()}:{})});
   if(p[0]==="accounts"&&p.length===3){
    const slot=p[1];
    if(p[2]==="capabilities")return reply(await readAccount(slot,getCreatorCapabilities));
@@ -43,6 +46,7 @@ export async function GET(request:Request,ctx:Ctx){
 export async function POST(request:Request,ctx:Ctx){
  const p=(await ctx.params).path;
  try{
+  if(p.join("/") === "hermes-validation")return reply(await recordHermesValidation(request),201);
   if(p.join("/") === "operator-session"){await openOperatorSession(request);return reply({authenticated:true});}
   if(p.join("/") === "operator-session/lock"){requireBrowserRequest(request);await clearOperatorSession();return reply({authenticated:false});}
   if(p.join("/") === "enroll"){
