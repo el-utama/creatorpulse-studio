@@ -227,9 +227,11 @@ html:has(.r1-review-dialog[open]),html:has(.r1-review-dialog[open]) body{overflo
 .r1 .r1-content-toolbar .r1-toolbar-left{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);width:100%;gap:8px}
 .r1 .r1-content-toolbar .r1-toolbar-right{display:grid;grid-template-columns:minmax(0,1fr) auto;width:100%;gap:8px}
 .r1 .r1-content-toolbar .r1-field{width:100%;max-width:none;min-width:0}
-.r1 .r1-content-toolbar .r1-field :is(input,select){flex:1 1 0;width:0;max-width:none;min-width:0}
+.r1 .r1-content-toolbar .r1-field :is(input,select){flex:1 1 0;width:0;max-width:none;min-width:0;min-height:calc(var(--control) - 2px);line-height:1.4;box-sizing:border-box}
+.r1 .r1-content-toolbar .r1-field select{cursor:pointer}
+.r1 .r1-content-toolbar .r1-field input::placeholder{font-size:inherit}
 .r1 .r1-content-toolbar .r1-toggle{flex-shrink:0}
-.r1 .r1-content-toolbar .r1-toggle button{width:36px;height:34px}
+.r1 .r1-content-toolbar .r1-toggle button{width:40px;height:40px}
 @media(max-width:1024px){
  html:has(.r1){scrollbar-gutter:auto;scroll-padding-top:66px;scroll-padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))}
  .r1 .r1-main{padding-bottom:calc(100px + env(safe-area-inset-bottom,0px))}

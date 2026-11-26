@@ -75,7 +75,7 @@ test('workspace scroll and toolbar remain reachable across resize and modal',asy
   const bar=page.getByRole('group',{name:'Content controls'});
   const geometry=await bar.evaluate(el=>{const bounds=el.getBoundingClientRect();return [...el.querySelectorAll('input,select,button')].map(e=>{const r=e.getBoundingClientRect();return {inside:r.left>=bounds.left-1&&r.right<=bounds.right+1,width:r.width,height:r.height}})});
   expect(geometry).toHaveLength(5);
-  for(const r of geometry){expect(r.inside).toBe(true);expect(r.width).toBeGreaterThan(20);expect(r.height).toBeGreaterThan(16)}
+  for(const r of geometry){expect(r.inside).toBe(true);expect(r.width).toBeGreaterThan(20);expect(r.height).toBeGreaterThanOrEqual(width<=1024?42:38)}
   await page.getByRole('button',{name:'Grid view'}).click();
   await expect(page.getByRole('button',{name:'Grid view'})).toHaveAttribute('aria-pressed','true');
   await page.getByRole('button',{name:'List view'}).click();
@@ -83,16 +83,23 @@ test('workspace scroll and toolbar remain reachable across resize and modal',asy
  }
  await page.setViewportSize({width:390,height:420});
  await nav(page,'Publishing').click();
- await page.locator('.r1-queue-mobile-row').filter({hasText:'Behind the scenes'}).getByRole('button',{name:'Review',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Publication queue',exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Operator access: unlocked'})).toBeVisible();
+ const opener=page.locator('.r1-queue-mobile-row').filter({hasText:'Behind the scenes'}).getByRole('button',{name:'Review',exact:true});
+ await opener.click();
  const dialog=page.getByRole('dialog',{name:'Review agent draft'});await expect(dialog).toBeVisible();
  const body=dialog.locator('.r1-review-body');
- expect(await body.evaluate(el=>el.scrollHeight>el.clientHeight)).toBe(true);
+ await expect(dialog.getByText('Studio Beta (@fixture_creator)',{exact:false})).toBeVisible();
+ await expect(dialog.getByRole('button',{name:'Approve Direct Post'})).toBeDisabled();
+ await expect.poll(()=>body.evaluate(el=>el.scrollHeight-el.clientHeight)).toBeGreaterThan(0);
  const before=(await scrollState()).y;
- const db=await body.boundingBox();await page.mouse.move(db.x+db.width/2,db.y+db.height/2);await page.mouse.wheel(0,500);
+ const db=await body.boundingBox();await body.evaluate(el=>{el.scrollTop=0});await page.mouse.move(db.x+db.width-20,db.y+Math.min(50,db.height/2));await page.mouse.wheel(0,500);
  await expect.poll(()=>body.evaluate(el=>el.scrollTop)).toBeGreaterThan(0);
  expect(Math.abs((await scrollState()).y-before)).toBeLessThanOrEqual(2);
  expect(await page.evaluate(()=>getComputedStyle(document.documentElement).overflowY)).toBe('hidden');
  await page.screenshot({path:'engine-test-results/'+browserName+'-scrolled-review-390.png'});
  await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);
  expect(await page.evaluate(()=>getComputedStyle(document.documentElement).overflowY)).not.toBe('hidden');
+ await expect(page.getByRole('button',{name:'Operator access: unlocked'})).toBeVisible();
+ await expect(opener).toBeVisible();
 });
