@@ -1,7 +1,7 @@
 ---
 name: creatorpulse
 description: Research TikTok content trends, analyze connected accounts, prepare inbox and Direct Post drafts and monitor human-approved submissions via CreatorPulse.
-version: 1.1.6
+version: 1.1.7
 metadata:
   hermes:
     tags: [tiktok, research, content-operations]
@@ -30,9 +30,9 @@ Use one research-backed idea to create an actual audience-facing TikTok video, n
 
 ## Supplied local video — Sandbox MVP
 The owner has deferred automatic content generation. For this acceptance use only the explicitly supplied local MP4 at F:\TOY4U\test_upload.mp4; do not generate or substitute a fixture. Inspect actual media, report duration, suggest truthful caption/hashtags, and ask which posting mode the owner intends. Direct Post may be restricted to SELF_ONLY; Inbox still needs TikTok completion. Do not assume rights or permission to post.
-1. For an explicitly authorized local MP4 up to 4 MiB, use prepare_local_post with requestId, accountId, filePath, caption, mode, and actual duration for profile. It sends basename, size and SHA-256 only, not the local path or bytes. Get the exact returned draft ID and report it.
+1. For an explicitly authorized local MP4 up to 4 MiB, use prepare_local_post with requestId, accountId, filePath, caption, mode, and actual duration for profile. The adapter requires existing ffprobe and ffmpeg, checks duration, and decodes the exact local bytes from a temporary snapshot before creating a draft. It sends basename, size and SHA-256 only, not the local path or bytes. A blocked or failed decode must stop; never install tools or bypass the adapter automatically. Get the exact returned draft ID and report it.
 2. In Publishing > Review, the operator selects a matching copy of the video in the browser. Browser checks SHA-256 and previews the local bytes; approval is bound to that hash and the account/settings. The operator must actually review it. No external hosting is required.
-3. Only after an explicit owner instruction to proceed and get_post confirms approved state, invoke execute_local_post with the exact postId and original filePath. The adapter checks approved metadata and Gateway verifies the uploaded bytes before TikTok FILE_UPLOAD. The limited binary request passes through Gateway; no public hosting or binary storage in Bridge. Never use execute_approved_post for a local draft.
+3. Only after an explicit owner instruction to proceed and get_post confirms approved state, invoke execute_local_post with the exact postId and original filePath. The adapter checks approved metadata and repeats full decode of the exact byte snapshot; Gateway verifies the uploaded bytes before TikTok FILE_UPLOAD. The limited binary request passes through Gateway; no public hosting or binary storage in Bridge. Never use execute_approved_post for a local draft.
 4. Report actual submission ID and get_publish_status. Never retry uncertain uploads, never claim an Inbox notification is published, and do not change Production or default Hermes. This local-file path is Sandbox-only; no general large-file support is implied.
 
 ## Publication

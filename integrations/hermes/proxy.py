@@ -2,6 +2,10 @@
 """Local stdio MCP adapter. No background requests; only explicit tool calls reach Vercel."""
 import argparse
 import hashlib
+import math
+import shutil
+import subprocess
+import tempfile
 import stat
 import json
 import os
@@ -32,8 +36,8 @@ TOOLS = [
     tool("list_trends","Read stored sourced observations, not verified live rankings.",{"region":REGION,"days":{"type":"integer","minimum":1,"maximum":90}}),
     tool("record_trend","Save real evidence from an authorized research source.",{"topic":STR,"type":{"enum":["topic","hashtag","music","video","keyword"]},"region":REGION,"source":{"enum":["tiktok_creative_center","tiktok_discovery_api","google_trends","web_research","manual"]},"sourceUrl":STR,"observedAt":STR,"evidence":STR,"changePct":{"type":"number"},"metric":STR},["topic","type","region","source","sourceUrl","observedAt","evidence"]),
     tool("prepare_post","Create inbox or Direct Post draft; profile requires duration in seconds. Human selects final settings.",{"requestId":ID,"accountId":ACCOUNT,"videoUrl":STR,"caption":STR,"mode":{"enum":["inbox","profile"]},"duration":{"type":"number","exclusiveMinimum":0}},["requestId","accountId","videoUrl","caption","mode"]),
-    tool("prepare_local_post","Sandbox: prepare draft for an owner-supplied local MP4 (max 4 MiB); sends only basename, size and SHA-256. Explicit owner file authorization required.",{"requestId":ID,"accountId":ACCOUNT,"filePath":STR,"caption":STR,"mode":{"enum":["inbox","profile"]},"duration":{"type":"number","exclusiveMinimum":0}},["requestId","accountId","filePath","caption","mode"]),
-    tool("execute_local_post","Sandbox: upload the same reviewed local MP4 once, only with explicit owner instruction and dashboard approval. Never retry uncertain submissions.",{"postId":ID,"filePath":STR},["postId","filePath"]),
+    tool("prepare_local_post","Sandbox: prepare draft for an owner-supplied local MP4 (max 4 MiB); requires successful local full decode; sends only basename, size and SHA-256. Explicit owner file authorization required.",{"requestId":ID,"accountId":ACCOUNT,"filePath":STR,"caption":STR,"mode":{"enum":["inbox","profile"]},"duration":{"type":"number","exclusiveMinimum":0}},["requestId","accountId","filePath","caption","mode"]),
+    tool("execute_local_post","Sandbox: decode and upload the same reviewed local MP4 once, only with explicit owner instruction and dashboard approval. Never retry uncertain submissions.",{"postId":ID,"filePath":STR},["postId","filePath"]),
     tool("list_posts","Read publication queue."),
     tool("get_post","Inspect exact draft and state.",{"postId":ID},["postId"]),
     tool("execute_approved_post","Submit approved draft to TikTok once; do not retry uncertain results.",{"postId":ID},["postId"]),
@@ -127,6 +131,49 @@ def local_video(path):
     if not 12<=len(data)<=4*1024*1024 or data[4:8]!=b"ftyp": raise ValueError("Local video must be MP4, at most 4 MiB.")
     return data,{"name":p.name,"size":len(data),"sha256":hashlib.sha256(data).hexdigest()}
 
+def validate_local_decode(data, expected_duration=None):
+    """Validate the exact in-memory upload bytes, not a mutable source path.
+    No network, original file writes, automatic installation or transcoding.
+    This is a technical local check, not platform or visual acceptance.
+    """
+    probe, decoder = shutil.which("ffprobe"), shutil.which("ffmpeg")
+    if not probe or not decoder:
+        raise ValueError("Local media preflight blocked: existing ffprobe and ffmpeg required.")
+    if expected_duration is not None and (isinstance(expected_duration, bool) or not isinstance(expected_duration, (int, float)) or not math.isfinite(expected_duration) or expected_duration <= 0):
+        raise ValueError("Invalid expected video duration.")
+    try:
+        with tempfile.TemporaryDirectory(prefix="creatorpulse-preflight-") as tmp:
+            snapshot=Path(tmp)/"review.mp4"
+            snapshot.write_bytes(data)
+            # Force the MP4/MOV demuxer; prevent remote protocols and interactive input.
+            info=subprocess.run([probe,"-v","error","-protocol_whitelist","file,pipe","-f","mov","-show_streams","-show_format","-of","json",str(snapshot)],capture_output=True,text=True,timeout=30)
+            if info.returncode or info.stderr.strip():
+                raise ValueError("Local media preflight: MP4 probe failed.")
+            parsed=json.loads(info.stdout)
+            streams=parsed.get("streams",[])
+            videos=[s for s in streams if s.get("codec_type")=="video" and not s.get("disposition",{}).get("attached_pic")]
+            if len(videos)!=1:
+                raise ValueError("Local media preflight: exactly one primary video stream required.")
+            video=videos[0]
+            index=video.get("index")
+            if type(index) is not int or index<0 or not isinstance(video.get("width"),int) or video["width"]<=0 or not isinstance(video.get("height"),int) or video["height"]<=0:
+                raise ValueError("Local media preflight: invalid video stream.")
+            try: duration=float(video.get("duration") or parsed.get("format",{}).get("duration"))
+            except (TypeError,ValueError): raise ValueError("Local media preflight: duration unavailable.") from None
+            if not math.isfinite(duration) or duration<=0:
+                raise ValueError("Local media preflight: invalid video duration.")
+            if expected_duration is not None and abs(duration-expected_duration)>1:
+                raise ValueError("Local media preflight: decoded video duration differs from draft.")
+            result=subprocess.run([decoder,"-nostdin","-v","error","-xerror","-err_detect","explode","-protocol_whitelist","file,pipe","-f","mov","-i",str(snapshot),"-map","0:"+str(index),"-map","0:a?","-progress","pipe:1","-nostats","-f","null","-"],capture_output=True,text=True,timeout=120)
+            frames=[int(m) for m in re.findall(r"^frame=\s*(\d+)\s*$",result.stdout,re.MULTILINE)]
+            if result.returncode or result.stderr.strip() or not frames or max(frames)<=0 or "progress=end" not in result.stdout.splitlines():
+                raise ValueError("Local media preflight: full decode failed or no decoded frames.")
+            if snapshot.read_bytes()!=data:
+                raise ValueError("Local media preflight: temporary snapshot changed.")
+            return duration
+    except (OSError,subprocess.TimeoutExpired,json.JSONDecodeError,AttributeError,KeyError,TypeError):
+        raise ValueError("Local media preflight blocked: unable to complete technical decode.") from None
+
 def call(name,a,key):
     if name not in BY_NAME or not isinstance(a,dict):
         raise ValueError("Unknown tool or invalid arguments.")
@@ -151,7 +198,9 @@ def call(name,a,key):
         return request("/trends",key,normalized,"POST")
     if name=="prepare_post": return request("/posts",key,a,"POST")
     if name=="prepare_local_post":
-        _,media=local_video(a["filePath"])
+        data,media=local_video(a["filePath"])
+        if a["mode"]=="profile" and "duration" not in a: raise ValueError("Direct Post requires actual video duration.")
+        validate_local_decode(data,a.get("duration") if a["mode"]=="profile" else None)
         return request("/posts",key,{**{k:v for k,v in a.items() if k!="filePath"},"localMedia":media},"POST")
     post=identifier(a["postId"],UUID)
     if name=="get_post": return request("/posts/"+post,key)
@@ -160,6 +209,8 @@ def call(name,a,key):
         if current.get("state")!="approved" or not isinstance(current.get("localMedia"),dict): raise ValueError("Local draft must be approved; do not retry uncertain uploads.")
         data,media=local_video(a["filePath"])
         if media!=current["localMedia"]: raise ValueError("Local video changed after review.")
+        if current.get("mode")=="profile" and "duration" not in current: raise ValueError("Approved draft duration unavailable.")
+        validate_local_decode(data,current.get("duration") if current.get("mode")=="profile" else None)
         return request("/posts/"+post+"/execute-file",key,data,"POST")
     return request("/posts/"+post+("/execute" if name=="execute_approved_post" else "/status"),key,method="POST")
 def rpc(message, get_key):
