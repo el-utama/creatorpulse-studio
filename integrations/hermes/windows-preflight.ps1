@@ -7,6 +7,7 @@ $root = Join-Path $env:ProgramData 'CreatorPulseBridge'
 $profile = Join-Path $env:LOCALAPPDATA 'hermes\profiles\creatorpulse-sandbox'
 $report = [ordered]@{
     host = $env:COMPUTERNAME
+    boot_utc = (Probe { $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop; $os.LastBootUpTime.ToUniversalTime().ToString('o') })
     identity = [Security.Principal.WindowsIdentity]::GetCurrent().Name
     elevated = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     service_account = (Probe { $u = Get-LocalUser -Name CreatorPulseBridge -ErrorAction SilentlyContinue; if ($u) { if ($u.Enabled) { 'enabled' } else { 'disabled' } } else { 'not_found_or_hidden' } })
