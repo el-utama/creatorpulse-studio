@@ -113,3 +113,41 @@ test('workspace scroll and toolbar remain reachable across resize and modal',asy
  await expect(page.getByRole('button',{name:'Operator access: unlocked'})).toBeVisible();
  await expect(opener).toBeVisible();
 });
+
+test('realistic data density keeps dates, headers and full captions usable',async({page,context,browserName})=>{
+ test.setTimeout(90000);
+ const {accounts,longCaption,longTitle}=await installWorkspaceFixture(page,context,{stress:true});
+ await page.setViewportSize({width:1440,height:900});await page.goto('/dashboard');
+ await nav(page,'AI Agent').click();await page.getByLabel('Kunci operator',{exact:true}).fill('fixture-operator');await page.getByRole('button',{name:'Buka akses'}).click();
+ await expect(page.getByText('Bridge data loaded',{exact:true})).toBeVisible();
+ const fit=async()=>{
+  const issues=await page.locator('.r1-table:visible').evaluateAll(tables=>tables.flatMap(t=>[...t.querySelectorAll('th,.r1-date,.r1-num')].filter(el=>el.getClientRects().length&&el.scrollWidth>el.clientWidth+1).map(el=>el.textContent)));
+  expect(issues).toEqual([]);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual((await page.viewportSize()).width);
+ };
+ for(const width of [1600,1440,1366,1280,1025,900,390,320]){
+  await page.setViewportSize({width,height:800});
+  for(const view of ['Overview','Accounts','Content','Publishing']){
+   await nav(page,view).click();await expect(page.getByRole('heading',{level:1,name:view,exact:true})).toBeVisible();await fit();
+   if(view==='Content'){
+    await expect(page.getByText(longTitle,{exact:true}).filter({visible:true})).toBeVisible();
+    const dates=await page.locator('.r1-video-table:visible .r1-date').evaluateAll(els=>els.map(el=>getComputedStyle(el).whiteSpace));
+    expect(dates.every(v=>v==='nowrap')).toBe(true);
+    if(width===1440){await expect(page.getByRole('columnheader',{name:'Comments',exact:true})).toBeVisible();}
+   }
+   if(view==='Publishing'){
+    const preview=page.locator('.r1-queue .r1-caption-preview').filter({hasText:'FINAL CAPTION MARKER',visible:true});
+    await expect(preview).toBeVisible();
+    const m=await preview.evaluate(el=>({height:el.getBoundingClientRect().height,line:parseFloat(getComputedStyle(el).lineHeight),scroll:el.scrollHeight}));
+    expect(m.height).toBeLessThanOrEqual(m.line*2+1);expect(m.scroll).toBeGreaterThan(m.height);
+   }
+   if(width===1440||width===1280||width===390)await page.screenshot({path:'engine-test-results/'+browserName+'-density-'+view.toLowerCase()+'-'+width+'.png'});
+  }
+ }
+ await page.setViewportSize({width:1440,height:800});
+ const row=page.locator('.r1-queue').locator('tr,article').filter({hasText:'FINAL CAPTION MARKER',visible:true});
+ await row.getByRole('button',{name:'Review',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'Review agent draft'});await expect(dialog).toBeVisible();
+ await expect(dialog.getByText(longCaption,{exact:true})).toBeVisible();
+ await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);
+});

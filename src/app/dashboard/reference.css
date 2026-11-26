@@ -257,3 +257,53 @@ html:has(.r1-review-dialog[open]),html:has(.r1-review-dialog[open]) body{overflo
 .r1 .r1-side-accounts button:disabled{opacity:.5;cursor:not-allowed}
 .r1 .r1-account-directory [data-account-selected=true]{background:var(--accent-soft)}
 @media(max-width:639px){.r1 .r1-scope .r1-field{width:100%}.r1 .r1-scope select{max-width:100%;min-width:0;font-size:16px;min-height:42px}}
+
+/* Data density contract: choose representation by actual panel width, not viewport alone.
+   All dates, numeric cells, and headers stay intact. Text previews never determine table width. */
+.r1 :is(.r1-performance,.r1-account-directory,.r1-library,.r1-queue){container-type:inline-size;container-name:data-panel}
+.r1 .r1-table{table-layout:fixed}
+.r1 .r1-table :is(th,td){overflow-wrap:normal;word-break:normal;padding-inline:10px}
+.r1 .r1-table th{white-space:normal;hyphens:none}
+.r1 .r1-table :is(.r1-date,.r1-num){white-space:nowrap;font-variant-numeric:tabular-nums}
+.r1 .r1-table .r1-btn{white-space:nowrap}
+.r1 .r1-table .r1-account-cell{min-width:0;max-width:none;width:auto}
+.r1 .r1-account-link>.r1-flex{flex:1;min-width:0}
+.r1 :is(.r1-account-name,.r1-caption-preview){display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;white-space:normal;overflow-wrap:anywhere;word-break:normal}
+.r1 .r1-caption-preview{line-height:1.4;max-height:2.8em}
+.r1 .r1-table .r1-handle,.r1 .r1-account-mobile .r1-handle{white-space:normal;overflow-wrap:normal;text-overflow:clip}
+.r1 .r1-content-row .r1-meta,.r1 .r1-queue-mobile-row .r1-meta{overflow-wrap:anywhere;white-space:normal}
+.r1 .r1-review-body .break-words{white-space:pre-wrap;overflow-wrap:anywhere}
+.r1 .r1-performance-table th:nth-child(2){width:90px}
+.r1 .r1-performance-table th:nth-child(3){width:110px}
+.r1 .r1-performance-table th:nth-child(4){width:88px}
+.r1 .r1-directory-table th:nth-child(2){width:126px}
+.r1 .r1-directory-table th:nth-child(3){width:126px}
+.r1 .r1-directory-table th:nth-child(4){width:94px}
+.r1 .r1-directory-table th:nth-child(5){width:112px}
+.r1 .r1-directory-table th:nth-child(6){width:100px}
+.r1 .r1-directory-table th:nth-child(7){width:126px}
+.r1 .r1-video-table th:nth-child(2){width:182px}
+.r1 .r1-video-table th:nth-child(3){width:105px}
+.r1 .r1-video-table th:nth-child(4),.r1 .r1-video-table th:nth-child(5),.r1 .r1-video-table th:nth-child(7){width:76px}
+.r1 .r1-video-table th:nth-child(6){width:96px}
+.r1 .r1-video-table th:nth-child(8){width:58px}
+.r1 .r1-publication-table th:nth-child(2){width:164px}
+.r1 .r1-publication-table th:nth-child(3){width:94px}
+.r1 .r1-publication-table th:nth-child(4){width:72px}
+.r1 .r1-publication-table th:nth-child(5){width:144px}
+.r1 .r1-publication-table th:nth-child(6){width:108px}
+.r1 .r1-publication-table th:nth-child(7){width:102px}
+.r1 .r1-publication-table td:nth-child(3){overflow-wrap:anywhere}
+.r1 .r1-publication-table td:first-child>.r1-flex>.r1-grow{min-width:0}
+@media(min-width:1025px){
+ @container data-panel (max-width:679px){
+  .r1 .r1-performance>.r1-desktop-table{display:none}
+  .r1 .r1-performance>.r1-account-mobile{display:block}
+ }
+}
+@media(min-width:1280px){
+ @container data-panel (max-width:999px){
+  .r1 :is(.r1-account-directory,.r1-library,.r1-queue)>.r1-desktop-table{display:none}
+  .r1 :is(.r1-account-directory,.r1-library,.r1-queue)>.r1-mobile-only{display:block}
+ }
+}
