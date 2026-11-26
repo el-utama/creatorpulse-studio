@@ -13,7 +13,7 @@ const date=(n:number|string)=>typeof n==="number"?n*1000:/^\d+$/.test(n)?Number(
 const sum=(a:Entry[],k:"follower_count"|"likes_count"|"video_count")=>a.length&&a.every(x=>Number.isFinite(x.profile?.[k]))?a.reduce((n,x)=>n+(x.profile?.[k]??0),0):NaN;
 const views=(x:Entry)=>x.videos.reduce((n,v)=>n+(v.view_count||0),0);
 const btn="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium hover:bg-slate-50 disabled:opacity-50";
-export function WorkspaceData({view,onNavigate,disabled,revision,onActive,onLoading,latestPublication,onAccounts,accountFilter,onFilterChange,gatewaySummary,onSelectAgentHistory}:{view:string;onNavigate:(v:string)=>void;disabled:boolean;revision:number;onActive:(profile:TikTokUserInfo|null,error:string|null)=>void;onLoading:(loading:boolean)=>void;latestPublication:string|null;onAccounts:(rows:Account[])=>void;accountFilter:string;onFilterChange:(slot:string)=>void;gatewaySummary:GatewaySummary|null;onSelectAgentHistory:(id:string)=>void}){
+export function WorkspaceData({view,onNavigate,disabled,revision,onActive,onLoading,latestPublication,onAccounts,accountFilter,onFilterChange,gatewaySummary,onSelectAgentHistory}:{view:string;onNavigate:(v:string)=>void;disabled:boolean;revision:number;onActive:(profile:TikTokUserInfo|null,error:string|null,slot?:string)=>void;onLoading:(loading:boolean)=>void;latestPublication:string|null;onAccounts:(rows:Account[])=>void;accountFilter:string;onFilterChange:(slot:string)=>void;gatewaySummary:GatewaySummary|null;onSelectAgentHistory:(id:string)=>void}){
  const [session,setSession]=useState<Session|null>(null),[rows,setRows]=useState<Entry[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(""),[query,setQuery]=useState(""),[sort,setSort]=useState("recent"),[layout,setLayout]=useState("list"),[busy,setBusy]=useState(false),[more,setMore]=useState(false);
  const generation=useRef(0);
  const filter=accountFilter,setFilter=onFilterChange;
@@ -70,7 +70,7 @@ export function WorkspaceData({view,onNavigate,disabled,revision,onActive,onLoad
  try{const res=await fetch("/api/tiktok/analytics"+(a.slot==="legacy"?"":"?account="+encodeURIComponent(a.slot)),{cache:"no-store",signal:controller.signal});const d=await res.json();if(!res.ok||!d.user_info)throw Error(d.error||"Analytics unavailable.");
  next.push({slot:a.slot,name:d.user_info.display_name||a.name,profile:d.user_info,videos:d.videos?.data??[],cursor:d.videos?.has_more&&Number.isSafeInteger(d.videos.cursor)?d.videos.cursor:null,videoError:d.video_error||undefined});
  }catch(e){if(controller.signal.aborted)return;next.push({slot:a.slot,name:a.name,videos:[],cursor:null,error:e instanceof Error?e.message:"Analytics unavailable."});}
- if(gen===generation.current&&!controller.signal.aborted){setRows([...next]);if(a.slot===active){const entry=next[next.length-1];onActive(entry.profile??null,entry.error??null);}}
+ if(gen===generation.current&&!controller.signal.aborted){setRows([...next]);if(a.slot===active){const entry=next[next.length-1];onActive(entry.profile??null,entry.error??null,entry.slot);}}
  }
  }catch(e){if(!controller.signal.aborted&&gen===generation.current){const message=e instanceof Error?e.message:"Workspace unavailable.";setError(message);onActive(null,message);}}
  finally{if(!controller.signal.aborted&&gen===generation.current){setLoading(false);onLoading(false);}}
