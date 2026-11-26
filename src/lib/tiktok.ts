@@ -200,6 +200,8 @@ export async function uploadVideoChunk(
 ): Promise<Response> {
   const response = await fetch(uploadUrl, {
     method: "PUT",
+    signal: AbortSignal.timeout(20000),
+    redirect: "error",
     headers: {
       "Content-Type": contentType,
       "Content-Length": fileBuffer.length.toString(),
