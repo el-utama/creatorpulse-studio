@@ -282,21 +282,67 @@ function Get-BridgeBlobSha([string]$Source) {
     try { return ([BitConverter]::ToString($sha.ComputeHash([byte[]]($header + $bytes)))).Replace('-','').ToLowerInvariant() }
     finally { $sha.Dispose() }
 }
-function Assert-PrivatePath([string]$Path,[string]$ServiceSid,[bool]$Writable=$false,[bool]$AllowInherited=$false) {
+function Assert-PrivatePath([string]$Path,[string]$ServiceSid,[bool]$Writable=$false,[bool]$AllowInherited=$false,[string]$ReviewOwner='') {
     $item = Get-Item -LiteralPath $Path -Force
-    if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Protected path contains a reparse point.' }
+    if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "Protected path contains a reparse point: $Path" }
     $acl = Get-Acl -LiteralPath $Path
     $allowed = @('S-1-5-18','S-1-5-32-544',$ServiceSid)
     $rules = @($acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]))
     $trustedOwners = @('S-1-5-18','S-1-5-32-544')
     if ($Writable) { $trustedOwners += $ServiceSid }
-    if ((-not $AllowInherited -and -not $acl.AreAccessRulesProtected) -or $acl.GetOwner([Security.Principal.SecurityIdentifier]).Value -notin $trustedOwners -or $rules.Count -ne 3 -or @($rules.IdentityReference.Value | Sort-Object -Unique).Count -ne 3) { throw 'Protected path ACL is not the known service ACL.' }
+    $owner = $acl.GetOwner([Security.Principal.SecurityIdentifier]).Value
+    if (-not $AllowInherited -and -not $acl.AreAccessRulesProtected) { throw "ACL inheritance unexpected: $Path" }
+    if ($owner -notin $trustedOwners -and ($ReviewOwner -eq '' -or $owner -ne $ReviewOwner)) { throw "ACL owner unexpected: $Path (owner=$owner)" }
+    # Multiple inherited ACEs for the same permitted identity are safe only if
+    # every ACE is Allow, every identity is expected, and effective rights match.
+    $rights = @{}
     $writeMask = [Security.AccessControl.FileSystemRights]('Write,Delete,ChangePermissions,TakeOwnership,DeleteSubdirectoriesAndFiles')
     foreach ($r in $rules) {
-        if ($r.IdentityReference.Value -notin $allowed -or $r.AccessControlType -ne 'Allow') { throw 'Unexpected protected path ACL.' }
-        if ($r.IdentityReference.Value -eq $ServiceSid -and -not $Writable -and ($r.FileSystemRights -band $writeMask)) { throw 'Service has write access to protected code or credentials.' }
-        if ($r.IdentityReference.Value -ne $ServiceSid -and $r.FileSystemRights -ne [Security.AccessControl.FileSystemRights]::FullControl) { throw 'Unexpected administrator/system ACL.' }
+        $id = $r.IdentityReference.Value
+        if ($id -notin $allowed -or $r.AccessControlType -ne 'Allow') { throw "Unexpected ACL identity/type: $Path (sid=$id,type=$($r.AccessControlType))" }
+        if ($id -eq $ServiceSid -and -not $Writable -and ($r.FileSystemRights -band $writeMask)) { throw "Service can modify protected code or credentials: $Path" }
+        if ($r.PropagationFlags -band [Security.AccessControl.PropagationFlags]::InheritOnly) { continue }
+        $rights[$id] = ([int64]$rights[$id] -bor [int64]$r.FileSystemRights)
     }
+    foreach ($id in $allowed) {
+        $required = if ($id -eq $ServiceSid) { if ($Writable) {[Security.AccessControl.FileSystemRights]::Modify} else {[Security.AccessControl.FileSystemRights]::ReadAndExecute} } else {[Security.AccessControl.FileSystemRights]::FullControl}
+        if (-not $rights.ContainsKey($id) -or (($rights[$id] -band [int64]$required) -ne [int64]$required)) { throw "Required ACL rights missing: $Path (sid=$id)" }
+    }
+    if ($owner -notin $trustedOwners) { return $Path }
+}
+function Assert-EmbeddedRuntime([string]$Runtime,[string]$Archive,[string[]]$Paths) {
+    # Compare the complete runtime to the pinned official archive without executing Python.
+    # Only the expected owner mismatch may be repaired; altered or extra code is rejected.
+    $item = Get-Item -LiteralPath $Archive -Force
+    if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Python archive is a reparse point.' }
+    if ((Get-FileHash -LiteralPath $Archive -Algorithm SHA256).Hash -ne '9e35319bffedab8b36ad44d8f377cb4f1733bcec257a0b6d04d94f01486ddb38') { throw 'Existing Python archive does not match pinned official SHA256.' }
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $zip = [IO.Compression.ZipFile]::OpenRead($Archive)
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try {
+        $expected = @{}
+        foreach ($entry in $zip.Entries) {
+            if (-not $entry.Name) { continue }
+            $name = $entry.FullName.Replace('/','\')
+            if ([IO.Path]::IsPathRooted($name) -or $name.Split('\') -contains '..' -or $expected.ContainsKey($name)) { throw 'Unexpected archive layout.' }
+            $stream = $entry.Open()
+            try { $expected[$name] = ([BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-','') } finally { $stream.Dispose() }
+        }
+        foreach ($path in $Paths) {
+            $entry = Get-Item -LiteralPath $path -Force
+            if ($entry.PSIsContainer) { continue }
+            $name = $path.Substring($Runtime.Length+1)
+            if (-not $expected.ContainsKey($name) -or (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ne $expected[$name]) { throw "Runtime file differs from official archive: $path" }
+            $expected.Remove($name)
+        }
+        if ($expected.Count) { throw 'Runtime files missing from official archive.' }
+    } finally { $sha.Dispose(); $zip.Dispose() }
+}
+function Repair-ReviewedRuntimeOwner([string]$Path,[string]$ServiceSid) {
+    $acl = Get-Acl -LiteralPath $Path
+    $acl.SetOwner([Security.Principal.SecurityIdentifier]::new('S-1-5-32-544'))
+    Set-Acl -LiteralPath $Path -AclObject $acl
+    Assert-PrivatePath $Path $ServiceSid $false $true
 }
 function Invoke-Storage([string]$Uri,[string]$Command,[string]$Token) {
     $r = Invoke-RestMethod -Uri $Uri -Method Post -Headers @{Authorization="Bearer $Token"} -ContentType 'application/json' -Body $Command -TimeoutSec 10 -MaximumRedirection 0
@@ -352,15 +398,25 @@ foreach ($p in @($root,$bridge,$code,$launcher,(Join-Path $bridge '.secrets'),(J
 # The previous installer extracted Python after ACL normalization. Inherited ACLs
 # are acceptable only when the complete tree has exactly the same trusted identities,
 # trusted owners and no service write permission.
+$runtimeRoot = Join-Path $root 'python'
+$reviewOwner = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+$runtimeItems = [Collections.Generic.List[string]]::new()
+$runtimeRepairs = [Collections.Generic.List[string]]::new()
 $runtimePaths = [Collections.Generic.Stack[string]]::new()
-$runtimePaths.Push((Join-Path $root 'python'))
+$runtimePaths.Push($runtimeRoot)
 while ($runtimePaths.Count) {
     $runtimePath = $runtimePaths.Pop()
-    Assert-PrivatePath $runtimePath $sid $false $true
+    $runtimeItems.Add($runtimePath)
+    $repair = Assert-PrivatePath $runtimePath $sid $false $true $reviewOwner
+    if ($repair) { $runtimeRepairs.Add($repair) }
     $runtimeItem = Get-Item -LiteralPath $runtimePath -Force
     if ($runtimeItem.PSIsContainer) {
         foreach ($child in @(Get-ChildItem -LiteralPath $runtimePath -Force)) { $runtimePaths.Push($child.FullName) }
     }
+}
+if ($runtimeRepairs.Count) {
+    Assert-EmbeddedRuntime $runtimeRoot (Join-Path $root 'python-3.13.17-embed-amd64.zip') $runtimeItems.ToArray()
+    Write-Host "Verified official Python runtime. $($runtimeRepairs.Count) item(s) created with the owner USER SID require trusted Administrators ownership; no permissions granted."
 }
 $signature = Get-AuthenticodeSignature -LiteralPath $python
 if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'Python Software Foundation') { throw 'Existing Python signer could not be verified.' }
@@ -382,10 +438,10 @@ if ($rows.Count -ne 1) { throw 'Existing Sandbox credential unavailable.' }
 $token = $rows[0].Substring('CREATORPULSE_BRIDGE_TOKEN='.Length).Trim()
 if ($token -notmatch '^cp_sandbox_bridge_[A-Za-z0-9_-]{32,}$') { throw 'Wrong environment credential.' }
 Wait-Bridge $token $sid $false
-if ($installed -eq $expected) {
+if ($installed -eq $expected -and -not $runtimeRepairs.Count) {
     try { Wait-Bridge $token $sid $true; [pscustomobject]@{state='HISTORY_READY';changed=$false;local='PONG';https='PONG';history_version=1} | ConvertTo-Json; return } catch { throw 'New code already installed but history probe failed. Inspect existing service; do not reinstall.' }
 }
-Write-Host 'Upgrade only the known Sandbox bridge.py. Stop/restart its existing scheduled task, back up the SQLite database, preserve all credentials, runtime, task configuration and tunnel routes. Production is untouched.'
+Write-Host 'Upgrade only the known Sandbox bridge.py. Stop/restart its existing scheduled task, back up the SQLite database, preserve all credentials, runtime bytes, task configuration and tunnel routes. If reported above, correct ownership only on the verified existing Python runtime. Production is untouched.'
 if ((Read-Host 'Type UPGRADE to approve this scoped change') -cne 'UPGRADE') { throw 'Owner declined. No changes.' }
 $backup = Join-Path $data ('creatorpulse.pre-history.' + [guid]::NewGuid().ToString('N') + '.sqlite3')
 $codeBackup = Join-Path $bridge ('bridge.py.pre-history.' + [guid]::NewGuid().ToString('N'))
@@ -397,6 +453,12 @@ $changed = $false
 try {
     Stop-KnownTask
     $stopped = $true
+    if ($runtimeRepairs.Count) {
+        foreach ($item in $runtimeRepairs) { Repair-ReviewedRuntimeOwner $item $sid }
+        foreach ($item in $runtimeItems) { Assert-PrivatePath $item $sid $false $true }
+        Assert-EmbeddedRuntime $runtimeRoot (Join-Path $root 'python-3.13.17-embed-amd64.zip') $runtimeItems.ToArray()
+        Write-Host 'Verified Python runtime ownership corrected; no runtime files replaced.'
+    }
     & $python -I -B -c "import sqlite3,sys; s=sqlite3.connect(sys.argv[1]); d=sqlite3.connect(sys.argv[2]); s.backup(d); assert d.execute('PRAGMA quick_check').fetchone()[0]=='ok'; d.close(); s.close()" $db $backup
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $backup -PathType Leaf)) { throw 'SQLite backup failed.' }
     Set-Acl -LiteralPath $backup -AclObject $dbAcl

@@ -58,8 +58,10 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $tokens = $null; $errors = $null
           $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $pwd 'integrations/hermes/windows-owner-history.ps1'),[ref]$tokens,[ref]$errors)
-          $fn = $ast.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Assert-PrivatePath'},$false)
-          . ([scriptblock]::Create($fn.Extent.Text))
+          foreach ($name in @('Assert-PrivatePath','Repair-ReviewedRuntimeOwner')) {
+            $fn = $ast.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name},$false)
+            . ([scriptblock]::Create($fn.Extent.Text))
+          }
           $installer = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $pwd 'integrations/hermes/windows-owner-start.ps1'),[ref]$tokens,[ref]$errors)
           $fn = $installer.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Set-BridgeItemAcl'},$false)
           . ([scriptblock]::Create($fn.Extent.Text))
@@ -74,6 +76,17 @@ jobs:
             $acl.SetOwner([Security.Principal.SecurityIdentifier]::new('S-1-5-32-544'))
             Set-Acl -LiteralPath $child -AclObject $acl
             Assert-PrivatePath $child $sid.Value $false $true
+            $current = [Security.Principal.WindowsIdentity]::GetCurrent().User
+            $acl = Get-Acl -LiteralPath $child
+            $acl.SetOwner($current)
+            Set-Acl -LiteralPath $child -AclObject $acl
+            $blockedOwner = $false
+            try { Assert-PrivatePath $child $sid.Value $false $true } catch { $blockedOwner = $_.Exception.Message -like '*ACL owner unexpected*' }
+            if (-not $blockedOwner) { throw 'Untrusted runtime owner was not blocked' }
+            if ((Assert-PrivatePath $child $sid.Value $false $true $current.Value) -ne $child) { throw 'Review-only owner gate failed' }
+            Repair-ReviewedRuntimeOwner $child $sid.Value
+            Assert-PrivatePath $child $sid.Value $false $true
+            Write-Host 'Scoped runtime ownership repair fixture passed.'
             $acl = Get-Acl -LiteralPath $child
             $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new([Security.Principal.SecurityIdentifier]::new('S-1-1-0'),'Read','Allow'))
             Set-Acl -LiteralPath $child -AclObject $acl
