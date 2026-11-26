@@ -5,7 +5,7 @@ import {useCallback,useEffect,useState} from "react";
 import {Bot,KeyRound,Link2,RefreshCw,CheckCircle2,AlertCircle,ShieldCheck,Lock,ChevronRight,Database} from "lucide-react";
 
 type Health = "checking"|"setup"|"configured"|"error";
-export function GatewayPanel({activeAccountSlot,accountName,view="agent",onSummary,summary,browserAccounts=[],accountPicker,workspaceRevision,historyAgentId,onHistoryClose}:{activeAccountSlot:string|null;accountName?:string;view?:"agent"|"queue"|"review"|"history";onSummary:(data:GatewaySummary|null)=>void;summary:GatewaySummary|null;browserAccounts?:{slot:string;name:string}[];accountPicker?:React.ReactNode;workspaceRevision:number;historyAgentId:string|null;onHistoryClose:()=>void}){
+export function GatewayPanel({activeAccountSlot,accountName,view="agent",onSummary,summary,onOperatorState,browserAccounts=[],accountPicker,workspaceRevision,historyAgentId,onHistoryClose}:{activeAccountSlot:string|null;accountName?:string;view?:"agent"|"queue"|"review"|"history";onSummary:(data:GatewaySummary|null)=>void;summary:GatewaySummary|null;onOperatorState:(state:"unknown"|"locked"|"unlocked")=>void;browserAccounts?:{slot:string;name:string}[];accountPicker?:React.ReactNode;workspaceRevision:number;historyAgentId:string|null;onHistoryClose:()=>void}){
  const [health,setHealth]=useState<Health>("checking"),[key,setKey]=useState(""),[unlocked,setUnlocked]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState(""),[ok,setOk]=useState(false),[revision,setRevision]=useState(0);
  const [sessionError,setSessionError]=useState("");
  const sessionHeaders={"X-CreatorPulse-Operator-Session":"1"};
@@ -22,6 +22,7 @@ export function GatewayPanel({activeAccountSlot,accountName,view="agent",onSumma
   catch(e){setMessage(e instanceof Error?e.message:"Gateway tidak tersedia.");}finally{setBusy(false);}
  }
  useEffect(()=>{if(!unlocked||health!=="configured")onSummary(null)},[unlocked,health,onSummary]);
+ useEffect(()=>{onOperatorState(health==="configured"?(unlocked?"unlocked":"locked"):"unknown")},[health,unlocked,onOperatorState]);
  useEffect(()=>{setOk(false);setMessage("")},[activeAccountSlot]);
  const status={checking:"Memeriksa konfigurasi…",setup:"Belum disiapkan",configured:"Konfigurasi tersedia",error:"Status belum dapat diperiksa"}[health];
  const expired=useCallback(()=>{setUnlocked(false);setKey("");setOk(false);setMessage("");onSummary(null);onHistoryClose()},[onSummary,onHistoryClose]);

@@ -314,7 +314,7 @@ test('operator session persists across reload, is browser-scoped and does not gr
  expect(await page.evaluate(()=>JSON.stringify(localStorage).includes('o'.repeat(40)))).toBe(false);
  expect((await one.request.post(base+'operator-session/lock',{headers:marker})).status()).toBe(200);
  expect(await status(one)).toBe(false);
- expect((await one.request.get(base+'accounts',{headers:marker})).status()).toBe(401);
+ const locked=await one.request.get(base+'accounts',{headers:marker});expect(locked.status()).toBe(401);expect((await locked.json()).code).toBe('operator_session_expired');
  expect((await one.request.post(base+'operator-session',{headers:{...marker,...operator}})).status()).toBe(200);
  expect((await one.request.post('/api/auth/logout')).status()).toBe(200);
  expect(await status(one)).toBe(false);

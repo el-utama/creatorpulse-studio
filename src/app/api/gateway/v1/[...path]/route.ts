@@ -15,7 +15,7 @@ import {operatorSessionActive,openOperatorSession,clearOperatorSession,requireBr
 const headers={"Cache-Control":"no-store"};
 const reply=(data:unknown,status=200)=>NextResponse.json(data,{status,headers});
 type Ctx={params:Promise<{path:string[]}>};
-function fail(error:unknown){if(!(error instanceof GatewayError)&&!isAuthError(error))console.warn("gateway_unexpected_failure",{kind:error instanceof Error?error.name:"unknown"});return reply({error:error instanceof GatewayError?error.message:explainTikTok(error,"Gateway belum dapat menyelesaikan permintaan.")},error instanceof GatewayError?error.status:isAuthError(error)?401:502);}
+function fail(error:unknown){if(!(error instanceof GatewayError)&&!isAuthError(error))console.warn("gateway_unexpected_failure",{kind:error instanceof Error?error.name:"unknown"});return reply({error:error instanceof GatewayError?error.message:explainTikTok(error,"Gateway belum dapat menyelesaikan permintaan."),...(error instanceof GatewayError&&error.code?{code:error.code}:{})},error instanceof GatewayError?error.status:isAuthError(error)?401:502);}
 function cursorOf(url:URL){const raw=url.searchParams.get("cursor")||"0",n=Number(raw);if(!/^\d+$/.test(raw)||!Number.isSafeInteger(n))throw new GatewayError(400,"Cursor tidak valid.");return n;}
 export async function GET(request:Request,ctx:Ctx){
  const p=(await ctx.params).path,url=new URL(request.url);
@@ -68,7 +68,8 @@ export async function POST(request:Request,ctx:Ctx){
    jar.set("creatorpulse_account_"+slot+"_v",binding(slot,epoch),{...options,maxAge:365*86400});
    return reply({success:true,id:slot,name:user.display_name,alreadyEnrolled});
   }
-  await authorizeGateway(request);
+  const access=await authorizeGateway(request);
+  if(access==="bearer")await limitAgent(request);
   if(p.join("/") === "posts")return reply(await prepare(await request.json().catch(()=>null)),201);
   if(p[0]==="posts"&&p.length===3){
    if(p[2]==="approve"){await authorizeGateway(request,true);return reply(await approve(p[1],await request.json().catch(()=>null)));}

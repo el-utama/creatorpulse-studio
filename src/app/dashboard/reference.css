@@ -28,3 +28,10 @@
 
 /* Review form: one preview, compact desktop fields, no horizontal scrolling on mobile. */
 .r1 .r1-review-dialog .r1-review-body>div:not(.r1-form-section){padding:14px 18px;min-width:0}.r1 .r1-review-dialog .r1-review-body>div:not(.r1-form-section)>.r1-form-section{padding:12px 0 0}.r1 .r1-review-dialog input[type=file]{max-width:100%;min-width:0}.r1 .r1-review-dialog textarea,.r1 .r1-review-dialog select{min-width:0;max-width:100%}.r1 .r1-review-dialog .r1-form-section .text-xs{font-size:12px}.r1 .r1-review-dialog label{overflow-wrap:anywhere}.r1 .r1-review-dialog input[type=checkbox]{flex-shrink:0;align-self:flex-start;margin-top:3px}.r1 .r1-review-dialog .r1-review-body{overflow-x:hidden}@media(max-width:767px){.r1 .r1-review-dialog .r1-review-body>div:not(.r1-form-section){padding:12px 13px}.r1 .r1-review-dialog{width:calc(100% - 20px)}}
+
+/* Review layout: shrink long labels and intrinsic media controls at narrow widths. */
+.r1 .r1-review-dialog .r1-review-body{min-width:0;max-width:100%;overflow-wrap:anywhere}
+.r1 .r1-review-dialog .r1-review-body :is(input,select,textarea,video,fieldset){max-width:100%;min-width:0}
+.r1 .r1-review-dialog .r1-form-section>.r1-flex{flex-wrap:wrap}
+.r1 .r1-review-dialog .r1-btn{white-space:normal;max-width:100%}
+.r1 .r1-review-dialog .r1-panel-head h2{min-width:0;overflow-wrap:anywhere}

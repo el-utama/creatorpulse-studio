@@ -45,6 +45,6 @@ export async function authorizeGateway(request:Request,owner=false):Promise<"bro
  }
  const environment=request.headers.get("x-creatorpulse-environment");
  if(environment&&environment!==gatewayEnvironment())throw new GatewayError(403,"Environment mismatch.");
- if(!await operatorSessionActive(request))throw new GatewayError(401,"Sesi operator berakhir. Buka akses kembali.");
+ if(!await operatorSessionActive(request))throw new GatewayError(401,"Sesi operator berakhir. Buka akses kembali.","operator_session_expired");
  return "browser";
 }

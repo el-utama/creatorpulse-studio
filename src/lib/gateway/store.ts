@@ -1,5 +1,5 @@
 import {createCipheriv,createDecipheriv,randomBytes,timingSafeEqual,createHmac} from "node:crypto";
-export class GatewayError extends Error {constructor(public status:number,message:string){super(message)}}
+export class GatewayError extends Error {constructor(public status:number,message:string,public code?:string){super(message)}}
 export const vaultHash="creatorpulse:v3:vault";
 export const trendList="creatorpulse:v3:trends";
 const hosts={sandbox:"https://creatorpulse-studio-git-sandbox-total-management1.vercel.app",production:"https://creatorpulse-studio-six.vercel.app"} as const;
