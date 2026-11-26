@@ -168,6 +168,28 @@ def validate_adapter(command):
     return count
 
 
+def report_validation(commit, count, key, bypass_file):
+    # Only called after successful adapter reads and dedicated Hermes CLI test.
+    # Uses the existing restricted Sandbox credential; never sends raw tool output.
+    import proxy
+    proxy.ENVIRONMENT = "sandbox"
+    proxy.BYPASS_FILE = bypass_file
+    try:
+        response = proxy.request("/hermes-validation", key, {
+            "schema": 1, "commit": commit, "accounts": count,
+            "adapter_readonly": "passed", "hermes_cli_test_exit": 0,
+        }, "POST")
+        report = response.get("report", {})
+        if (response.get("state") != "reported" or report.get("commit") != commit
+                or report.get("accounts") != count or report.get("source") != "controller_report"
+                or not isinstance(report.get("reportedAt"), str)):
+            return {"state": "unverified"}
+        return {"state": "reported", "reported_at": report["reportedAt"]}
+    except Exception:
+        # A telemetry failure cannot turn a successful local validation into a failure.
+        return {"state": "unverified"}
+
+
 def execute():
     if os.name != "nt":
         return result("WINDOWS_REQUIRED")
@@ -264,7 +286,8 @@ def execute():
     tested = run([hermes,"-p","creatorpulse-sandbox","mcp","test","creatorpulse"],timeout=120)
     if tested.returncode:
         return result("HERMES_CLI_TEST_FAILED",commit=commit,adapter_readonly="passed",accounts=count)
-    return result("READONLY_VALIDATED",commit=commit,adapter_readonly="passed",hermes_cli_test_exit=0,accounts=count,
+    report = report_validation(commit, count, key, bypass if extra else None)
+    return result("READONLY_VALIDATED",commit=commit,adapter_readonly="passed",hermes_cli_test_exit=0,accounts=count,dashboard_validation=report,
                   caveat="Known old paths passed access probes; isolation elsewhere is owner-attested. Persistence across reboot and default Hermes messaging are not independently tested here.")
 
 
