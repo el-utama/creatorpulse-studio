@@ -46,5 +46,38 @@ class Gates(unittest.TestCase):
         with self.assertRaises(ValueError):
             account_id({"accounts":[]})
 
+class ValidationReportTests(unittest.TestCase):
+    def test_reports_only_after_cli_passes(self):
+        from windows_resume import finish_validation
+        from types import SimpleNamespace
+        with patch("windows_resume.validate_adapter",return_value=1), patch("windows_resume.shutil.which",return_value="hermes"), patch("windows_resume.run") as run, patch("windows_resume.report_validation",return_value={"state":"reported"}) as report:
+            run.side_effect=[SimpleNamespace(returncode=0,stdout="test"),SimpleNamespace(returncode=1)]
+            self.assertEqual(finish_validation([], "a"*40, "fixture", None)["state"],"HERMES_CLI_TEST_FAILED")
+            report.assert_not_called()
+            run.side_effect=[SimpleNamespace(returncode=0,stdout="test"),SimpleNamespace(returncode=0)]
+            out=finish_validation([], "a"*40, "fixture", None)
+            self.assertEqual(out["state"],"READONLY_VALIDATED")
+            self.assertEqual(out["dashboard_validation"],{"state":"reported"})
+            report.assert_called_once_with("a"*40,1,"fixture",None)
+            report.reset_mock()
+            run.side_effect=[SimpleNamespace(returncode=0,stdout="test"),SimpleNamespace(returncode=0)]
+            report.return_value={"state":"unverified"}
+            out=finish_validation([], "a"*40, "fixture", None)
+            self.assertEqual(out["state"],"READONLY_VALIDATED")
+            self.assertEqual(out["dashboard_validation"],{"state":"unverified"})
+
+    def test_report_payload_and_transport_failure(self):
+        from windows_resume import report_validation
+        import proxy
+        commit="a"*40
+        expected={"schema":1,"commit":commit,"accounts":1,"adapter_readonly":"passed","hermes_cli_test_exit":0}
+        with patch.object(proxy,"ENVIRONMENT",None),patch.object(proxy,"BYPASS_FILE",None),patch.object(proxy,"request") as request:
+            request.return_value={"state":"reported","report":{**expected,"source":"controller_report","reportedAt":"2026-11-26T00:00:00.000Z"}}
+            self.assertEqual(report_validation(commit,1,"fixture",None)["state"],"reported")
+            request.assert_called_once_with("/hermes-validation","fixture",expected,"POST")
+            request.side_effect=ValueError("private error")
+            self.assertEqual(report_validation(commit,1,"fixture",None),{"state":"unverified"})
+
+
 if __name__=="__main__":
     unittest.main()
