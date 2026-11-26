@@ -3,7 +3,7 @@
 **Checkpoint: 2026-11-26 (Asia/Jakarta).** Last tested code baseline: [c3b4d89](https://github.com/el-utama/creatorpulse-studio/commit/c3b4d89eedc5bcf08b9c782bd9f46b8565d358cb). This is a handoff and acceptance record, not an installer or a claim of production readiness. Live evidence below comes from operator confirmations and Hermes reports in the development conversation; raw host logs have not been independently collected into Git. CI links are independently checked GitHub Actions conclusions.
 
 ## Product priority (owner decision)
-Deliver one end-to-end autonomous content workflow first: **research → create actual content → report for review → publish after explicit human approval → report actual publication status**. Use the dedicated Sandbox scheduler when the full workflow is proven. Do not expand infrastructure simply because it is possible. Defer historical analytics snapshots, growth charts, scheduler dashboard, periodic numeric monitoring, and further optimization until the MVP works. No recurring jobs are authorized or enabled as of this checkpoint.
+Deliver the autonomous content workflow incrementally; for the next test, substitute an owner-supplied video for generation: **research → create actual content → report for review → publish after explicit human approval → report actual publication status**. Use the dedicated Sandbox scheduler when the full workflow is proven. Do not expand infrastructure simply because it is possible. Defer historical analytics snapshots, growth charts, scheduler dashboard, periodic numeric monitoring, and further optimization until the MVP works. No recurring jobs are authorized or enabled as of this checkpoint.
 
 ## Acceptance status
 | Capability | Status / evidence |
@@ -30,7 +30,11 @@ Deliver one end-to-end autonomous content workflow first: **research → create 
 - Initial cron job 8f857395fbd9 ran under default Hermes, even though it called Sandbox adapter. Completed at 12:43:32 WIB; 79,852 inference tokens, about 85 seconds. This did NOT meet dedicated scheduler acceptance. Leave consumed default job untouched.
 - Corrected probe at c3b4d89: Sandbox job 19cec8903b4c, scheduled 13:30:01 WIB, output 13:30:12 WIB. Execution e4c5cbfff0b948c0b7ab18e3258509fb, completed, error null, delivery suppressed. Dedicated profile ledger and output, no-agent, script state PASSED, one account, five observations, zero publication calls/trend writes; inference not required by this mode (separate usage audit not supplied). Staged SHA-256 a9dd32f4916cdf7ed1190ca53bae9e0d74dcbc67143766d490a121520246e351. One-shot consumed; no recurring jobs. Both [Verify](https://github.com/el-utama/creatorpulse-studio/actions/runs/45767333680) and [Windows validation](https://github.com/el-utama/creatorpulse-studio/actions/runs/45767333743) passed on exact tested baseline.
 
-## Next acceptance — one actual content item
+## Next acceptance — supplied video and agent publication
+
+Owner decision (2026-11-26): defer autonomous media generation; Nemotron VL acts as orchestrator. Use an owner-supplied video for the next supervised publishing test. Do not generate another test fixture or force FFmpeg content production. Actual local file transfer through the agent is not implemented yet: current agent draft and execute support HTTPS PULL_FROM_URL only. TikTok supports FILE_UPLOAD, already used by the separate manual browser route. If supplied media has a TikTok-verified HTTPS URL, use the existing agent workflow. If only a local file is available, implement the smallest approved local-file path that binds the reviewed bytes to the approval and preserves upload idempotency; do not route through manual browser posting and call it agent success. No public hosting or publication without authorization. Content generation is deferred, not passed.
+
+### Earlier content acceptance criteria (deferred)
 
 2026-11-26 follow-up: do not publish the test fixture. The proposed file:// URL cannot be used by either agent publication mode; both require an authorized TikTok-verified HTTPS media URL. No draft was created. Do not downsize merely to meet the unrelated manual browser upload limit. First finish one audience-facing original video; only then resolve authorized media hosting. Skill v1.1.4 formalizes content acceptance.
 
