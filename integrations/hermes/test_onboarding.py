@@ -53,6 +53,33 @@ class OnboardingTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,"Check configuration"):
                 proxy.request("/accounts",key)
 
+    def test_local_video_draft_and_approved_upload(self):
+        import hashlib
+        data=b"0000ftypisomfixture"
+        with tempfile.TemporaryDirectory() as tmp, patch.object(proxy,"ENVIRONMENT","sandbox"):
+            path=Path(tmp).resolve()/"test_upload.mp4";path.write_bytes(data)
+            args={"requestId":"f354ac33-a736-4e34-9bad-ac9e37c2005a","accountId":"a"*32,"filePath":str(path),"caption":"Cafe","mode":"inbox"}
+            media={"name":path.name,"size":len(data),"sha256":hashlib.sha256(data).hexdigest()}
+            with patch.object(proxy,"request",return_value={}) as request:
+                proxy.call("prepare_local_post",args,"fixture")
+                request.assert_called_once_with("/posts","fixture",{**{k:v for k,v in args.items() if k!="filePath"},"localMedia":media},"POST")
+            post=args["requestId"];execute={"postId":post,"filePath":str(path)}
+            with patch.object(proxy,"request",return_value={"state":"draft","localMedia":media}) as request:
+                with self.assertRaises(ValueError):
+                    proxy.call("execute_local_post",execute,"fixture")
+                request.assert_called_once_with("/posts/"+post,"fixture")
+            with patch.object(proxy,"request",side_effect=[{"state":"approved","localMedia":media},{"state":"submitted"}]) as request:
+                self.assertEqual(proxy.call("execute_local_post",execute,"fixture"),{"state":"submitted"})
+                request.assert_called_with("/posts/"+post+"/execute-file","fixture",data,"POST")
+            path.write_bytes(data[:-1]+b"X")
+            with patch.object(proxy,"request",return_value={"state":"approved","localMedia":media}) as request:
+                with self.assertRaises(ValueError):
+                    proxy.call("execute_local_post",execute,"fixture")
+                request.assert_called_once_with("/posts/"+post,"fixture")
+            with patch.object(proxy,"ENVIRONMENT","production"):
+                with self.assertRaises(ValueError):
+                    proxy.local_video(str(path))
+
     def test_install_preserves_model_and_chat(self):
         import yaml
         with tempfile.TemporaryDirectory() as tmp:
