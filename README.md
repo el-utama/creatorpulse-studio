@@ -2,7 +2,7 @@
 
 Workspace operasional kreator TikTok untuk satu operator dengan maksimum tiga akun, menggunakan Next.js App Router, TypeScript dan Tailwind. Hermes adalah agent opsional; Local Bridge menyediakan penyimpanan SQLite lokal.
 
-**Status:** R1 merged to main (d3df911); canonical Sandbox Preview verified live by owner for OAuth/dashboard. Production deployment remains a separate release gate. Hermes environment-aware onboarding is under validation on sandbox; no live Bridge or Hermes enrollment implied.
+**Status Sandbox (2026-11-26):** Bridge, enrollment, riset, sinkronisasi lintas browser dan dedicated one-shot cron telah melalui pengujian aktual yang dilaporkan. Fokus MVP: riset → pembuatan konten nyata → laporan/review → publikasi setelah persetujuan manusia. Lihat [checkpoint dan acceptance evidence](docs/STATUS.md) untuk baseline, batas bukti, blocker dan langkah berikutnya. Production merupakan release gate terpisah.
 
 ## Hermes: install or resume from repository
 
@@ -12,6 +12,7 @@ Agents must start with [AGENTS.md](AGENTS.md) and execute the [Sandbox installat
 
 | Dokumen | Kegunaan |
 |---|---|
+| [Sandbox checkpoint / MVP](docs/STATUS.md) | Status pengujian aktual, keputusan, blocker dan handoff |
 | [Workspace V4](docs/WORKSPACE_V4.md) | Target desain, baseline aktual, alur pengguna dan release gates |
 | [Local-first architecture](docs/ARCHITECTURE_LOCAL_FIRST.md) | Batas tanggung jawab, storage, keamanan |
 | [Local Bridge](local-bridge/README.md) | Setup host, HTTPS, secrets, enrollment dan backup |
@@ -120,7 +121,7 @@ File manual MP4/MOV maksimal 4 MB; video lebih besar menggunakan HTTPS URL pada 
 ### Keamanan
 - Maksimal tiga sesi TikTok terpisah dalam browser. Token akun belum enrolled berada dalam cookie HttpOnly, Secure di produksi, SameSite=Lax.
 - Gateway opsional memakai SQLite Local Bridge; Vercel melakukan enkripsi/dekripsi dan panggilan TikTok. Agent tidak memperoleh token OAuth atau operator/bridge/vault key.
-- Riwayat publikasi manual dan marker permintaan belum pasti berada di localStorage per akun. Logout tidak menghapus riwayat itu, tidak memutus vault, dan tidak mencabut izin TikTok.
+- Sandbox history protocol v1 menyediakan riwayat publikasi manual terpusat untuk akses operator yang berwenang; akses lintas browser telah dikonfirmasi owner. Legacy localStorage dan status permintaan belum pasti tetap perlu diperlakukan sesuai jalur kompatibilitas; lihat checkpoint. Logout tidak memutus vault atau mencabut izin TikTok.
 - Persetujuan agent dilakukan operator melalui dashboard, bukan oleh model.
 
 ### Refresh Token
