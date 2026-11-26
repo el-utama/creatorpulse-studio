@@ -1,8 +1,13 @@
 import {test,expect} from '@playwright/test';
+import {execFileSync} from 'node:child_process';
 const enabled=process.env.GATEWAY_TEST==='1';
 test.skip(!enabled,'Requires isolated SQLite Local Bridge and mock TikTok');
 const operator={Authorization:'Bearer '+ 'o'.repeat(40)};
 const agent={Authorization:'Bearer '+ 'a'.repeat(40)};
+// This suite owns the disposable SQLite fixture in playwright.gateway.config.mjs.
+// Reset only the minute counter between tests; keep shared enrollment/history intact.
+function seedRate(count=0){execFileSync('python3',['-c','import sqlite3,sys,time; c=sqlite3.connect("file:/tmp/creatorpulse-gateway-ci.sqlite3?mode=rw",uri=True,timeout=10); c.execute("INSERT INTO rate_limit VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET minute=excluded.minute,count=excluded.count",(int(time.time()//60),int(sys.argv[1]))); c.commit(); c.close()',String(count)]);}
+test.beforeEach(()=>{if(enabled)seedRate()});
 test('gateway rejects mismatched environment header',async({request})=>{const health=await (await request.get('/api/gateway/v1/health')).json();expect(health.environment).toBe('local');expect((await request.get('/api/gateway/v1/accounts',{headers:{...agent,'X-CreatorPulse-Environment':'sandbox'}})).status()).toBe(403);});
 test('enroll and monitor without browser, separate credentials and sourced trend data',async ({context,request,browser:browserInstance})=>{
  const start=await context.request.get('/api/auth/tiktok',{maxRedirects:0});
@@ -374,4 +379,18 @@ test('ambiguous upstream init failure remains uncertain without a publish ID',as
  expect((await request.post(url+'/execute',{headers:agent})).status()).toBe(409);
  const stored=await (await request.post(url+'/status',{headers:agent})).json();expect(stored.statusSource).toBe('stored');expect(stored.state).toBe('uncertain');
  expect((await request.post(url+'/archive',{headers:operator})).status()).toBe(409);
+});
+
+test('agent GET and POST share the real Bridge rate budget; operator remains independent',async({request})=>{
+ // Avoid crossing the real fixed-minute boundary while exercising the final two requests.
+ const remaining=60000-Date.now()%60000;
+ if(remaining<5000)await new Promise(resolve=>setTimeout(resolve,remaining+100));
+ seedRate(58);
+ const base='/api/gateway/v1/';
+ expect((await request.get(base+'accounts',{headers:agent})).status()).toBe(200);
+ // Invalid draft consumes the last request without any publication or storage write.
+ expect((await request.post(base+'posts',{headers:agent,data:{}})).status()).toBe(400);
+ expect((await request.post(base+'posts',{headers:agent,data:{}})).status()).toBe(429);
+ expect((await request.get(base+'accounts',{headers:agent})).status()).toBe(429);
+ expect((await request.get(base+'accounts',{headers:operator})).status()).toBe(200);
 });

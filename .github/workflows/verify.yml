@@ -28,6 +28,7 @@ jobs:
           APP_URL: http://localhost:3000
       - run: npm install --no-save --package-lock=false @playwright/test@1.56.1
       - run: npx playwright install --with-deps chromium
+        id: browser_install
       - run: npx playwright test
         env:
           APP_URL: http://localhost:3000
@@ -38,5 +39,6 @@ jobs:
           path: test-results/
           if-no-files-found: error
       - run: npx playwright test --config playwright.gateway.config.mjs
+        if: ${{ !cancelled() && steps.browser_install.outcome == 'success' }}
         env:
           GATEWAY_TEST: "1"

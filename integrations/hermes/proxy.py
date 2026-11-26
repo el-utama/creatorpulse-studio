@@ -37,7 +37,7 @@ TOOLS = [
     tool("list_posts","Read publication queue."),
     tool("get_post","Inspect exact draft and state.",{"postId":ID},["postId"]),
     tool("execute_approved_post","Submit approved draft to TikTok once; do not retry uncertain results.",{"postId":ID},["postId"]),
-    tool("get_publish_status","Check TikTok publication state.",{"postId":ID},["postId"]),
+    tool("get_publish_status","Check publication status; statusSource=tiktok only when upstream queried, stored otherwise. API completion does not prove playback.",{"postId":ID},["postId"]),
 ]
 BY_NAME = {t["name"]:t for t in TOOLS}
 class NoRedirect(urllib.request.HTTPRedirectHandler):
