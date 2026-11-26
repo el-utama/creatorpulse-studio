@@ -125,7 +125,7 @@ test('enroll and monitor without browser, separate credentials and sourced trend
    expect((await sharedOnly.request.get('/api/tiktok/analytics?account='+id)).status()).toBe(401);
    const page=await sharedOnly.newPage();await page.goto('/dashboard?view=content');
    await expect(page.getByLabel('Filter accounts').locator('option[value="'+id+'"]')).toHaveCount(1);
-   const accountName=accounts.accounts.find(a=>a.id===id)?.name;
+   const accountName=data.accounts.find(a=>a.id===id).name;
    await page.setViewportSize({width:1280,height:720});
    await page.getByRole('button',{name:'Open shared account '+accountName,exact:true}).click();
    await expect(page.getByLabel('Filter accounts')).toHaveValue(id);
