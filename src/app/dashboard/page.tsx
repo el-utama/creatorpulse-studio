@@ -41,6 +41,7 @@ export default function DashboardPage() {
   useEffect(()=>{const params=new URLSearchParams(location.search);if(params.has("account_changed")){try{localStorage.setItem("creatorpulse:account-change",crypto.randomUUID());}catch{}params.delete("account_changed");window.history.replaceState(null,"","/dashboard"+(params.size?"?"+params.toString():""));}const v=params.get("view");if(v&&["analytics","accounts","content","publish","compose","status","agent","review"].includes(v))setActiveTab(v);const changed=(e:StorageEvent)=>{if(e.key==="creatorpulse:account-change")location.reload()};window.addEventListener("storage",changed);return()=>window.removeEventListener("storage",changed);},[]);
   useEffect(()=>{if(window.matchMedia("(max-width: 767px)").matches)window.scrollTo({top:0,behavior:"auto"});},[activeTab]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [activeAccountSlot,setActiveAccountSlot]=useState<string|null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
@@ -66,7 +67,7 @@ export default function DashboardPage() {
     } catch { /* Storage can be unavailable. */ }
   }, [accountId]);
 
-  const receiveActive=useCallback((value:UserProfile|null,error:string|null)=>{setProfile(value);setAnalyticsError(error);if(value)setLastUpdated(new Date().toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"}));},[]);
+  const receiveActive=useCallback((value:UserProfile|null,error:string|null,slot?:string)=>{setActiveAccountSlot(value&&slot&&/^[a-f0-9]{32}$/.test(slot)?slot:null);setProfile(value);setAnalyticsError(error);if(value)setLastUpdated(new Date().toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"}));},[]);
   const publishLock = useRef(false);
   const [publishing, setPublishing] = useState(false);
   const [publishWarning, setPublishWarning] = useState<string | null>(null);
@@ -181,7 +182,7 @@ export default function DashboardPage() {
         <section className="r1-panel"><div className="r1-panel-head"><div><h2>Preview &amp; review</h2><p>{targetReady&&preview.url?"Media selected":"No media loaded"}</p></div></div>{targetReady&&preview.url?<video key={preview.url+":"+preview.mode} aria-label="Pratinjau video" className="r1-preview-video object-contain" src={preview.url} controls preload="metadata" onLoadedMetadata={e=>preview.onDuration?.(e.currentTarget.duration)} onError={()=>preview.onDuration?.(null)}/>:<div className="r1-preview-video"><div><Film size={22} className="mx-auto mb-2"/><p>Video preview</p></div></div>}<div className="r1-form-section"><div className="r1-flex r1-between r1-small"><span className="r1-muted">Account</span><strong className="truncate">{targetReady?profile?.display_name:"Not selected"}</strong></div><div className="r1-flex r1-between r1-small mt-2"><span className="r1-muted">Mode</span><strong>{targetReady&&preview.mode==="profile"?"Direct Post":"Inbox"}</strong></div></div><div className="r1-panel-note">Review the exact target and media before submission.</div></section></div>
         {activeTab==="status"&&publishWarning&&<p role="alert" className="mt-3 rounded-md border border-amber-500 p-3 text-sm">{publishWarning}</p>}
         <div hidden={!["agent","review","publish","status"].includes(activeTab)} className="r1-gateway">
-          <GatewayPanel accountName={profile?.display_name} view={activeTab==="review"?"review":activeTab==="publish"?"queue":activeTab==="status"?"history":"agent"} onSummary={setGatewaySummary} summary={gatewaySummary} browserAccounts={sidebarAccounts} workspaceRevision={revision} historyAgentId={historyAgentId} onHistoryClose={closeAgentHistory} accountPicker={<AccountManager name={profile?.display_name} disabled={publishing}/>}/>
+          <GatewayPanel activeAccountSlot={analyticsLoading?null:activeAccountSlot} accountName={profile?.display_name} view={activeTab==="review"?"review":activeTab==="publish"?"queue":activeTab==="status"?"history":"agent"} onSummary={setGatewaySummary} summary={gatewaySummary} browserAccounts={sidebarAccounts} workspaceRevision={revision} historyAgentId={historyAgentId} onHistoryClose={closeAgentHistory} accountPicker={<AccountManager name={profile?.display_name} disabled={publishing}/>}/>
         </div>
     </main><nav className="r1-bottomnav" aria-label="Workspace navigation">{navButtons(true)}</nav>
   </div>;
