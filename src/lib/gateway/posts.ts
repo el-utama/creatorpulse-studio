@@ -106,7 +106,7 @@ export async function execute(id:string,video?:Uint8Array){
    // Persist TikTok's accepted ID before sending bytes. Never retry an uncertain transfer.
    await change(claimed.post,claimed.raw,{publishId},"upload_initialized","agent");
    claimed=await load(id);
-   if(!result.upload_url)throw new Error("Missing upload URL");
+   if(!result.upload_url||new URL(result.upload_url).protocol!=="https:")throw new Error("Invalid upload URL");
    await uploadVideoChunk(result.upload_url,video,"video/mp4");
   }
   return await change(claimed.post,claimed.raw,{state:"submitted",publishId,status:"PROCESSING_UPLOAD"},"tiktok_accepted","agent");
@@ -119,9 +119,11 @@ export async function execute(id:string,video?:Uint8Array){
 export async function checkStatus(id:string){
  const {post,raw,archived}=await load(id);
  if(archived||!post.publishId||!["submitted","uncertain","sending"].includes(post.state))return post;
+ // Do not race the in-flight transfer. A stale sending record with an accepted ID is recoverable by status only.
+ if(post.state==="sending"&&Date.now()-Date.parse(post.updatedAt)<120000)return post;
  const result=await readAccount(post.accountId,t=>fetchPublishStatus(t,post.publishId!));
  if(post.status===result.status&&post.error===(result.status==="FAILED"?explainFailure(result.fail_reason):undefined))return post;
- return change(post,raw,{status:result.status,error:result.status==="FAILED"?explainFailure(result.fail_reason):undefined},"status_checked","agent");
+ return change(post,raw,{...(post.state==="sending"?{state:"uncertain" as const}:{}),status:result.status,error:result.status==="FAILED"?explainFailure(result.fail_reason):undefined},"status_checked","agent");
 }
 
 export async function archive(id:string){
