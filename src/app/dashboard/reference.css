@@ -12,7 +12,7 @@
 
 .r1 .r1-avatar-0{--avbg:#e4e9fb;--avfg:#415ab3}.r1 .r1-avatar-1{--avbg:#fae8d9;--avfg:#a45d30}.r1 .r1-avatar-2{--avbg:#dcefe9;--avfg:#236a5b}.r1 .r1-disabled{pointer-events:none;opacity:.5}.r1 .r1-btn.r1-primary.r1-disabled{color:white}.r1 .r1-tabs{border-radius:10px 10px 0 0}.r1 .r1-gateway .r1-queue{border-radius:0 0 10px 10px}.r1 .r1-main>.r1-tabs+.r1-gateway{margin-top:0}.r1 .r1-onboarding summary::-webkit-details-marker{display:none}.r1 .r1-onboarding summary{list-style:none}.r1 .r1-onboarding button.bg-slate-900{color:white;background:var(--accent)}.r1 #integration-settings{scroll-margin-top:80px}.r1 .r1-gateway .r1-form-section .r1-stack{min-width:0}.r1 .r1-gateway .r1-check-row>button.r1-grow{font-size:12px}.r1 .r1-gateway .r1-content-row .r1-action-menu{flex-shrink:0}.r1 .r1-gateway .r1-pill{white-space:normal;text-align:center}.r1 .r1-research-filter{border-top:1px solid var(--line)}.r1 .r1-agent-grid .r1-form-section p{margin:0}.r1 .r1-summary-warn .r1-metric-value{color:var(--warn)}
 
-.r1 .r1-review-dialog{position:fixed;inset:0;margin:auto;padding:0;width:min(480px,calc(100% - 32px));max-width:100%;max-height:90dvh;background:white;color:var(--ink);border:1px solid var(--line);border-radius:13px;box-shadow:0 18px 80px #0003;overflow:hidden}
+.r1 .r1-review-dialog{position:fixed;inset:0;margin:auto;padding:0;width:min(700px,calc(100% - 32px));max-width:100%;max-height:90dvh;background:white;color:var(--ink);border:1px solid var(--line);border-radius:13px;box-shadow:0 18px 80px #0003;overflow:hidden}
 .r1 .r1-review-dialog[open]{display:flex;flex-direction:column}
 .r1 .r1-review-dialog::backdrop{background:#17213265}
 .r1 .r1-review-dialog>header{border-bottom:1px solid var(--line);flex-shrink:0;padding:14px 18px}
@@ -25,3 +25,6 @@
 .r1 .r1-review-dialog button.r1-primary{background:var(--accent);color:white}
 .r1 .r1-review-dialog .r1-form-footer{position:sticky;bottom:0;background:white}
 @media(max-width:768px){.r1 .r1-review-dialog>header,.r1 .r1-review-dialog .r1-form-section{padding:13px}.r1 .r1-review-dialog .r1-form-footer .r1-primary{width:100%}.r1 .r1-review-dialog input:not([type=checkbox]),.r1 .r1-review-dialog select,.r1 .r1-review-dialog textarea{font-size:16px}}
+
+/* Review form: one preview, compact desktop fields, no horizontal scrolling on mobile. */
+.r1 .r1-review-dialog .r1-review-body>div:not(.r1-form-section){padding:14px 18px;min-width:0}.r1 .r1-review-dialog .r1-review-body>div:not(.r1-form-section)>.r1-form-section{padding:12px 0 0}.r1 .r1-review-dialog input[type=file]{max-width:100%;min-width:0}.r1 .r1-review-dialog textarea,.r1 .r1-review-dialog select{min-width:0;max-width:100%}.r1 .r1-review-dialog .r1-form-section .text-xs{font-size:12px}.r1 .r1-review-dialog label{overflow-wrap:anywhere}.r1 .r1-review-dialog input[type=checkbox]{flex-shrink:0;align-self:flex-start;margin-top:3px}.r1 .r1-review-dialog .r1-review-body{overflow-x:hidden}@media(max-width:767px){.r1 .r1-review-dialog .r1-review-body>div:not(.r1-form-section){padding:12px 13px}.r1 .r1-review-dialog{width:calc(100% - 20px)}}
