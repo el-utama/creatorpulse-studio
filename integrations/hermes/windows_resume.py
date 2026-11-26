@@ -104,11 +104,22 @@ def parse_json(proc):
         return {}
 
 
-def checked_git():
-    branch = run(["git", "-C", REPO, "branch", "--show-current"], timeout=20)
-    status = run(["git", "-C", REPO, "status", "--porcelain", "--untracked-files=normal"], timeout=20)
-    head = run(["git", "-C", REPO, "rev-parse", "HEAD"], timeout=20)
-    upstream = run(["git", "-C", REPO, "rev-parse", "refs/remotes/origin/sandbox"], timeout=20)
+def git_executable():
+    # PC09 has a working machine-wide Git; do not spawn the WindowsApps alias.
+    installed = Path(r"C:\Program Files\Git\cmd\git.exe")
+    if installed.is_file():
+        return str(installed)
+    resolved = shutil.which("git.exe") or shutil.which("git")
+    if not resolved or "windowsapps" in Path(resolved).parts[-1].lower() or any(p.lower()=="windowsapps" for p in Path(resolved).parts):
+        return None
+    return resolved
+
+
+def checked_git(git):
+    branch = run([git, "-C", REPO, "branch", "--show-current"], timeout=20)
+    status = run([git, "-C", REPO, "status", "--porcelain", "--untracked-files=normal"], timeout=20)
+    head = run([git, "-C", REPO, "rev-parse", "HEAD"], timeout=20)
+    upstream = run([git, "-C", REPO, "rev-parse", "refs/remotes/origin/sandbox"], timeout=20)
     if any(p.returncode for p in (branch, status, head, upstream)) or branch.stdout.strip() != "sandbox" or status.stdout.strip() or head.stdout.strip() != upstream.stdout.strip():
         return None
     return head.stdout.strip()
@@ -207,10 +218,38 @@ def finish_validation(cmd, commit, key, bypass_file):
                   caveat="Known old paths passed access probes; isolation elsewhere is owner-attested. Persistence across reboot and default Hermes messaging are not independently tested here.")
 
 
+def controller_yaml(bootstrap):
+    # Reuse an already installed dependency, including the isolated scratch
+    # library provisioned on PC09. Never pip-install or modify Hermes here.
+    try:
+        return bootstrap.load_yaml()
+    except ValueError:
+        local = os.environ.get("LOCALAPPDATA")
+        if not local:
+            return None
+        library = Path(local)/"hermes"/"cache"/"scratch"/"pyyaml-lib"
+        if not (library/"yaml"/"__init__.py").is_file():
+            return None
+        path = str(library)
+        sys.path.append(path)
+        try:
+            return bootstrap.load_yaml()
+        except (ValueError, ImportError, OSError):
+            return None
+        finally:
+            sys.path.remove(path)
+
+
 def execute():
     if os.name != "nt":
         return result("WINDOWS_REQUIRED")
-    commit = checked_git()
+    git = git_executable()
+    if not git:
+        return result("GIT_EXECUTION_BLOCKED", action="No usable Git executable; do not change system PATH or install software.")
+    try:
+        commit = checked_git(git)
+    except (OSError, subprocess.TimeoutExpired):
+        return result("GIT_EXECUTION_BLOCKED", action="Git subprocess unavailable; report blocker without changing system PATH.")
     if not commit:
         return result("CHECKOUT_BLOCKED", action="Use clean sandbox checkout; fetch and fast-forward only. Never reset dirty files.")
     ps = ["powershell.exe","-NoProfile","-NonInteractive"]
@@ -281,8 +320,10 @@ def execute():
     dest = profile/"integrations"/"creatorpulse-local"/"proxy.py"
     env = profile/".env"
     cmd = [sys.executable,str(dest),"--environment","sandbox","--env-file",str(env),*extra]
+    yaml = controller_yaml(bootstrap)
+    if yaml is None:
+        return result("PY_YAML_UNAVAILABLE",commit=commit,action="No existing compatible PyYAML. Report blocker; do not install into Hermes or improvise a wrapper.")
     try:
-        yaml = bootstrap.load_yaml()
         data = yaml.safe_load((profile/"config.yaml").read_text(encoding="utf-8"))
         entry = data.get("mcp_servers",{}).get("creatorpulse",{})
         same = entry.get("command")==sys.executable and entry.get("args")==cmd[1:] and entry.get("enabled") is True and dest.is_file() and dest.read_bytes()==(ROOT/"proxy.py").read_bytes() and (dest.parent/"environment.py").read_bytes()==(ROOT/"environment.py").read_bytes() and proxy.key_from_env(env,"sandbox")==key
@@ -292,7 +333,9 @@ def execute():
         installed = bootstrap.install(profile,True,source,environment="sandbox",preview_bypass_file=bypass if extra else None)
         if next_gate(preflight,receipt,installed.get("connection",{})) != "ACTIVATE_MCP":
             return result("BOOTSTRAP_CONNECTION_UNVERIFIED",commit=commit)
-    return finish_validation(cmd, commit, key, bypass if extra else None)
+    final = finish_validation(cmd, commit, key, bypass if extra else None)
+    final["host_observation"] = {"boot_utc": preflight.get("boot_utc", "unknown"), "bridge_task": preflight.get("task", "unknown"), "listener_verified": True}
+    return final
 
 
 if __name__ == "__main__":
