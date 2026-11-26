@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Local stdio MCP adapter. No background requests; only explicit tool calls reach Vercel."""
 import argparse
+import hashlib
+import stat
 import json
 import os
 import re
@@ -30,6 +32,8 @@ TOOLS = [
     tool("list_trends","Read stored sourced observations, not verified live rankings.",{"region":REGION,"days":{"type":"integer","minimum":1,"maximum":90}}),
     tool("record_trend","Save real evidence from an authorized research source.",{"topic":STR,"type":{"enum":["topic","hashtag","music","video","keyword"]},"region":REGION,"source":{"enum":["tiktok_creative_center","tiktok_discovery_api","google_trends","web_research","manual"]},"sourceUrl":STR,"observedAt":STR,"evidence":STR,"changePct":{"type":"number"},"metric":STR},["topic","type","region","source","sourceUrl","observedAt","evidence"]),
     tool("prepare_post","Create inbox or Direct Post draft; profile requires duration in seconds. Human selects final settings.",{"requestId":ID,"accountId":ACCOUNT,"videoUrl":STR,"caption":STR,"mode":{"enum":["inbox","profile"]},"duration":{"type":"number","exclusiveMinimum":0}},["requestId","accountId","videoUrl","caption","mode"]),
+    tool("prepare_local_post","Sandbox: prepare draft for an owner-supplied local MP4 (max 4 MiB); sends only basename, size and SHA-256. Explicit owner file authorization required.",{"requestId":ID,"accountId":ACCOUNT,"filePath":STR,"caption":STR,"mode":{"enum":["inbox","profile"]},"duration":{"type":"number","exclusiveMinimum":0}},["requestId","accountId","filePath","caption","mode"]),
+    tool("execute_local_post","Sandbox: upload the same reviewed local MP4 once, only with explicit owner instruction and dashboard approval. Never retry uncertain submissions.",{"postId":ID,"filePath":STR},["postId","filePath"]),
     tool("list_posts","Read publication queue."),
     tool("get_post","Inspect exact draft and state.",{"postId":ID},["postId"]),
     tool("execute_approved_post","Submit approved draft to TikTok once; do not retry uncertain results.",{"postId":ID},["postId"]),
@@ -58,8 +62,12 @@ def request(path, key=None, body=None, method="GET"):
         except OSError: raise ValueError("Cannot read the local Preview protection credential.") from None
         if not re.fullmatch(r"[A-Za-z0-9_-]{20,256}",bypass): raise ValueError("Invalid Preview protection credential file.")
         headers["x-vercel-protection-bypass"]=bypass
-    if body is not None: headers["Content-Type"]="application/json"
-    data=json.dumps(body).encode() if body is not None else None
+    if isinstance(body,bytes):
+        headers["Content-Type"]="video/mp4"
+        data=body
+    else:
+        if body is not None: headers["Content-Type"]="application/json"
+        data=json.dumps(body).encode() if body is not None else None
     req=urllib.request.Request(HOSTS[ENVIRONMENT]+"/api/gateway/v1"+path, data=data, method=method, headers=headers)
     try:
         with urllib.request.build_opener(NoRedirect()).open(req, timeout=40) as r:
@@ -105,6 +113,20 @@ def trend_region(value):
             return value.upper()
     raise ValueError("Trend region must be a two-letter country code (ID for Indonesia).")
 
+def local_video(path):
+    if ENVIRONMENT!="sandbox": raise ValueError("Local agent upload is Sandbox-only.")
+    if not isinstance(path,str): raise ValueError("Explicit owner-supplied MP4 path required.")
+    p=Path(path)
+    try:
+        if not p.is_absolute() or p.suffix.lower()!=".mp4" or p.resolve(strict=True)!=p.absolute() or p.is_symlink() or not stat.S_ISREG(p.stat().st_mode):
+            raise ValueError("Explicit regular MP4 file required.")
+        with p.open("rb") as f:
+            data=f.read(4*1024*1024+1)
+    except OSError:
+        raise ValueError("Local video not readable.") from None
+    if not 12<=len(data)<=4*1024*1024 or data[4:8]!=b"ftyp": raise ValueError("Local video must be MP4, at most 4 MiB.")
+    return data,{"name":p.name,"size":len(data),"sha256":hashlib.sha256(data).hexdigest()}
+
 def call(name,a,key):
     if name not in BY_NAME or not isinstance(a,dict):
         raise ValueError("Unknown tool or invalid arguments.")
@@ -128,8 +150,17 @@ def call(name,a,key):
         normalized={**a,"region":trend_region(a["region"])}
         return request("/trends",key,normalized,"POST")
     if name=="prepare_post": return request("/posts",key,a,"POST")
+    if name=="prepare_local_post":
+        _,media=local_video(a["filePath"])
+        return request("/posts",key,{**{k:v for k,v in a.items() if k!="filePath"},"localMedia":media},"POST")
     post=identifier(a["postId"],UUID)
     if name=="get_post": return request("/posts/"+post,key)
+    if name=="execute_local_post":
+        current=request("/posts/"+post,key)
+        if current.get("state")!="approved" or not isinstance(current.get("localMedia"),dict): raise ValueError("Local draft must be approved; do not retry uncertain uploads.")
+        data,media=local_video(a["filePath"])
+        if media!=current["localMedia"]: raise ValueError("Local video changed after review.")
+        return request("/posts/"+post+"/execute-file",key,data,"POST")
     return request("/posts/"+post+("/execute" if name=="execute_approved_post" else "/status"),key,method="POST")
 def rpc(message, get_key):
     if not isinstance(message,dict) or message.get("jsonrpc")!="2.0":
