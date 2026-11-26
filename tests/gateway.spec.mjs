@@ -208,6 +208,37 @@ test('direct mode requires human settings, validates visibility and sends exact 
  const repeated=await (await request.post(url+'/execute',{headers:agent})).json();expect(repeated.publishId).toBe(sent.publishId);
 });
 
+test('local MP4 agent upload binds review to exact bytes and prevents repeat submission',async ({request})=>{
+ const {createHash}=await import('node:crypto');
+ const accounts=await (await request.get('/api/gateway/v1/accounts',{headers:agent})).json();
+ const accountId=accounts.accounts[0].id;
+ const bytes=Buffer.from('0000ftypisomfixture');
+ const media={name:'test_upload.mp4',size:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')};
+ const base='/api/gateway/v1/posts';
+ const data={requestId:crypto.randomUUID(),accountId,localMedia:media,caption:'Local video',mode:'inbox'};
+ const url=base+'/'+data.requestId;
+ const binary={...agent,'Content-Type':'video/mp4'};
+ expect((await request.post(base,{headers:agent,data:{...data,videoUrl:'https://example.com/video.mp4'}})).status()).toBe(400);
+ expect((await request.post(base,{headers:agent,data:{...data,localMedia:{...media,size:4194305}}})).status()).toBe(400);
+ const draft=await request.post(base,{headers:agent,data});expect(draft.status()).toBe(201);
+ expect((await draft.json()).localMedia).toEqual(media);
+ expect((await request.post(base,{headers:agent,data:{...data,localMedia:{...media,name:'other.mp4'}}})).status()).toBe(409);
+ expect((await request.post(url+'/execute-file',{headers:binary,data:bytes})).status()).toBe(409);
+ const approval={...data,videoUrl:'',confirm:true,mediaSha256:media.sha256};
+ expect((await request.post(url+'/approve',{headers:agent,data:approval})).status()).toBe(403);
+ expect((await request.post(url+'/approve',{headers:operator,data:{...approval,mediaSha256:'0'.repeat(64)}})).status()).toBe(400);
+ expect((await request.post(url+'/approve',{headers:operator,data:approval})).status()).toBe(200);
+ expect((await request.post(url+'/execute',{headers:agent})).status()).toBe(400);
+ const modified=Buffer.from(bytes);modified[modified.length-1]^=1;
+ expect((await request.post(url+'/execute-file',{headers:binary,data:modified})).status()).toBe(400);
+ const sent=await request.post(url+'/execute-file',{headers:binary,data:bytes});expect(sent.status()).toBe(200);
+ const accepted=await sent.json();expect(accepted.state).toBe('submitted');expect(accepted.publishId).toMatch(/^server-inbox-/);
+ expect(accepted.events.filter(e=>e.action==='upload_initialized')).toHaveLength(1);
+ const again=await (await request.post(url+'/execute-file',{headers:binary,data:bytes})).json();
+ expect(again.publishId).toBe(accepted.publishId);
+ expect(again.events.filter(e=>e.action==='execution_claimed')).toHaveLength(1);
+});
+
 test('terminal archival frees active queue but never permits reusing an executed id',async ({request})=>{
  const accounts=await (await request.get('/api/gateway/v1/accounts',{headers:agent})).json();const accountId=accounts.accounts[0].id;
  const base='/api/gateway/v1/posts',data={requestId:crypto.randomUUID(),accountId,videoUrl:'https://example.com/archive.mp4',caption:'Archive',mode:'inbox'};
