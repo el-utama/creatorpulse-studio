@@ -45,6 +45,32 @@ class OnboardingTests(unittest.TestCase):
             self.assertNotIn("a"*40,(home/"config.yaml").read_text())
             self.assertNotIn("a"*40,json.dumps(out))
             self.assertTrue(Path(out["backup"],"config.yaml").is_file())
+    def test_managed_skill_refresh_preserves_working_profile(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home=Path(tmp)/"profiles"/"creatorpulse-sandbox";home.mkdir(parents=True)
+            config=home/"config.yaml";config.write_bytes(b"model: unchanged\n")
+            env=home/".env";env.write_bytes(b"OTHER_KEY=unchanged\n")
+            skill=home/"skills"/"creatorpulse"/"SKILL.md";skill.parent.mkdir(parents=True)
+            skill.write_text("---\nname: creatorpulse\n---\n# CreatorPulse content operations — sandbox\nOld managed skill\n",encoding="utf-8")
+            self.assertEqual(bootstrap.sync_managed_skill(home,environment="sandbox"),"updated")
+            rendered=skill.read_text(encoding="utf-8")
+            self.assertIn("required evidence sequence",rendered)
+            self.assertIn("list_accounts",rendered)
+            self.assertIn("observation.id",rendered)
+            self.assertIn("list_trends again",rendered)
+            self.assertNotIn("{{ENVIRONMENT}}",rendered)
+            with patch.object(bootstrap,"atomic_write",side_effect=AssertionError("No write on repeat")):
+                self.assertEqual(bootstrap.sync_managed_skill(home,environment="sandbox"),"current")
+            self.assertEqual(config.read_bytes(),b"model: unchanged\n")
+            self.assertEqual(env.read_bytes(),b"OTHER_KEY=unchanged\n")
+            self.assertFalse((home/"integrations").exists())
+            skill.write_text("Unrelated user skill",encoding="utf-8")
+            with self.assertRaises(ValueError):
+                bootstrap.sync_managed_skill(home,environment="sandbox")
+            self.assertEqual(skill.read_text(encoding="utf-8"),"Unrelated user skill")
+            with self.assertRaises(ValueError):
+                bootstrap.sync_managed_skill(home,environment="production")
+
     def test_existing_key_conflict(self):
         import yaml
         with tempfile.TemporaryDirectory() as tmp:
