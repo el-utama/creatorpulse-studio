@@ -42,3 +42,16 @@ jobs:
         if: ${{ !cancelled() && steps.browser_install.outcome == 'success' }}
         env:
           GATEWAY_TEST: "1"
+      - name: Install Firefox and WebKit for responsive engine checks
+        if: ${{ !cancelled() && steps.browser_install.outcome == 'success' }}
+        run: npx playwright install --with-deps firefox webkit
+        id: engine_install
+      - name: Firefox and WebKit workspace checks
+        if: ${{ !cancelled() && steps.engine_install.outcome == 'success' }}
+        run: npx playwright test --config playwright.ui-engines.config.mjs
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() && steps.engine_install.outcome == 'success' }}
+        with:
+          name: workspace-engine-design-checks
+          path: engine-test-results/
+          if-no-files-found: error

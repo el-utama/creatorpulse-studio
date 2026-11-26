@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Play, Menu, X, LogOut } from "lucide-react";
+import { Play, AudioLines, Menu, X, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function Navbar() {
@@ -27,14 +27,14 @@ export function Navbar() {
     <nav className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="flex h-12 md:h-14 items-center justify-between px-3 sm:px-6 lg:px-8">
         <div className="flex items-center gap-2">
-          <span className="grid h-8 w-8 md:h-9 md:w-9 place-items-center rounded-lg md:rounded-xl bg-indigo-700 text-white"><Play className="h-4 w-4" aria-hidden="true" /></span>
+          <span className="grid h-8 w-8 md:h-9 md:w-9 place-items-center rounded-lg md:rounded-xl bg-indigo-700 text-white"><AudioLines className="h-5 w-5" aria-hidden="true" /></span>
           <Link href={pathname === "/dashboard" ? "/dashboard" : "/"} className="text-sm md:text-base font-semibold tracking-tight">
             CreatorPulse Studio
           </Link>
         </div>
 
         {/* Desktop navigation */}
-        <div className={`${pathname === "/dashboard" ? "hidden" : "hidden md:flex"} items-center gap-4`}>
+        <div className={`${pathname === "/dashboard" ? "hidden" : "hidden lg:flex"} items-center gap-4`}>
           <Link
             href="/"
             className={`text-sm font-medium transition-colors ${
@@ -60,7 +60,7 @@ export function Navbar() {
         </div>
 
         {/* Desktop auth actions */}
-        <div className="hidden md:flex items-center gap-3">
+        <div className="hidden lg:flex items-center gap-3">
           {pathname !== "/dashboard" ? (
             <a href="/api/auth/tiktok" className="inline-flex items-center gap-2 bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-800 transition-colors">
               <Play className="h-4 w-4" aria-hidden="true" />
@@ -80,7 +80,7 @@ export function Navbar() {
         </div>
 
         {/* Mobile menu toggle */}
-        <div className="md:hidden flex items-center">
+        <div className="lg:hidden flex items-center">
           <Button
             variant="ghost"
             size="icon"
@@ -97,7 +97,7 @@ export function Navbar() {
 
       {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div id="mobile-menu" className="md:hidden border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90">
+        <div id="mobile-menu" className="lg:hidden border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90">
           <div className="px-4 py-4 space-y-3">
             {pathname !== "/dashboard" && <><Link
               href="/"

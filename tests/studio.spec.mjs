@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import {installWorkspaceFixture} from './workspace-fixture.mjs';
 const nav=(page,name)=>page.getByRole('navigation',{name:'Workspace navigation'}).getByRole('button',{name,exact:true});
 async function compose(page){await nav(page,'Publishing').click();await page.locator('#main-content').getByRole('button',{name:'New post',exact:true}).click();const target=page.getByLabel('Target account');await expect(target.locator('option')).toHaveCount(2);await target.selectOption('legacy');await page.getByRole('button',{name:'Continue',exact:true}).click();await expect(page.getByLabel('URL video')).toBeVisible();}
 
@@ -330,21 +331,7 @@ test('V4 three-account overview and scoped content at all viewport sizes',async(
 test('R1 operational reference screenshots, real fixture counts and lock isolation',async({page,context})=>{
  test.setTimeout(180000);
  const directReviewButton=()=>page.locator('.r1-queue').locator('tr,article').filter({hasText:'Behind the scenes'}).getByRole('button',{name:'Review',exact:true}).filter({visible:true});
- await context.addCookies([{name:'creatorpulse_access_token',value:'mock-only',url:'http://localhost:3000'}]);
- const accounts=[{slot:'a'.repeat(32),name:'Studio Alpha'},{slot:'b'.repeat(32),name:'Studio Beta'},{slot:'c'.repeat(32),name:'Soundframe'}];
- const post=(i,state,status)=>({id:'sample-'+i,accountId:accounts[i%3].slot,accountName:accounts[i%3].name,caption:['Morning studio routine','Behind the scenes','New track teaser','Production update'][i],videoUrl:'https://example.com/video.mp4',mode:i===1?'profile':'inbox',state,status,updatedAt:'2026-11-25T00:00:00Z',events:[]});
- const posts=[post(0,'draft'),post(1,'draft'),post(2,'approved'),post(3,'submitted','SEND_TO_USER_INBOX')];posts[2].approvedUntil=Date.now()+600000;
- await page.route('**/api/auth/accounts',route=>route.fulfill({json:{accounts,active:accounts[0].slot,legacy:false,limit:3}}));
- await page.route('**/api/tiktok/analytics**',route=>{const i=accounts.findIndex(a=>a.slot===new URL(route.request().url()).searchParams.get('account'));if(i<0)return route.fulfill({status:401,json:{error:'Unknown account'}});return route.fulfill({json:{user_info:{open_id:'id-'+i,display_name:accounts[i].name,avatar_url:'',follower_count:[12500,8200,4100][i],likes_count:100,video_count:[42,28,16][i]},videos:{data:[{id:'video-'+i,title:['Morning studio routine','Behind the scenes','New track teaser'][i],cover_image_url:'',create_time:1795564800,share_url:'https://www.tiktok.com/',view_count:[92000,65000,29400][i],like_count:10,comment_count:1,share_count:0}]}}})});
- let operatorSession=false;
- await page.route('**/api/gateway/v1/operator-session',route=>{if(route.request().method()==='POST')operatorSession=true;return route.fulfill({json:{authenticated:operatorSession}})});
- await page.route('**/api/gateway/v1/operator-session/lock',route=>{operatorSession=false;return route.fulfill({json:{authenticated:false}})});
- await page.route('**/api/gateway/v1/health',route=>route.fulfill({json:{configured:true}}));
- await page.route('**/api/gateway/v1/posts',route=>route.fulfill({json:{posts}}));
- await page.route('**/api/gateway/v1/accounts',route=>route.fulfill({json:{accounts:accounts.slice(0,2).map(a=>({id:a.slot,name:a.name}))}}));
- await page.route('**/api/gateway/v1/accounts/*/analytics',route=>{const i=accounts.findIndex(a=>route.request().url().includes('/'+a.slot+'/'));return route.fulfill({json:{user:{open_id:'id-'+i,display_name:accounts[i].name,avatar_url:'',follower_count:[12500,8200,4100][i],likes_count:100,video_count:[42,28,16][i]}}})});
- await page.route('**/api/gateway/v1/accounts/*/videos**',route=>{const i=accounts.findIndex(a=>route.request().url().includes('/'+a.slot+'/'));return route.fulfill({json:{videos:[{id:'video-'+i,title:['Morning studio routine','Behind the scenes','New track teaser'][i],cover_image_url:'',create_time:1795564800,share_url:'https://www.tiktok.com/',view_count:[92000,65000,29400][i],like_count:10,comment_count:1,share_count:0}],has_more:false,cursor:0}})});
- await page.route(/\/api\/gateway\/v1\/trends(?:\?|$)/,route=>route.fulfill({json:{observations:[{id:'research-1',topic:'Music production process',source:'Fixture source',sourceUrl:'https://example.com',region:'ID',type:'topic',observedAt:'2026-11-25T00:00:00Z',evidence:'Simulated evidence',changePct:null,metric:null}]}}));
+ const {accounts}=await installWorkspaceFixture(page,context);
  await page.setViewportSize({width:1440,height:900});await page.goto('/dashboard');await expect(page.getByText('24.8K',{exact:true})).toBeVisible();
  await nav(page,'AI Agent').click();await page.getByLabel('Kunci operator',{exact:true}).fill('fixture-operator');await page.getByRole('button',{name:'Buka akses'}).click();await expect(page.getByText('Bridge data loaded',{exact:true})).toBeVisible();
  await page.setViewportSize({width:1280,height:420});

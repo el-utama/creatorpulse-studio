@@ -4,6 +4,8 @@
 
 ## Release hold — 2026-11-26 owner evidence
 
+Owner confirmed shared inventory matches but complained about resize/navigation. A full UI/UX audit was performed on downloaded rendered Playwright artifacts from 99ade59 and eb9d4ba, not just source or overflow. See [UI/UX audit and design contract](UI_UX_AUDIT_2026-11-26.md). Exact eb9d4ba Verify and Windows passed; follow-up adds coherent light typography/contrast and tablet/desktop layouts, filter context, legal/landing consistency and Firefox/WebKit fixture checks. Dark mode deferred pending complete semantic palette migration. Actual revised screenshots, CI/deployment and owner native browser acceptance pending; no new publication or Production action.
+
 Owner confirmed shared account inventory matches across Safari and Firefox, but account navigation was not usable and resizing produced an awkward layout. Follow-up makes shared account names/rows navigate to filtered read-only Content, adds explicit selection state, removes repeated enrolled accounts from the sidebar browser-only group, scrolls short desktop sidebars, and uses a consistent compact breakpoint at 1024px with flexible controls. Tests exercise actual click navigation and viewport resizing in place, including short window height and vault-only account; exact CI and owner visual acceptance remain required. No publication, credentials or Production changes.
 
 ### Latest verified checkpoint: 99ade59
