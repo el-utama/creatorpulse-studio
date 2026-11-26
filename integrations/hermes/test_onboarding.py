@@ -21,6 +21,38 @@ class OnboardingTests(unittest.TestCase):
         for name,args in [("approve_post",{}),("get_analytics",{"accountId":"../accounts"}),("list_accounts",{"foo":1})]:
             with self.assertRaises(ValueError):
                 proxy.call(name,args,"test")
+    def test_trend_region_and_filter_validation(self):
+        with patch.object(proxy,"request",return_value={}) as request:
+            for region in ("Indonesia","ID","id"," indonesia "):
+                proxy.call("list_trends",{"region":region,"days":7},"fixture")
+                request.assert_called_with("/trends?region=ID&days=7","fixture")
+            request.reset_mock()
+            for args in ({"region":"invalid"},{"days":"7"},{"days":True},{"days":0},{"days":91}):
+                with self.assertRaises(ValueError):
+                    proxy.call("list_trends",args,"fixture")
+            request.assert_not_called()
+            observation=dict(topic="fixture",type="topic",region="Indonesia",source="web_research",sourceUrl="https://example.com",observedAt="2026-11-26",evidence="fixture")
+            proxy.call("record_trend",observation,"fixture")
+            request.assert_called_once_with("/trends","fixture",{**observation,"region":"ID"},"POST")
+            self.assertEqual(observation["region"],"Indonesia")
+
+    def test_trend_http_error_allowlist(self):
+        import io
+        from urllib.error import HTTPError
+        key="cp_sandbox_agent_"+"a"*40
+        with patch.object(proxy,"ENVIRONMENT","sandbox"),patch.object(proxy,"BYPASS_FILE",None),patch.object(proxy.urllib.request,"build_opener") as opener:
+            def reject(body):
+                opener.return_value.open.side_effect=HTTPError("https://example.com",400,"bad",{},io.BytesIO(json.dumps(body).encode()))
+            reject({"error":"Filter tren tidak valid."})
+            with self.assertRaisesRegex(ValueError,"Invalid region or days"):
+                proxy.request("/trends?region=ID",key)
+            reject({"error":"SECRET FIXTURE"})
+            with self.assertRaisesRegex(ValueError,"Check configuration"):
+                proxy.request("/trends",key)
+            reject({"error":"Filter tren tidak valid."})
+            with self.assertRaisesRegex(ValueError,"Check configuration"):
+                proxy.request("/accounts",key)
+
     def test_install_preserves_model_and_chat(self):
         import yaml
         with tempfile.TemporaryDirectory() as tmp:
