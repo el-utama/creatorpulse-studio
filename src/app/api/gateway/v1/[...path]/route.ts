@@ -4,7 +4,7 @@ import {APP_CONFIG} from "@/config/app";
 import {accounts,currentSlot,slotNames,sameOrigin} from "@/lib/accounts";
 import {GatewayError,config,binding,limitAgent,gatewayEnvironment} from "@/lib/gateway/store";
 import {listVault,readAccount,enrollAccount,removeVault,profileIdentity,slotForId} from "@/lib/gateway/vault";
-import {prepare,approve,cancel,execute,checkStatus,getPost,listPosts,archive} from "@/lib/gateway/posts";
+import {prepare,approve,cancel,execute,checkStatus,getPost,listPosts,archive,MAX_LOCAL_VIDEO} from "@/lib/gateway/posts";
 import {recordTrend,listTrends} from "@/lib/gateway/trends";
 import {readTikTok,explainTikTok,isAuthError} from "@/lib/tiktok-errors";
 import {getCreatorCapabilities} from "@/lib/tiktok";
@@ -75,6 +75,13 @@ export async function POST(request:Request,ctx:Ctx){
    if(p[2]==="archive"){await authorizeGateway(request,true);return reply(await archive(p[1]));}
    if(p[2]==="cancel"){await authorizeGateway(request,true);return reply(await cancel(p[1]));}
    if(p[2]==="execute")return reply(await execute(p[1]));
+   if(p[2]==="execute-file"){
+    if(!["sandbox","local"].includes(gatewayEnvironment()))throw new GatewayError(403,"Local agent upload is Sandbox-only.");
+    if(request.headers.get("content-type")!=="video/mp4"||!request.body)throw new GatewayError(400,"MP4 body required.");
+    const reader=request.body.getReader(),chunks:Uint8Array[]=[];let size=0;
+    try{while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>MAX_LOCAL_VIDEO){await reader.cancel();throw new GatewayError(413,"Local video exceeds 4 MiB.");}chunks.push(value);}}finally{reader.releaseLock();}
+    return reply(await execute(p[1],Buffer.concat(chunks,size)));
+   }
    if(p[2]==="status")return reply(await checkStatus(p[1]));
   }
   if(p.join("/") === "trends"){const body=await request.json().catch(()=>null);const saved=await recordTrend(body);return reply({...saved,provenance:"agent_submitted_unverified"},saved.duplicate?200:201);}
