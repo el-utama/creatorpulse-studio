@@ -130,7 +130,7 @@ def rpc_batch(command, calls):
                 {"jsonrpc":"2.0","method":"notifications/initialized"},
                 {"jsonrpc":"2.0","id":2,"method":"tools/list"}]
     for i, (name, arguments) in enumerate(calls, 3):
-        if name not in REQUIRED_TOOLS:
+        if name not in REQUIRED_TOOLS | {"list_trends"}:
             raise ValueError("Non-read-only validation forbidden")
         messages.append({"jsonrpc":"2.0","id":i,"method":"tools/call","params":{"name":name,"arguments":arguments}})
     proc = run(command, input_text="".join(json.dumps(m)+"\n" for m in messages), timeout=150)
@@ -177,6 +177,17 @@ def validate_adapter(command):
     if not all(isinstance(x,dict) and "error" not in x for x in (videos,analytics)):
         raise ValueError("Read-only response schema invalid")
     return count
+
+
+def check_research_read(command):
+    try:
+        data, = rpc_batch(command, [("list_trends",{"region":"ID","days":7})])
+        if (not isinstance(data,dict) or data.get("region")!="ID" or data.get("days")!=7
+                or data.get("provenance")!="agent_submitted_unverified" or not isinstance(data.get("observations"),list)):
+            return {"state":"unverified","region":"ID","days":7}
+        return {"state":"passed","region":"ID","days":7,"observations":len(data["observations"])}
+    except (ValueError, OSError, TypeError, KeyError, subprocess.TimeoutExpired):
+        return {"state":"unverified","region":"ID","days":7}
 
 
 def report_validation(commit, count, key, bypass_file):
@@ -339,6 +350,8 @@ def execute():
         return result("CREATORPULSE_SKILL_SYNC_BLOCKED",commit=commit,action="Report blocker; do not overwrite an unrelated skill or modify Hermes configuration.")
     final = finish_validation(cmd, commit, key, bypass if extra else None)
     final["skill_sync"] = skill_state
+    if final["state"] == "READONLY_VALIDATED":
+        final["research_read"] = check_research_read(cmd)
     final["host_observation"] = {"boot_utc": preflight.get("boot_utc", "unknown"), "bridge_task": preflight.get("task", "unknown"), "listener_verified": True}
     return final
 
