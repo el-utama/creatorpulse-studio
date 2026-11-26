@@ -328,7 +328,7 @@ test('V4 three-account overview and scoped content at all viewport sizes',async(
 });
 
 test('R1 operational reference screenshots, real fixture counts and lock isolation',async({page,context})=>{
- test.setTimeout(120000);
+ test.setTimeout(180000);
  const directReviewButton=()=>page.locator('.r1-queue').locator('tr,article').filter({hasText:'Behind the scenes'}).getByRole('button',{name:'Review',exact:true}).filter({visible:true});
  await context.addCookies([{name:'creatorpulse_access_token',value:'mock-only',url:'http://localhost:3000'}]);
  const accounts=[{slot:'a'.repeat(32),name:'Studio Alpha'},{slot:'b'.repeat(32),name:'Studio Beta'},{slot:'c'.repeat(32),name:'Soundframe'}];
@@ -347,7 +347,21 @@ test('R1 operational reference screenshots, real fixture counts and lock isolati
  await page.route(/\/api\/gateway\/v1\/trends(?:\?|$)/,route=>route.fulfill({json:{observations:[{id:'research-1',topic:'Music production process',source:'Fixture source',sourceUrl:'https://example.com',region:'ID',type:'topic',observedAt:'2026-11-25T00:00:00Z',evidence:'Simulated evidence',changePct:null,metric:null}]}}));
  await page.setViewportSize({width:1440,height:900});await page.goto('/dashboard');await expect(page.getByText('24.8K',{exact:true})).toBeVisible();
  await nav(page,'AI Agent').click();await page.getByLabel('Kunci operator',{exact:true}).fill('fixture-operator');await page.getByRole('button',{name:'Buka akses'}).click();await expect(page.getByText('Bridge data loaded',{exact:true})).toBeVisible();
- for(const width of [1440,768,430,390,320]){await page.setViewportSize({width,height:900});for(const [label,file] of [['Overview','overview'],['Accounts','accounts'],['Content','content'],['Publishing','publishing'],['AI Agent','agent']]){await nav(page,label).click();await page.evaluate(()=>window.scrollTo(0,0));await expect(page.getByRole('heading',{level:1,name:label,exact:true})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);await page.screenshot({path:'test-results/r1-'+file+'-'+width+'.png',fullPage:true});}}
+ await page.setViewportSize({width:1280,height:420});
+ await page.getByRole('button',{name:'Open shared account Studio Beta',exact:true}).click();
+ await expect(page.getByLabel('Filter accounts')).toHaveValue(accounts[1].slot);
+ await expect(page.locator('.r1-library').getByText('Behind the scenes',{exact:true}).filter({visible:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Open shared account Studio Beta',exact:true})).toHaveAttribute('aria-pressed','true');
+ expect(await page.locator('.r1-sidebar').evaluate(el=>el.scrollHeight>el.clientHeight)).toBe(true);
+ for(const width of [1025,1024,900,768,390,320,1280]){
+  await page.setViewportSize({width,height:720});
+  await expect(page.getByLabel('Filter accounts')).toHaveValue(accounts[1].slot);
+  await expect(page.locator('.r1-library').getByText('Behind the scenes',{exact:true}).filter({visible:true})).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  await expect(page.getByRole('button',{name:'Operator access: unlocked'})).toBeVisible();
+ }
+ await page.getByLabel('Filter accounts').selectOption('all');
+ for(const width of [1440,1280,1100,1025,1024,900,768,430,390,320]){await page.setViewportSize({width,height:900});for(const [label,file] of [['Overview','overview'],['Accounts','accounts'],['Content','content'],['Publishing','publishing'],['AI Agent','agent']]){await nav(page,label).click();await page.evaluate(()=>window.scrollTo(0,0));await expect(page.getByRole('heading',{level:1,name:label,exact:true})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);await page.screenshot({path:'test-results/r1-'+file+'-'+width+'.png',fullPage:true});}}
  let accountFailure=true;
  await page.route('**/api/gateway/v1/accounts/*/capabilities',route=>route.fulfill(accountFailure?{status:401,json:{error:'TikTok account needs reconnect'}}:{json:{creator_nickname:'Studio Beta',creator_username:'fixture',privacy_level_options:['SELF_ONLY'],comment_disabled:true,duet_disabled:true,stitch_disabled:true,max_video_post_duration_sec:60}}));
  await page.route('https://example.com/video.mp4',route=>route.abort());
