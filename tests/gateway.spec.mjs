@@ -4,7 +4,7 @@ test.skip(!enabled,'Requires isolated SQLite Local Bridge and mock TikTok');
 const operator={Authorization:'Bearer '+ 'o'.repeat(40)};
 const agent={Authorization:'Bearer '+ 'a'.repeat(40)};
 test('gateway rejects mismatched environment header',async({request})=>{const health=await (await request.get('/api/gateway/v1/health')).json();expect(health.environment).toBe('local');expect((await request.get('/api/gateway/v1/accounts',{headers:{...agent,'X-CreatorPulse-Environment':'sandbox'}})).status()).toBe(403);});
-test('enroll and monitor without browser, separate credentials and sourced trend data',async ({context,request})=>{
+test('enroll and monitor without browser, separate credentials and sourced trend data',async ({context,request,browser:browserInstance})=>{
  const start=await context.request.get('/api/auth/tiktok',{maxRedirects:0});
  const state=new URL(start.headers().location).searchParams.get('state');
  const cb=await context.request.get('/api/auth/tiktok/callback?code=account-a&state='+state,{maxRedirects:0});
@@ -21,6 +21,31 @@ test('enroll and monitor without browser, separate credentials and sourced trend
  const data=await list.json();
  expect(data.accounts.some(a=>a.id===id)).toBe(true);
  expect(JSON.stringify(data)).not.toContain('account-a-refresh');
+ // A second independent browser must unlock its own session, not enroll again.
+ const second=await browserInstance.newContext();
+ try{
+  const base='/api/gateway/v1/';
+  expect((await (await second.request.get(base+'operator-session',{headers:marker})).json()).authenticated).toBe(false);
+  expect((await second.request.get(base+'accounts',{headers:marker})).status()).toBe(401);
+  await second.addCookies([{name:'creatorpulse_access_token',value:'mock-only',url:'http://localhost:3000'}]);
+  const secondPage=await second.newPage();await secondPage.goto('/dashboard?view=agent');
+  await expect(secondPage.getByText('Unlock this browser to view shared enrollment',{exact:true})).toBeVisible();
+  await expect(secondPage.getByLabel('Kunci operator',{exact:true})).toBeVisible();
+  await secondPage.getByLabel('Kunci operator',{exact:true}).fill('o'.repeat(40));
+  await secondPage.getByRole('button',{name:'Buka akses'}).click();
+  await expect(secondPage.getByText('Bridge data loaded',{exact:true})).toBeVisible();
+  await expect(secondPage.getByText('1 / 3 enrolled',{exact:true})).toBeVisible();
+  await expect(secondPage.getByText('Hermes MCP runs on demand. Runtime validation is not reported to this dashboard.',{exact:true})).toBeVisible();
+  const firstRecords=await (await context.request.get(base+'accounts',{headers:marker})).json();
+  const secondRecords=await (await second.request.get(base+'accounts',{headers:marker})).json();
+  expect(secondRecords.accounts.map(a=>a.id)).toEqual(firstRecords.accounts.map(a=>a.id));
+  expect(secondRecords.accounts.some(a=>a.id===id)).toBe(true);
+  await secondPage.reload();
+  await expect(secondPage.getByText('1 / 3 enrolled',{exact:true})).toBeVisible();
+  expect((await second.request.post(base+'operator-session/lock',{headers:marker})).status()).toBe(200);
+  expect((await (await context.request.get(base+'operator-session',{headers:marker})).json()).authenticated).toBe(true);
+ }finally{await second.close();}
+
  const analytics=await request.get('/api/gateway/v1/accounts/'+id+'/analytics',{headers:agent});
  expect(analytics.status()).toBe(200);
  expect((await analytics.json()).user.open_id).toBe('account-a');
