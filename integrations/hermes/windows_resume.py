@@ -333,7 +333,12 @@ def execute():
         installed = bootstrap.install(profile,True,source,environment="sandbox",preview_bypass_file=bypass if extra else None)
         if next_gate(preflight,receipt,installed.get("connection",{})) != "ACTIVATE_MCP":
             return result("BOOTSTRAP_CONNECTION_UNVERIFIED",commit=commit)
+    try:
+        skill_state = bootstrap.sync_managed_skill(profile,environment="sandbox")
+    except (OSError,ValueError):
+        return result("CREATORPULSE_SKILL_SYNC_BLOCKED",commit=commit,action="Report blocker; do not overwrite an unrelated skill or modify Hermes configuration.")
     final = finish_validation(cmd, commit, key, bypass if extra else None)
+    final["skill_sync"] = skill_state
     final["host_observation"] = {"boot_utc": preflight.get("boot_utc", "unknown"), "bridge_task": preflight.get("task", "unknown"), "listener_verified": True}
     return final
 
