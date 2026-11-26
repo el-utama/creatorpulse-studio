@@ -28,6 +28,24 @@ export async function saveAccount(input:Omit<VaultAccount,"epoch">,expectedEpoch
  });
  return a.epoch;
 }
+// Enrollment is create-only. A separately authenticated browser may bind to an
+// existing enrollment, but cannot replace its tokens or invalidate its epoch.
+export async function enrollAccount(input:Omit<VaultAccount,"epoch">){
+ if(!validSlot(input.slot)||slotForId(input.openId)!==input.slot||!input.access)throw new GatewayError(400,"Akun atau token tidak lengkap.");
+ return withSlotLock(input.slot,async()=>{
+  const raw=await redis<string|null>(["HGET",vaultHash,input.slot]);
+  if(raw){
+   const existing=decode(input.slot,raw);
+   if(existing.openId!==input.openId)throw new GatewayError(409,"Identitas akun berbeda.");
+   return {epoch:existing.epoch,alreadyEnrolled:true};
+  }
+  if(!input.refresh)throw new GatewayError(401,"Hubungkan kembali akun TikTok terlebih dahulu.");
+  const a:VaultAccount={...input,epoch:randomBytes(24).toString("hex")};
+  const result=await redis<number>(["EVAL","if redis.call('HEXISTS',KEYS[1],ARGV[1])==0 and redis.call('HLEN',KEYS[1])>=3 then return 0 end redis.call('HSET',KEYS[1],ARGV[1],ARGV[2]) return 1",1,vaultHash,a.slot,seal(a,"vault:"+a.slot)]);
+  if(result!==1)throw new GatewayError(409,"Maksimal tiga akun gateway.");
+  return {epoch:a.epoch,alreadyEnrolled:false};
+ });
+}
 export async function removeVault(slot:string){if(!validSlot(slot))throw new GatewayError(400,"ID akun tidak valid.");await withSlotLock(slot,()=>redis(["HDEL",vaultHash,slot]));}
 export async function vaultToken(slot:string,force=false,previous?:string,expectedEpoch?:string):Promise<string>{
  const {account:a}=await loadAccount(slot);
