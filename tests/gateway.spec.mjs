@@ -14,7 +14,11 @@ test('enroll and monitor without browser, separate credentials and sourced trend
  expect((await context.request.post('/api/gateway/v1/operator-session',{headers:{...marker,...operator}})).status()).toBe(200);
  const enrolled=await context.request.post('/api/gateway/v1/enroll',{headers:marker});
  expect(enrolled.status()).toBe(200);
- const id=(await enrolled.json()).id;
+ const initialEnrollment=await enrolled.json();const id=initialEnrollment.id;expect(initialEnrollment.alreadyEnrolled).toBe(false);
+ const bindingName='creatorpulse_account_'+id+'_v';
+ const originalBinding=(await context.cookies()).find(c=>c.name===bindingName)?.value;expect(originalBinding).toBeTruthy();
+ const duplicate=await context.request.post('/api/gateway/v1/enroll',{headers:marker});expect(duplicate.ok()).toBe(true);expect((await duplicate.json()).alreadyEnrolled).toBe(true);
+ expect((await context.cookies()).find(c=>c.name===bindingName)?.value).toBe(originalBinding);
  expect((await request.get('/api/gateway/v1/accounts')).status()).toBe(401);
  const list=await request.get('/api/gateway/v1/accounts',{headers:agent});
  expect(list.status()).toBe(200);
@@ -27,7 +31,9 @@ test('enroll and monitor without browser, separate credentials and sourced trend
   const base='/api/gateway/v1/';
   expect((await (await second.request.get(base+'operator-session',{headers:marker})).json()).authenticated).toBe(false);
   expect((await second.request.get(base+'accounts',{headers:marker})).status()).toBe(401);
-  await second.addCookies([{name:'creatorpulse_access_token',value:'mock-only',url:'http://localhost:3000'}]);
+  const authStart=await second.request.get('/api/auth/tiktok',{maxRedirects:0});
+  const authState=new URL(authStart.headers().location).searchParams.get('state');
+  const authDone=await second.request.get('/api/auth/tiktok/callback?code=account-a&state='+authState,{maxRedirects:0});expect(authDone.headers().location).toContain('/dashboard');
   const secondPage=await second.newPage();await secondPage.goto('/dashboard?view=agent');
   await expect(secondPage.getByText('Unlock this browser to view shared enrollment',{exact:true})).toBeVisible();
   await expect(secondPage.getByLabel('Kunci operator',{exact:true})).toBeVisible();
@@ -35,13 +41,23 @@ test('enroll and monitor without browser, separate credentials and sourced trend
   await secondPage.getByRole('button',{name:'Buka akses'}).click();
   await expect(secondPage.getByText('Bridge data loaded',{exact:true})).toBeVisible();
   await expect(secondPage.getByText('1 / 3 enrolled',{exact:true})).toBeVisible();
+  await expect(secondPage.getByText('Already enrolled · shared across devices',{exact:true})).toBeVisible();
+  await expect(secondPage.getByRole('button',{name:'Hubungkan akun',exact:true})).toHaveCount(0);
   await expect(secondPage.getByText('Hermes MCP runs on demand. Runtime validation is not reported to this dashboard.',{exact:true})).toBeVisible();
   const firstRecords=await (await context.request.get(base+'accounts',{headers:marker})).json();
   const secondRecords=await (await second.request.get(base+'accounts',{headers:marker})).json();
   expect(secondRecords.accounts.map(a=>a.id)).toEqual(firstRecords.accounts.map(a=>a.id));
   expect(secondRecords.accounts.some(a=>a.id===id)).toBe(true);
+  // Even a stale client submitting enroll directly must not rotate the vault.
+  const stale=await second.request.post(base+'enroll',{headers:marker});expect(stale.ok()).toBe(true);expect((await stale.json()).alreadyEnrolled).toBe(true);
+  expect((await second.cookies()).find(c=>c.name===bindingName)?.value).toBe(originalBinding);
+  expect((await (await second.request.get(base+'accounts',{headers:marker})).json()).accounts).toEqual(firstRecords.accounts);
+  expect((await context.request.get('/api/tiktok/analytics')).status()).toBe(200);
+  expect((await second.request.get('/api/tiktok/analytics')).status()).toBe(200);
   await secondPage.reload();
   await expect(secondPage.getByText('1 / 3 enrolled',{exact:true})).toBeVisible();
+  await expect(secondPage.getByText('Already enrolled · shared across devices',{exact:true})).toBeVisible();
+  await expect(secondPage.getByRole('button',{name:'Hubungkan akun',exact:true})).toHaveCount(0);
   expect((await second.request.post(base+'operator-session/lock',{headers:marker})).status()).toBe(200);
   expect((await (await context.request.get(base+'operator-session',{headers:marker})).json()).authenticated).toBe(true);
  }finally{await second.close();}
