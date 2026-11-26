@@ -206,9 +206,11 @@ jobs:
             foreach ($relative in @('data\sandbox','.secrets\sandbox','__pycache__')) { $null = New-Item -ItemType Directory -Force -Path (Join-Path $bridge $relative) }
             $source = Join-Path $bridge 'bridge.py'
             $cache = Join-Path $bridge '__pycache__'
-            $pyc = Join-Path $cache 'bridge.cpython-313.pyc'
-            Set-Content -LiteralPath $source -Value 'marker = "source"' -Encoding Ascii
-            Set-Content -LiteralPath $pyc -Value 'untrusted fixture bytes' -Encoding Ascii
+            # Produce valid stale bytecode for the runner's own Python version.
+            $pyc = & python -I -B -c "import os,sys,py_compile,pathlib; p=pathlib.Path(sys.argv[1]); p.write_bytes(b'marker = 111111\n'); old=p.stat(); c=py_compile.compile(str(p),doraise=True); p.write_bytes(b'marker = 222222\n'); os.utime(p,ns=(old.st_atime_ns,old.st_mtime_ns)); print(c)" $source
+            if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $pyc -PathType Leaf)) { throw 'Stale bytecode fixture creation failed' }
+            & python -I -B -c "import sys; sys.path.insert(0,sys.argv[1]); import bridge; assert bridge.marker == 111111" $bridge
+            if ($LASTEXITCODE -ne 0) { throw 'Fixture did not demonstrate cached import with -B' }
             $service = [Security.Principal.SecurityIdentifier]::new('S-1-5-32-545')
             $sid = $service.Value
             foreach ($item in @((Get-Item -LiteralPath $bridge)) + @(Get-ChildItem -LiteralPath $bridge -Recurse -Force)) { Set-BridgeItemAcl $item $service ReadAndExecute }
@@ -219,8 +221,11 @@ jobs:
             $prod = Join-Path $bridge 'data\production'
             $null = New-Item -ItemType Directory -Path $prod
             $blocked = $false
+            try { $null = Get-HistoryCachePath $bridge $sid } catch { $blocked = $_.Exception.Message -like '*Other environment*' }
+            if (-not $blocked -or -not (Test-Path -LiteralPath $pyc)) { throw 'Production preflight guard failed' }
+            $blocked = $false
             try { $null = Move-HistoryCache $bridge $sid } catch { $blocked = $_.Exception.Message -like '*Other environment*' }
-            if (-not $blocked -or -not (Test-Path -LiteralPath $pyc)) { throw 'Production guard failed' }
+            if (-not $blocked -or -not (Test-Path -LiteralPath $pyc)) { throw 'Production mutation guard failed' }
             Remove-Item -LiteralPath $prod
             $extra = Join-Path $cache 'not-cache.txt'
             Set-Content -LiteralPath $extra -Value 'fixture'
@@ -235,10 +240,10 @@ jobs:
             if (-not $blocked) { throw 'Native import shadow was accepted' }
             Remove-Item -LiteralPath $shadow
             . ([scriptblock]::Create($move[0].Extent.Text))
-            $archived = Join-Path $cacheArchive 'bridge.cpython-313.pyc'
+            $archived = Join-Path $cacheArchive (Split-Path -Leaf $pyc)
             if ((Test-Path -LiteralPath $cache) -or (Get-FileHash -LiteralPath $archived -Algorithm SHA256).Hash -ne $hash -or (Get-Acl -LiteralPath $archived).Sddl -cne $sddl) { throw 'Quarantine failed to preserve bytes/ACL or active cache remains' }
             if (Move-HistoryCache $bridge $sid) { throw 'Clean retry must be idempotent' }
-            & python -I -B -c "import sys; sys.path.insert(0,sys.argv[1]); import bridge; assert bridge.marker == 'source'" $bridge
+            & python -I -B -c "import sys; sys.path.insert(0,sys.argv[1]); import bridge; assert bridge.marker == 222222" $bridge
             if ($LASTEXITCODE -ne 0 -or (Test-Path -LiteralPath $cache)) { throw 'Restart import did not use source or recreated cache' }
             Write-Host 'Actual history cache flow: preflight, Production guard, unexpected-content and shadow rejection, quarantine with preserved ACL/bytes, clean source import and retry passed.'
           } finally { Remove-Item -LiteralPath $bridge -Recurse -Force }
