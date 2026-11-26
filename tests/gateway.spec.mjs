@@ -153,3 +153,26 @@ test('operator session persists across reload, is browser-scoped and does not gr
  expect(await status(one)).toBe(false);
  }finally{await one.close();await two.close();}
 });
+
+test('manual history persists across authenticated browser contexts and migration never publishes',async({browser,request})=>{
+ const one=await browser.newContext(),two=await browser.newContext(),other=await browser.newContext();
+ try{
+ for(const c of [one,two])await c.addCookies([{name:'creatorpulse_access_token',value:'mock-only',url:'http://localhost:3000'}]);
+ await other.addCookies([{name:'creatorpulse_access_token',value:'account-a',url:'http://localhost:3000'}]);
+ const url='/api/tiktok/history';
+ expect((await request.get(url)).status()).toBe(401);
+ const base={accountId:'mock-stable-account',requestId:crypto.randomUUID(),mode:'inbox',videoUrl:'https://example.com/manual.mp4',consent:'true'};
+ const sent=await one.request.post('/api/tiktok/publish',{multipart:base});expect(sent.status()).toBe(200);const id=(await sent.json()).publish_id;
+ const retry=await two.request.post('/api/tiktok/publish',{multipart:base});expect((await retry.json()).publish_id).toBe(id);
+ let rows=(await (await two.request.get(url)).json()).records;expect(rows.filter(r=>r.id===id)).toHaveLength(1);
+ expect((await (await other.request.get(url)).json()).records.some(r=>r.id===id)).toBe(false);
+ expect((await two.request.post('/api/tiktok/publish/status',{data:{publish_ids:[id]}})).ok()).toBe(true);
+ rows=(await (await one.request.get(url)).json()).records;expect(rows.find(r=>r.id===id).status).toBe('PUBLISH_COMPLETE');
+ const old={id:'legacy-history-test',createdAt:'2025-01-01T00:00:00.000Z',mode:'inbox'};
+ for(let i=0;i<2;i++)expect((await one.request.post(url,{data:old})).ok()).toBe(true);
+ rows=(await (await two.request.get(url)).json()).records;expect(rows.filter(r=>r.id===old.id)).toHaveLength(1);expect(rows.find(r=>r.id===old.id).imported).toBe(1);
+ expect((await two.request.post(url,{headers:{Origin:'https://other.invalid'},data:old})).status()).toBe(403);
+ expect((await request.post(url,{data:old})).status()).toBe(401);
+ const page=await two.newPage();await page.goto('/dashboard?view=status');await expect(page.getByRole('button',{name:'Details '+id})).toBeVisible();await expect(page.getByRole('button',{name:'Details '+old.id})).toBeVisible();
+ }finally{await one.close();await two.close();await other.close();}
+});

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Private SQLite storage bridge for CreatorPulse. No arbitrary SQL/Lua execution."""
 import argparse
+from datetime import datetime, timezone
 import hmac
 import json
 import os
@@ -46,6 +47,14 @@ class Store:
               CREATE TABLE IF NOT EXISTS ephemeral (key TEXT PRIMARY KEY, value TEXT NOT NULL, expires REAL NOT NULL);
               CREATE TABLE IF NOT EXISTS rate_limit (id INTEGER PRIMARY KEY CHECK(id=1), minute INTEGER NOT NULL, count INTEGER NOT NULL);
               CREATE TABLE IF NOT EXISTS trends (seq INTEGER PRIMARY KEY AUTOINCREMENT, value TEXT NOT NULL);
+              CREATE TABLE IF NOT EXISTS manual_publications (
+                account TEXT NOT NULL, request_id TEXT NOT NULL, publish_id TEXT,
+                created_at TEXT NOT NULL, mode TEXT NOT NULL, state TEXT NOT NULL,
+                status TEXT, updated_at TEXT NOT NULL, failure_reason TEXT,
+                imported INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY(account,request_id), UNIQUE(account,publish_id)
+              );
+              CREATE INDEX IF NOT EXISTS manual_history_account ON manual_publications(account,created_at DESC);
             """)
 
     def connect(self):
@@ -75,6 +84,10 @@ class Store:
             return c.execute("SELECT count FROM rate_limit WHERE id=1").fetchone()[0]
         if op == "PING" and not a:
             return "PONG"
+        if op == "MANUAL_CAPS" and not a:
+            return 1
+        if isinstance(op,str) and op.startswith("MANUAL_"):
+            return self.manual(c,op,a)
         if op == "ARCHIVE_POST" and len(a) == 2 and field(POSTS,a[0]) and bounded(a[1]):
             row=c.execute("SELECT value FROM records WHERE bucket=? AND field=?", (POSTS,a[0])).fetchone()
             if not row or row[0] != a[1]: return 0
@@ -97,6 +110,51 @@ class Store:
         if op == "EVAL":
             return self.atomic(c, a)
         raise ValueError("Unsupported storage operation")
+
+    def manual(self,c,op,a):
+        # Only account-scoped fixed operations; no arbitrary SQL, no tokens or video bytes.
+        require(bool(a) and isinstance(a[0],str) and SLOT.fullmatch(a[0]))
+        account = a[0]
+        now = datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00","Z")
+        columns = "request_id,publish_id,created_at,mode,state,status,updated_at,failure_reason,imported"
+        def record(row):
+            return dict(zip(("requestId","id","createdAt","mode","state","status","updatedAt","failureReason","imported"),row)) if row else None
+        def valid_id(value):
+            return isinstance(value,str) and re.fullmatch(r"[A-Za-z0-9_.~-]{1,256}",value)
+        def valid_status(value):
+            return isinstance(value,str) and re.fullmatch(r"[A-Z0-9_]{1,64}",value)
+        def valid_mode(value):
+            return value in ("inbox","profile","unknown")
+        if op == "MANUAL_LIST":
+            require(len(a)==1)
+            return [record(r) for r in c.execute("SELECT "+columns+" FROM manual_publications WHERE account=? ORDER BY created_at DESC,request_id DESC LIMIT 200",(account,))]
+        if op == "MANUAL_BEGIN":
+            require(len(a)==3 and isinstance(a[1],str) and UUID.fullmatch(a[1]) and a[2] in ("inbox","profile"))
+            row=c.execute("SELECT "+columns+" FROM manual_publications WHERE account=? AND request_id=?",(account,a[1])).fetchone()
+            if row: return record(row)
+            c.execute("INSERT INTO manual_publications(account,request_id,created_at,mode,state,updated_at) VALUES(?,?,?,?,?,?)",(account,a[1],now,a[2],"pending",now))
+            return None
+        if op == "MANUAL_ACCEPT":
+            require(len(a)==3 and isinstance(a[1],str) and UUID.fullmatch(a[1]) and valid_id(a[2]))
+            row=c.execute("SELECT publish_id,state FROM manual_publications WHERE account=? AND request_id=?",(account,a[1])).fetchone()
+            require(row and ((row[0] is None and row[1]=="pending") or row[0]==a[2]))
+            c.execute("UPDATE manual_publications SET publish_id=?,state='accepted',updated_at=? WHERE account=? AND request_id=?",(a[2],now,account,a[1]))
+            return 1
+        if op == "MANUAL_REJECT":
+            require(len(a)==4 and isinstance(a[1],str) and UUID.fullmatch(a[1]) and a[2] in ("rejected","uncertain") and isinstance(a[3],str) and re.fullmatch(r"[a-z0-9_]{1,100}",a[3]))
+            return c.execute("UPDATE manual_publications SET state=?,failure_reason=?,updated_at=? WHERE account=? AND request_id=? AND state='pending' AND publish_id IS NULL",(a[2],a[3],now,account,a[1])).rowcount
+        if op == "MANUAL_STATUS":
+            require(len(a)==4 and valid_id(a[1]) and valid_status(a[2]) and isinstance(a[3],str) and (not a[3] or re.fullmatch(r"[a-z0-9_]{1,100}",a[3])))
+            # Never let a delayed processing response overwrite a confirmed final status.
+            return c.execute("UPDATE manual_publications SET status=?,failure_reason=?,updated_at=? WHERE account=? AND publish_id=? AND (status IS NULL OR status NOT IN ('PUBLISH_COMPLETE','FAILED') OR status=?)",(a[2],a[3] or None,now,account,a[1],a[2])).rowcount
+        if op == "MANUAL_IMPORT":
+            require(len(a)==6 and valid_id(a[1]) and valid_mode(a[3]) and valid_status(a[4]) and isinstance(a[5],str) and (not a[5] or re.fullmatch(r"[a-z0-9_]{1,100}",a[5])))
+            require(isinstance(a[2],str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z",a[2]))
+            created=datetime.fromisoformat(a[2].replace("Z","+00:00"))
+            require(created.year>=2020 and created<=datetime.now(timezone.utc))
+            c.execute("INSERT OR IGNORE INTO manual_publications(account,request_id,publish_id,created_at,mode,state,status,updated_at,failure_reason,imported) VALUES(?,?,?,?,?,'accepted',?,?,?,1)",(account,"import:"+a[1],a[1],a[2],a[3],a[4],now,a[5] or None))
+            return record(c.execute("SELECT "+columns+" FROM manual_publications WHERE account=? AND publish_id=?",(account,a[1])).fetchone())
+        raise ValueError("Unsupported manual history operation")
 
     def ephemeral(self, c, op, a):
         require(bool(a) and isinstance(a[0], str))

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { sameOrigin } from "@/lib/accounts";
+import { historyConfigured, historyCapability, beginManual, acceptManual, rejectManual } from "@/lib/manual-history";
+import { sameOrigin,slotFor } from "@/lib/accounts";
 import { APP_CONFIG } from "@/config/app";
 import { publicationKey, reservePublication, finishPublication } from "@/lib/publication-idempotency";
 import { explainTikTok, isAuthError, TikTokApiError } from "@/lib/tiktok-errors";
@@ -16,6 +17,8 @@ export async function POST(request: Request) {
 
   let acceptedId: string | null = null;
   let reservationKey: string | null = null;
+  let ledger:{account:string;requestId:string}|null=null;
+  let ledgerSaved=false;
   try {
     const formData = await request.formData();
     const requestId = formData.get("requestId");
@@ -115,13 +118,23 @@ export async function POST(request: Request) {
       if(!accessToken) throw new TikTokApiError("access_token_invalid",401);
       key=await publicationKey(accessToken,requestId,expectedAccountId);
     }
+    if(historyConfigured()){
+      if(!await historyCapability())return NextResponse.json({error:"Central publication history is unavailable. Update Local Bridge before submitting new videos."},{status:503});
+      const account=slotFor(expectedAccountId),existing=await beginManual(account,requestId.toLowerCase(),mode);
+      if(existing){
+        if(existing.id)return NextResponse.json({publish_id:existing.id,warning:"Previous submission recovered from central history. Check its status; no new upload was sent."},{status:202});
+        return NextResponse.json({error:"This request already exists in central history. Check its status before starting a new submission."},{status:409});
+      }
+      ledger={account,requestId:requestId.toLowerCase()};
+    }
     const previous = await reservePublication(key);
-    if (previous?.state === "complete") return NextResponse.json(previous.body,{status:previous.status});
-    if (previous) return NextResponse.json({error:"Permintaan sebelumnya sedang diproses atau hasilnya belum pasti. Periksa aktivitas TikTok; jangan kirim ulang konten."},{status:409});
+    if (previous?.state === "complete") {if(ledger)await acceptManual(ledger.account,ledger.requestId,previous.body.publish_id);return NextResponse.json(previous.body,{status:previous.status});}
+    if (previous) {if(ledger)await rejectManual(ledger.account,ledger.requestId,"uncertain","previous_request_pending");return NextResponse.json({error:"Permintaan sebelumnya sedang diproses atau hasilnya belum pasti. Periksa aktivitas TikTok; jangan kirim ulang konten."},{status:409});}
     reservationKey = key;
     const initResult = await initPublish(accessToken, initBody, mode);
     const { publish_id, upload_url } = initResult;
     acceptedId = publish_id;
+    if(ledger){await acceptManual(ledger.account,ledger.requestId,publish_id);ledgerSaved=true;}
 
     if (sourceType === "FILE_UPLOAD") {
       if (!upload_url || !videoBuffer || !file) throw new Error("Missing upload information");
@@ -134,10 +147,12 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Publication request failed", error instanceof TikTokApiError ? error.code : "unknown");
     if (acceptedId) {
-      const reply = {publish_id:acceptedId,warning:"TikTok menerima inisialisasi, tetapi transfer belum terkonfirmasi. Periksa status sebelum mencoba ulang."};
+      if(ledger&&!ledgerSaved)try{await acceptManual(ledger.account,ledger.requestId,acceptedId);ledgerSaved=true;}catch{/* Keep ID in browser for verified recovery. */}
+      const reply = {publish_id:acceptedId,warning:ledger&&!ledgerSaved?"TikTok accepted initialization; central history and transfer are not confirmed. Preserve this ID and check status before retrying.":"TikTok menerima inisialisasi, tetapi transfer belum terkonfirmasi. Periksa status sebelum mencoba ulang."};
       if (reservationKey) try { await finishPublication(reservationKey,reply,202); } catch { /* Preserve the accepted ID. */ }
       return NextResponse.json(reply,{status:202});
     }
+    if(ledger)try{await rejectManual(ledger.account,ledger.requestId,error instanceof TikTokApiError&&[400,401,403,409,429].includes(error.status)?"rejected":"uncertain",error instanceof TikTokApiError?error.code:"unknown");}catch{/* Existing persistent pending record remains. */}
     return NextResponse.json(
       { error: explainTikTok(error,"Publikasi belum dapat dikonfirmasi. Periksa akun TikTok sebelum mencoba ulang.") },
       { status: isAuthError(error) ? 401 : error instanceof TikTokApiError && [400,403,409,429].includes(error.status) ? error.status : 502 }

@@ -53,6 +53,29 @@ class BridgeTests(unittest.TestCase):
         for command in [["EVAL","return 1",1,VAULT,"a"*32],["HGET","other","a"*32],["FLUSHALL"],["HDEL",POSTS,"a"*32]]:
             with self.assertRaises(ValueError):
                 self.s.run(command)
+    def test_manual_history_is_durable_scoped_and_deduplicated(self):
+        account="a"*32
+        other="b"*32
+        request="00000000-0000-4000-8000-000000000003"
+        publish="v_inbox_file~v2.123"
+        self.assertEqual(self.s.run(["MANUAL_CAPS"]),1)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+            attempts=list(pool.map(lambda _:self.s.run(["MANUAL_BEGIN",account,request,"inbox"]),range(6)))
+        self.assertEqual(sum(x is None for x in attempts),1)
+        self.assertEqual(self.s.run(["MANUAL_ACCEPT",account,request,publish]),1)
+        self.assertEqual(self.s.run(["MANUAL_STATUS",account,publish,"SEND_TO_USER_INBOX",""]),1)
+        self.assertEqual(self.s.run(["MANUAL_STATUS",other,publish,"FAILED","video_pull_failed"]),0)
+        self.assertEqual(self.s.run(["MANUAL_STATUS",account,publish,"PUBLISH_COMPLETE",""]),1)
+        self.assertEqual(self.s.run(["MANUAL_STATUS",account,publish,"PROCESSING_UPLOAD",""]),0)
+        self.assertEqual(self.s.run(["MANUAL_IMPORT",account,publish,"2025-01-01T00:00:00.000Z","inbox","SEND_TO_USER_INBOX",""])["imported"],0)
+        self.assertEqual(self.s.run(["MANUAL_IMPORT",account,"legacy-1","2025-01-01T00:00:00.000Z","unknown","SEND_TO_USER_INBOX",""])["imported"],1)
+        reopened=Store(self.path)
+        self.assertEqual(len(reopened.run(["MANUAL_LIST",account])),2)
+        self.assertEqual(reopened.run(["MANUAL_LIST",other]),[])
+        self.assertEqual(reopened.run(["MANUAL_BEGIN",account,request,"inbox"])["id"],publish)
+        self.assertEqual(reopened.run(["MANUAL_BEGIN",account,request,"inbox"])["status"],"PUBLISH_COMPLETE")
+        with self.assertRaises(ValueError): self.s.run(["MANUAL_LIST","../"])
+        with self.assertRaises(ValueError): self.s.run(["MANUAL_IMPORT",account,"legacy-2","2039-01-01T00:00:00.000Z","unknown","FAILED",""])
     def test_trends(self):
         for val in ["one","two"]:
             self.s.run(["EVAL",APPEND,1,TRENDS,val])

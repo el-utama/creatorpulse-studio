@@ -8,6 +8,7 @@ import {prepare,approve,cancel,execute,checkStatus,getPost,listPosts,archive} fr
 import {recordTrend,listTrends} from "@/lib/gateway/trends";
 import {readTikTok,explainTikTok,isAuthError} from "@/lib/tiktok-errors";
 import {getCreatorCapabilities} from "@/lib/tiktok";
+import {historyCapability} from "@/lib/manual-history";
 import {sessionToken} from "@/lib/session";
 import {operatorSessionActive,openOperatorSession,clearOperatorSession,requireBrowserRequest,authorizeGateway} from "@/lib/gateway/operator-session";
 const headers={"Cache-Control":"no-store"};
@@ -21,6 +22,7 @@ export async function GET(request:Request,ctx:Ctx){
  try{
   if(p.join("/") === "operator-session")return reply({authenticated:await operatorSessionActive(request)});
   if(await authorizeGateway(request)==="bearer")await limitAgent(request);
+  if(p.join("/") === "manual-history-capability")return reply({version:await historyCapability()?1:0});
   if(p.join("/") === "posts")return reply({posts:await listPosts()});
   if(p[0]==="posts"&&p.length===2)return reply(await getPost(p[1]));
   if(p.join("/") === "accounts")return reply({accounts:await listVault(),limit:3});
