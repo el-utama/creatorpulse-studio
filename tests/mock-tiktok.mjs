@@ -55,7 +55,9 @@ globalThis.fetch = async (input, options) => {
   }
   if (url.hostname === 'open-upload.tiktokapis.com') {
     const headers = new Headers(options?.headers);
-    return new Response(null,{status:options?.method === 'PUT' && headers.get('Content-Range') === 'bytes 0-3/4' && headers.get('Content-Length') === '4'?201:400});
+    const length=Number(headers.get('Content-Length')),bytes=options?.body;
+    const valid=options?.method==='PUT'&&length>0&&bytes?.length===length&&headers.get('Content-Range')==='bytes 0-'+(length-1)+'/'+length;
+    return new Response(null,{status:valid&&(length===4||Buffer.from(bytes).subarray(4,8).toString()==='ftyp')?201:400});
   }
   return originalFetch(input,options);
 };
