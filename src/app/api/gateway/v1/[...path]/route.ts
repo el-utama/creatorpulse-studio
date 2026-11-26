@@ -3,7 +3,7 @@ import {cookies} from "next/headers";
 import {APP_CONFIG} from "@/config/app";
 import {accounts,currentSlot,slotNames,sameOrigin} from "@/lib/accounts";
 import {GatewayError,config,binding,limitAgent,gatewayEnvironment} from "@/lib/gateway/store";
-import {listVault,readAccount,saveAccount,removeVault,profileIdentity,slotForId} from "@/lib/gateway/vault";
+import {listVault,readAccount,enrollAccount,removeVault,profileIdentity,slotForId} from "@/lib/gateway/vault";
 import {prepare,approve,cancel,execute,checkStatus,getPost,listPosts,archive} from "@/lib/gateway/posts";
 import {recordTrend,listTrends} from "@/lib/gateway/trends";
 import {readTikTok,explainTikTok,isAuthError} from "@/lib/tiktok-errors";
@@ -51,15 +51,15 @@ export async function POST(request:Request,ctx:Ctx){
    const jar=await cookies(),slot=currentSlot(jar);
    if(!slot||!accounts(jar).some(a=>a.slot===slot))throw new GatewayError(400,"Hubungkan kembali akun melalui dashboard terlebih dahulu.");
    const n=slotNames(slot),token=await sessionToken(),refresh=jar.get(n.refresh)?.value;
-   if(!token||!refresh)throw new GatewayError(401,"Hubungkan kembali akun TikTok terlebih dahulu.");
+   if(!token)throw new GatewayError(401,"Hubungkan kembali akun TikTok terlebih dahulu.");
    const user=await profileIdentity(token);
    if(slotForId(user.open_id)!==slot)throw new GatewayError(409,"Akun aktif berubah.");
-   const epoch=await saveAccount({slot,openId:user.open_id,name:user.display_name||"Akun TikTok",access:token,refresh,expiresAt:Date.now()+60000,updatedAt:new Date().toISOString()});
+   const {epoch,alreadyEnrolled}=await enrollAccount({slot,openId:user.open_id,name:user.display_name||"Akun TikTok",access:token,refresh:refresh||"",expiresAt:Date.now()+60000,updatedAt:new Date().toISOString()});
    // Move the active browser session onto the vault; do not keep rotating refresh tokens in cookies.
    const options={httpOnly:true,secure:process.env.NODE_ENV==="production",sameSite:"lax" as const,path:"/"};
    jar.set(n.access,"",{...options,maxAge:0});jar.set(n.refresh,"",{...options,maxAge:0});
    jar.set("creatorpulse_account_"+slot+"_v",binding(slot,epoch),{...options,maxAge:365*86400});
-   return reply({success:true,id:slot,name:user.display_name});
+   return reply({success:true,id:slot,name:user.display_name,alreadyEnrolled});
   }
   await authorizeGateway(request);
   if(p.join("/") === "posts")return reply(await prepare(await request.json().catch(()=>null)),201);
