@@ -19,6 +19,7 @@ VERSIONS = ("2025-03-26", "2025-06-18", "2025-11-25")
 STR = {"type": "string"}
 ID = {"type": "string", "format": "uuid"}
 ACCOUNT = {"type": "string", "pattern": "^[a-f0-9]{32}$"}
+REGION = {"type":"string","pattern":"^[A-Za-z]{2}$","description":"ISO alpha-2 country code, e.g. ID for Indonesia."}
 def tool(name, description, properties=None, required=None):
     return {"name": name, "description": description, "inputSchema": {"type":"object", "properties":properties or {}, "required":required or [], "additionalProperties":False}}
 TOOLS = [
@@ -26,8 +27,8 @@ TOOLS = [
     tool("get_analytics","Read account metrics.",{"accountId":ACCOUNT},["accountId"]),
     tool("list_videos","Read one page of videos.",{"accountId":ACCOUNT,"cursor":{"type":"integer","minimum":0}},["accountId"]),
     tool("get_capabilities","Read publication capabilities.",{"accountId":ACCOUNT},["accountId"]),
-    tool("list_trends","Read stored sourced observations, not verified live rankings.",{"region":STR,"days":{"type":"integer","minimum":1,"maximum":90}}),
-    tool("record_trend","Save real evidence from an authorized research source.",{"topic":STR,"type":{"enum":["topic","hashtag","music","video","keyword"]},"region":STR,"source":{"enum":["tiktok_creative_center","tiktok_discovery_api","google_trends","web_research","manual"]},"sourceUrl":STR,"observedAt":STR,"evidence":STR,"changePct":{"type":"number"},"metric":STR},["topic","type","region","source","sourceUrl","observedAt","evidence"]),
+    tool("list_trends","Read stored sourced observations, not verified live rankings.",{"region":REGION,"days":{"type":"integer","minimum":1,"maximum":90}}),
+    tool("record_trend","Save real evidence from an authorized research source.",{"topic":STR,"type":{"enum":["topic","hashtag","music","video","keyword"]},"region":REGION,"source":{"enum":["tiktok_creative_center","tiktok_discovery_api","google_trends","web_research","manual"]},"sourceUrl":STR,"observedAt":STR,"evidence":STR,"changePct":{"type":"number"},"metric":STR},["topic","type","region","source","sourceUrl","observedAt","evidence"]),
     tool("prepare_post","Create inbox or Direct Post draft; profile requires duration in seconds. Human selects final settings.",{"requestId":ID,"accountId":ACCOUNT,"videoUrl":STR,"caption":STR,"mode":{"enum":["inbox","profile"]},"duration":{"type":"number","exclusiveMinimum":0}},["requestId","accountId","videoUrl","caption","mode"]),
     tool("list_posts","Read publication queue."),
     tool("get_post","Inspect exact draft and state.",{"postId":ID},["postId"]),
@@ -66,14 +67,44 @@ def request(path, key=None, body=None, method="GET"):
             if len(raw)>2_000_000: raise ValueError("Response too large.")
             return json.loads(raw)
     except urllib.error.HTTPError as exc:
-        # Avoid echoing upstream response bodies, which might contain sensitive data.
-        raise ValueError("Gateway HTTP "+str(exc.code)+". Check configuration, enrollment or approval.") from None
+        # Only allow exact, known static trend validation messages. Never echo raw upstream bodies.
+        detail = ""
+        if exc.code == 400 and path.split("?",1)[0] == "/trends":
+            try:
+                raw = exc.read(4097)
+                if len(raw) <= 4096:
+                    body = json.loads(raw)
+                    error = body.get("error") if isinstance(body,dict) else None
+                    known = {
+                        "Filter tren tidak valid.":"Invalid region or days; use ID and integer 1–90.",
+                        "Observasi tidak valid.":"Observation must be an object.",
+                        "Topik, tipe, negara, sumber, tautan dan bukti wajib diisi.":"Check required observation fields, region and source/type enums.",
+                        "Tautan sumber HTTPS tidak cocok.":"HTTPS source URL does not match source type.",
+                        "Waktu observasi tidak valid atau terlalu lama.":"Observation timestamp must be valid and within 90 days.",
+                        "Perubahan persentase tidak valid.":"Invalid changePct.",
+                        "Definisi metrik wajib untuk persentase perubahan.":"Metric definition required with changePct.",
+                    }
+                    if isinstance(error,str):
+                        detail = known.get(error,"")
+            except (ValueError,OSError,TypeError):
+                pass
+        raise ValueError("Gateway HTTP "+str(exc.code)+". "+(detail or "Check configuration, enrollment or approval.")) from None
     except (urllib.error.URLError, TimeoutError):
         raise ValueError("Gateway unreachable or timed out. Do not retry uncertain publishing.") from None
 def identifier(value, pattern):
     if not isinstance(value,str) or not pattern.fullmatch(value):
         raise ValueError("Invalid account or post identifier.")
     return value
+def trend_region(value):
+    if isinstance(value,str):
+        value = value.strip()
+        # Common natural-language input for this deployment, without guessing other regions.
+        if value.casefold() == "indonesia":
+            return "ID"
+        if re.fullmatch(r"[A-Za-z]{2}",value):
+            return value.upper()
+    raise ValueError("Trend region must be a two-letter country code (ID for Indonesia).")
+
 def call(name,a,key):
     if name not in BY_NAME or not isinstance(a,dict):
         raise ValueError("Unknown tool or invalid arguments.")
@@ -88,8 +119,14 @@ def call(name,a,key):
         query="?"+urlencode({"cursor":a.get("cursor",0)}) if name=="list_videos" else ""
         return request("/accounts/"+slot+"/"+end+query,key)
     if name=="list_trends":
-        return request("/trends?"+urlencode({"region":a.get("region","ID"),"days":a.get("days",7)}),key)
-    if name=="record_trend": return request("/trends",key,a,"POST")
+        region=trend_region(a.get("region","ID"))
+        days=a.get("days",7)
+        if type(days) is not int or not 1 <= days <= 90:
+            raise ValueError("Trend days must be an integer from 1 to 90.")
+        return request("/trends?"+urlencode({"region":region,"days":days}),key)
+    if name=="record_trend":
+        normalized={**a,"region":trend_region(a["region"])}
+        return request("/trends",key,normalized,"POST")
     if name=="prepare_post": return request("/posts",key,a,"POST")
     post=identifier(a["postId"],UUID)
     if name=="get_post": return request("/posts/"+post,key)
