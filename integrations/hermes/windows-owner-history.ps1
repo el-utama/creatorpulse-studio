@@ -344,6 +344,277 @@ function Repair-ReviewedRuntimeOwner([string]$Path,[string]$ServiceSid) {
     Set-Acl -LiteralPath $Path -AclObject $acl
     Assert-PrivatePath $Path $ServiceSid $false $true
 }
+function Get-ScopedPaths([string]$Root) {
+    # Enumerate only explicitly selected Sandbox trees, parent before child.
+    $bridge = Join-Path $Root 'local-bridge'
+    foreach ($relative in @('','local-bridge','local-bridge\data','local-bridge\.secrets','sandbox-launcher.py','local-bridge\bridge.py','local-bridge\run.py','python-3.13.17-embed-amd64.zip')) {
+        $path = if ($relative) { Join-Path $Root $relative } else { $Root }
+        $item = Get-Item -LiteralPath $path -Force
+        if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "Reparse point: $path" }
+        $path
+    }
+    foreach ($relative in @('python','local-bridge\data\sandbox','local-bridge\.secrets\sandbox')) {
+        $pending = [Collections.Generic.Stack[string]]::new()
+        $pending.Push((Join-Path $Root $relative))
+        while ($pending.Count) {
+            $path = $pending.Pop()
+            $item = Get-Item -LiteralPath $path -Force
+            if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "Reparse point: $path" }
+            $path
+            if ($item.PSIsContainer) {
+                foreach ($child in @(Get-ChildItem -LiteralPath $path -Force)) { $pending.Push($child.FullName) }
+            }
+        }
+    }
+}
+function Remove-ScopedUserAllow([string]$Path,[string]$UserSid) {
+    $item = Get-Item -LiteralPath $Path -Force
+    if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "Reparse point: $Path" }
+    $acl = Get-Acl -LiteralPath $Path
+    $changed = $false
+    foreach ($rule in @($acl.GetAccessRules($true,$false,[Security.Principal.SecurityIdentifier]))) {
+        if ($rule.IdentityReference.Value -eq $UserSid -and $rule.AccessControlType -eq 'Allow') {
+            $acl.RemoveAccessRuleSpecific($rule)
+            $changed = $true
+        }
+    }
+    if ($changed) { Set-Acl -LiteralPath $Path -AclObject $acl }
+    $actual = Get-Acl -LiteralPath $Path
+    if (@($actual.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]) | Where-Object {$_.IdentityReference.Value -eq $UserSid -and $_.AccessControlType -eq 'Allow'}).Count) { throw "USER Allow still present: $Path" }
+}
+function Get-SandboxUserAllowPaths([string[]]$Paths,[string]$UserSid,[string]$ServiceSid,[string]$Data) {
+    foreach ($path in $Paths) {
+        $acl = Get-Acl -LiteralPath $path
+        $allowed = @('S-1-5-18','S-1-5-32-544',$ServiceSid,$UserSid)
+        $writable = $path -eq $Data -or $path.StartsWith($Data+'\',[StringComparison]::OrdinalIgnoreCase)
+        $owner = $acl.GetOwner([Security.Principal.SecurityIdentifier]).Value
+        $ownerAllowed = @('S-1-5-18','S-1-5-32-544')
+        if ($writable) { $ownerAllowed += $ServiceSid }
+        # Runtime files created by the previous installer may have USER owner;
+        # their separate verified-runtime ownership repair handles this case.
+        $runtime = $path -match '(?i)\\CreatorPulseBridge\\python(?:\\|$)'
+        if ($runtime -or $path -match '(?i)\\python-3\.13\.17-embed-amd64\.zip[string]$Uri,[string]$Command,[string]$Token) {
+    $r = Invoke-RestMethod -Uri $Uri -Method Post -Headers @{Authorization="Bearer $Token"} -ContentType 'application/json' -Body $Command -TimeoutSec 10 -MaximumRedirection 0
+    return $r.result
+}
+function Wait-Bridge([string]$Token,[string]$ServiceSid,[bool]$History) {
+    for ($i=0;$i -lt 45;$i++) {
+        try {
+            $listeners = @(Get-NetTCPConnection -LocalPort 8766 -State Listen -ErrorAction SilentlyContinue)
+            if ($listeners.Count -eq 1 -and $listeners[0].LocalAddress -eq '127.0.0.1') {
+                $process = Get-CimInstance Win32_Process -Filter "ProcessId=$($listeners[0].OwningProcess)"
+                $owner = Invoke-CimMethod -InputObject $process -MethodName GetOwnerSid
+                if ($owner.ReturnValue -eq 0 -and $owner.Sid -eq $ServiceSid) {
+                    $local = Invoke-Storage 'http://127.0.0.1:8766/storage/v1' '["PING"]' $Token
+                    $remote = Invoke-Storage 'https://pc09-pr.markhor-cat.ts.net:10000/storage/v1' '["PING"]' $Token
+                    if ($local -eq 'PONG' -and $remote -eq 'PONG') {
+                        if (-not $History) { return }
+                        $l = Invoke-Storage 'http://127.0.0.1:8766/storage/v1' '["MANUAL_CAPS"]' $Token
+                        $r = Invoke-Storage 'https://pc09-pr.markhor-cat.ts.net:10000/storage/v1' '["MANUAL_CAPS"]' $Token
+                        if ($l -eq 1 -and $r -eq 1) { return }
+                    }
+                }
+            }
+        } catch { }
+        Start-Sleep -Seconds 1
+    }
+    throw 'Verified Sandbox listener, identity, local/HTTPS PING or history capability unavailable.'
+}
+function Stop-KnownTask {
+    Stop-ScheduledTask -TaskName 'CreatorPulseBridge-Sandbox' -TaskPath '\'
+    for ($i=0;$i -lt 30;$i++) {
+        if ((Get-ScheduledTask -TaskName 'CreatorPulseBridge-Sandbox' -TaskPath '\').State -ne 'Running' -and -not (Get-NetTCPConnection -LocalPort 8766 -State Listen -ErrorAction SilentlyContinue)) { return }
+        Start-Sleep -Seconds 1
+    }
+    throw 'Known Sandbox task did not stop; no code replacement allowed.'
+}
+$principal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator) -or $env:COMPUTERNAME -ne 'PC09-PR') { throw 'Run only as the owner on PC09-PR, elevated.' }
+$root = 'C:\ProgramData\CreatorPulseBridge'
+$bridge = Join-Path $root 'local-bridge'
+$code = Join-Path $bridge 'bridge.py'
+$python = Join-Path $root 'python\python.exe'
+$launcher = Join-Path $root 'sandbox-launcher.py'
+$data = Join-Path $bridge 'data\sandbox'
+$db = Join-Path $data 'creatorpulse.sqlite3'
+$secret = Join-Path $bridge '.secrets\sandbox\bridge.env'
+$service = Get-LocalUser -Name 'CreatorPulseBridge'
+if (-not $service.Enabled) { throw 'Restricted service account is unavailable.' }
+$sid = $service.SID.Value
+$task = Get-ScheduledTask -TaskName 'CreatorPulseBridge-Sandbox' -TaskPath '\'
+$taskSid = try { ([Security.Principal.NTAccount]::new($task.Principal.UserId)).Translate([Security.Principal.SecurityIdentifier]).Value } catch { $task.Principal.UserId }
+$actions = @($task.Actions)
+if ($taskSid -ne $sid -or $task.Principal.RunLevel.ToString() -ne 'Limited' -or $actions.Count -ne 1 -or $actions[0].Execute -ne $python -or $actions[0].WorkingDirectory -ne $bridge -or $actions[0].Arguments -cne ('-I -B "' + $launcher + '"') -or $task.State -ne 'Running') { throw 'Not the known running restricted Sandbox task. No changes made.' }
+$userSid = (Get-LocalUser -Name 'USER').SID.Value
+if ($userSid -eq $sid -or $userSid -in @('S-1-5-18','S-1-5-32-544')) { throw 'USER identity is not distinct from the service.' }
+$approved = $false
+$aclRepaired = $false
+# Root may have a USER FullControl rule reintroduced after installer success.
+# No permission changes are made without a fresh explicit owner decision.
+$rootItem = Get-Item -LiteralPath $root -Force
+if ($rootItem.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Unexpected protected root reparse point.' }
+$rootAcl = Get-Acl -LiteralPath $root
+$rootUser = @($rootAcl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]) | Where-Object {$_.IdentityReference.Value -eq $userSid -and $_.AccessControlType -eq 'Allow'})
+if ($rootUser.Count) {
+    # Do not affect production descendants through inheritance.
+    foreach ($path in @((Join-Path $bridge 'data'),(Join-Path $bridge '.secrets'))) {
+        $item = Get-Item -LiteralPath $path -Force
+        if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "Unexpected environment parent: $path" }
+        if (@(Get-ChildItem -LiteralPath $path -Force | Where-Object {$_.Name -ne 'sandbox'}).Count) { throw "Other environment or files present: $path; root repair blocked." }
+    }
+    $scope = @(Get-ScopedPaths $root)
+    $affected = @(Get-SandboxUserAllowPaths $scope $userSid $sid $data)
+    Write-Host "USER has unexpected Allow access on $($affected.Count) known Sandbox paths. This may have exposed data or allowed modification. No historical integrity claim is possible."
+    Write-Host 'Repair removes only USER Allow ACEs on the reviewed Sandbox paths. Preserve SYSTEM, Administrators and service access; preserve credentials and database; do not modify production or tunnels.'
+    Write-Host 'After repair, verify the official runtime and reviewed source before upgrade. If verification fails, stop; security restrictions remain in place.'
+    if ((Read-Host 'Type UPGRADE to approve scoped ACL repair and Bridge upgrade') -cne 'UPGRADE') { throw 'Owner declined. No changes.' }
+    $approved = $true
+    # Root first, then parent-before-child. Do not restore unsafe ACEs on failure.
+    foreach ($path in $affected) { Remove-ScopedUserAllow $path $userSid }
+    $remaining = @(Get-SandboxUserAllowPaths @(Get-ScopedPaths $root) $userSid $sid $data)
+    if ($remaining.Count) { throw 'Unexpected USER Allow persists after scoped repair.' }
+    $aclRepaired = $true
+    Write-Host 'Scoped USER Allow removal verified. Existing service task and DB have not been changed.'
+}
+foreach ($p in @($root,$bridge,$code,$launcher,(Join-Path $bridge '.secrets'),(Join-Path $bridge '.secrets\sandbox'),$secret,(Join-Path $bridge 'run.py'),(Join-Path $bridge 'data'))) {
+    Assert-PrivatePath $p $sid
+}
+# The previous installer extracted Python after ACL normalization. Inherited ACLs
+# are acceptable only when the complete tree has exactly the same trusted identities,
+# trusted owners and no service write permission.
+$runtimeRoot = Join-Path $root 'python'
+$reviewOwner = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+$runtimeItems = [Collections.Generic.List[string]]::new()
+$runtimeRepairs = [Collections.Generic.List[string]]::new()
+$runtimePaths = [Collections.Generic.Stack[string]]::new()
+$runtimePaths.Push($runtimeRoot)
+while ($runtimePaths.Count) {
+    $runtimePath = $runtimePaths.Pop()
+    $runtimeItems.Add($runtimePath)
+    $repair = Assert-PrivatePath $runtimePath $sid $false $true $reviewOwner
+    if ($repair) { $runtimeRepairs.Add($repair) }
+    $runtimeItem = Get-Item -LiteralPath $runtimePath -Force
+    if ($runtimeItem.PSIsContainer) {
+        foreach ($child in @(Get-ChildItem -LiteralPath $runtimePath -Force)) { $runtimePaths.Push($child.FullName) }
+    }
+}
+if ($runtimeRepairs.Count -or $aclRepaired) {
+    Assert-EmbeddedRuntime $runtimeRoot (Join-Path $root 'python-3.13.17-embed-amd64.zip') $runtimeItems.ToArray()
+    Write-Host "Verified official Python runtime. $($runtimeRepairs.Count) item(s) created with the owner USER SID require trusted Administrators ownership; no permissions granted."
+}
+$signature = Get-AuthenticodeSignature -LiteralPath $python
+if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'Python Software Foundation') { throw 'Existing Python signer could not be verified.' }
+Assert-PrivatePath $data $sid $true
+Assert-PrivatePath $db $sid $true $true
+$payload = Get-BridgePayload
+$expected = '8c604ceee7419d42a4354846094f6b69a5ddb4a6'
+if ((Get-BridgeBlobSha $payload) -ne $expected) { throw 'Embedded source does not match reviewed Git blob.' }
+$oldBytes = [IO.File]::ReadAllBytes($code)
+$installed = Get-BridgeBlobSha ([Text.Encoding]::UTF8.GetString($oldBytes))
+if ($installed -notin @('ac5239c5fb104e6f0af75f64ef29dc38d5fcf5e8',$expected)) { throw 'Unrecognized installed bridge.py revision; report mismatch without editing.' }
+if ($aclRepaired) {
+    if ((Get-BridgeBlobSha ([IO.File]::ReadAllText((Join-Path $bridge 'run.py')))) -ne '39c6d17a2ddbc056a2880bff039f16e8359174d4') { throw 'Installed run.py differs from reviewed source; do not execute.' }
+    $expectedLauncher = @'
+import json
+import runpy
+import sys
+from pathlib import Path
+
+root = Path(__file__).resolve().parent
+bridge = root / "local-bridge"
+status = bridge / "data" / "sandbox" / "bridge-startup.json"
+def record(stage, error=None):
+    data = {"stage": stage}
+    if error is not None:
+        data["error_type"] = type(error).__name__
+        for attr in ("errno", "winerror", "sqlite_errorcode"):
+            value = getattr(error, attr, None)
+            if isinstance(value, int):
+                data[attr] = value
+    status.write_text(json.dumps(data), encoding="utf-8")
+
+try:
+    record("launcher_started")
+    sys.path.insert(0, str(bridge))
+    import bridge as bridge_module
+    record("bridge_imported")
+    sys.argv = [str(bridge / "run.py"), "--environment", "sandbox"]
+    runpy.run_path(sys.argv[0], run_name="__main__")
+    record("bridge_exited")
+    sys.exit(1)
+except BaseException as exc:
+    if isinstance(exc, KeyboardInterrupt):
+        raise
+    record("startup_failed", exc)
+    raise SystemExit(1) from None
+'@
+    $actualLauncher = [IO.File]::ReadAllText($launcher)
+    if (($actualLauncher -replace "\r\n","`n").TrimEnd() -cne ($expectedLauncher -replace "\r\n","`n").TrimEnd()) { throw 'Installed launcher differs from reviewed source; do not execute.' }
+}
+$rows = @([IO.File]::ReadAllLines($secret) | Where-Object { $_.StartsWith('CREATORPULSE_BRIDGE_TOKEN=') })
+if ($rows.Count -ne 1) { throw 'Existing Sandbox credential unavailable.' }
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$token = $rows[0].Substring('CREATORPULSE_BRIDGE_TOKEN='.Length).Trim()
+if ($token -notmatch '^cp_sandbox_bridge_[A-Za-z0-9_-]{32,}$') { throw 'Wrong environment credential.' }
+Wait-Bridge $token $sid $false
+if ($installed -eq $expected -and -not $runtimeRepairs.Count) {
+    try { Wait-Bridge $token $sid $true; [pscustomobject]@{state='HISTORY_READY';changed=$false;local='PONG';https='PONG';history_version=1} | ConvertTo-Json; return } catch { throw 'New code already installed but history probe failed. Inspect existing service; do not reinstall.' }
+}
+Write-Host 'Upgrade only the known Sandbox bridge.py. Stop/restart its existing scheduled task, back up the SQLite database, preserve all credentials, runtime bytes, task configuration and tunnel routes. If reported above, correct ownership only on the verified existing Python runtime. Production is untouched.'
+if (-not $approved -and (Read-Host 'Type UPGRADE to approve this scoped change') -cne 'UPGRADE') { throw 'Owner declined. No changes.' }
+$backup = Join-Path $data ('creatorpulse.pre-history.' + [guid]::NewGuid().ToString('N') + '.sqlite3')
+$codeBackup = Join-Path $bridge ('bridge.py.pre-history.' + [guid]::NewGuid().ToString('N'))
+$codeAcl = Get-Acl -LiteralPath $code
+$dbAcl = Get-Acl -LiteralPath $db
+$utf8 = [Text.UTF8Encoding]::new($false)
+$stopped = $false
+$changed = $false
+try {
+    Stop-KnownTask
+    $stopped = $true
+    if ($runtimeRepairs.Count) {
+        foreach ($item in $runtimeRepairs) { Repair-ReviewedRuntimeOwner $item $sid }
+        foreach ($item in $runtimeItems) { Assert-PrivatePath $item $sid $false $true }
+        Assert-EmbeddedRuntime $runtimeRoot (Join-Path $root 'python-3.13.17-embed-amd64.zip') $runtimeItems.ToArray()
+        Write-Host 'Verified Python runtime ownership corrected; no runtime files replaced.'
+    }
+    if ($aclRepaired) { Assert-EmbeddedRuntime $runtimeRoot (Join-Path $root 'python-3.13.17-embed-amd64.zip') $runtimeItems.ToArray() }
+    & $python -I -B -c "import sqlite3,sys; s=sqlite3.connect(sys.argv[1]); d=sqlite3.connect(sys.argv[2]); s.backup(d); assert d.execute('PRAGMA quick_check').fetchone()[0]=='ok'; d.close(); s.close()" $db $backup
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $backup -PathType Leaf)) { throw 'SQLite backup failed.' }
+    Set-Acl -LiteralPath $backup -AclObject $dbAcl
+    Assert-PrivatePath $backup $sid $true $true
+    [IO.File]::WriteAllBytes($codeBackup,$oldBytes)
+    Set-Acl -LiteralPath $codeBackup -AclObject $codeAcl
+    Assert-PrivatePath $codeBackup $sid
+    $changed = $true
+    [IO.File]::WriteAllText($code,$payload,$utf8)
+    Assert-PrivatePath $code $sid
+    if ((Get-BridgeBlobSha ([IO.File]::ReadAllText($code))) -ne $expected) { throw 'Installed source verification failed.' }
+    & $python -I -B -c "import sys; compile(open(sys.argv[1],encoding='utf-8').read(),sys.argv[1],'exec')" $code
+    if ($LASTEXITCODE -ne 0) { throw 'Updated Python source failed compilation.' }
+    Start-ScheduledTask -TaskName 'CreatorPulseBridge-Sandbox' -TaskPath '\'
+    Wait-Bridge $token $sid $true
+    [pscustomobject]@{state='HISTORY_READY';changed=$true;sqlite_backup=$backup;code_backup=$codeBackup;local='PONG';https='PONG';history_version=1} | ConvertTo-Json
+} catch {
+    # Do not replace the live database with a stale backup. Schema addition is backward compatible.
+    if ($stopped) {
+        try {
+            if ((Get-ScheduledTask -TaskName 'CreatorPulseBridge-Sandbox' -TaskPath '\').State -eq 'Running') { Stop-KnownTask }
+            if ($changed) { [IO.File]::WriteAllBytes($code,$oldBytes); Set-Acl -LiteralPath $code -AclObject $codeAcl }
+            Start-ScheduledTask -TaskName 'CreatorPulseBridge-Sandbox' -TaskPath '\'
+            Wait-Bridge $token $sid $false
+        } catch { throw 'Upgrade failed and old service recovery is not verified. Keep backups; no other changes.' }
+        throw 'Upgrade failed; old Bridge restarted and PONG verified. Existing database retained.'
+    }
+    throw 'Upgrade stopped before code replacement. Inspect known scheduled task state.'
+}
+) { $ownerAllowed += $UserSid }
+        if ($owner -notin $ownerAllowed) { throw "Unexpected owner before ACL repair: $path" }
+        $rules = @($acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]))
+        if (@($rules | Where-Object {$_.IdentityReference.Value -notin $allowed -or $_.AccessControlType -ne 'Allow'}).Count) { throw "Unexpected other ACL before repair: $path" }
+        if (@($rules | Where-Object {$_.IdentityReference.Value -eq $UserSid}).Count) { $path }
+    }
+}
 function Invoke-Storage([string]$Uri,[string]$Command,[string]$Token) {
     $r = Invoke-RestMethod -Uri $Uri -Method Post -Headers @{Authorization="Bearer $Token"} -ContentType 'application/json' -Body $Command -TimeoutSec 10 -MaximumRedirection 0
     return $r.result

@@ -58,7 +58,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $tokens = $null; $errors = $null
           $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $pwd 'integrations/hermes/windows-owner-history.ps1'),[ref]$tokens,[ref]$errors)
-          foreach ($name in @('Assert-PrivatePath','Repair-ReviewedRuntimeOwner')) {
+          foreach ($name in @('Assert-PrivatePath','Repair-ReviewedRuntimeOwner','Remove-ScopedUserAllow')) {
             $fn = $ast.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name},$false)
             . ([scriptblock]::Create($fn.Extent.Text))
           }
@@ -94,6 +94,17 @@ jobs:
             try { Assert-PrivatePath $child $sid.Value $false $true } catch { $blocked = $true }
             if (-not $blocked) { throw 'Unexpected runtime access accepted' }
             Write-Host 'Safe inherited runtime ACL fixture passed.'
+            # Simulate the exact extra explicit USER FullControl observed on PC09.
+            $acl = Get-Acl -LiteralPath $fixture
+            $userRule = [Security.AccessControl.FileSystemAccessRule]::new($current,'FullControl','ContainerInherit,ObjectInherit','None','Allow')
+            $acl.AddAccessRule($userRule)
+            Set-Acl -LiteralPath $fixture -AclObject $acl
+            $blockedUser = $false
+            try { Assert-PrivatePath $fixture $sid.Value } catch { $blockedUser = $_.Exception.Message -like '*Unexpected ACL identity/type*' }
+            if (-not $blockedUser) { throw 'Unexpected USER ACE was not blocked' }
+            Remove-ScopedUserAllow $fixture $current.Value
+            Assert-PrivatePath $fixture $sid.Value
+            Write-Host 'Exact extra USER Allow removal fixture passed; trusted access retained.'
           } finally { Remove-Item -LiteralPath $fixture -Recurse -Force }
       - name: Test deterministic recovery state machine
         shell: powershell
