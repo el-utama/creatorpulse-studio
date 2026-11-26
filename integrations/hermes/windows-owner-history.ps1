@@ -438,6 +438,11 @@ function Get-HistoryCachePath([string]$Bridge,[string]$ServiceSid) {
     $cache = @($items | Where-Object {$_.Name -eq '__pycache__'})
     if (-not $cache.Count) { return }
     if ($cache.Count -ne 1 -or -not $cache[0].PSIsContainer -or ($cache[0].Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Unexpected Python cache path; no quarantine performed.' }
+    foreach ($parent in @((Join-Path $Bridge 'data'),(Join-Path $Bridge '.secrets'))) {
+        $item = Get-Item -LiteralPath $parent -Force
+        if (-not $item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Unexpected environment parent; no cache quarantine performed.' }
+        if (@(Get-ChildItem -LiteralPath $parent -Force | Where-Object {$_.Name -ne 'sandbox'}).Count) { throw 'Other environment present; no cache quarantine performed.' }
+    }
     Assert-PrivatePath $cache[0].FullName $ServiceSid $false $true
     foreach ($entry in @(Get-ChildItem -LiteralPath $cache[0].FullName -Force)) {
         if ($entry.PSIsContainer -or ($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $entry.Name -notmatch '^[A-Za-z_][A-Za-z0-9_]*\.cpython-[0-9]{2,3}(?:\.opt-[12])?\.pyc$') { throw 'Unexpected Python cache content; no quarantine performed.' }
@@ -449,11 +454,6 @@ function Move-HistoryCache([string]$Bridge,[string]$ServiceSid) {
     # Only called after owner approval and the known Sandbox task has stopped.
     $cache = Get-HistoryCachePath $Bridge $ServiceSid
     if (-not $cache) { return }
-    foreach ($parent in @((Join-Path $Bridge 'data'),(Join-Path $Bridge '.secrets'))) {
-        $item = Get-Item -LiteralPath $parent -Force
-        if (-not $item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Unexpected environment parent; no cache quarantine performed.' }
-        if (@(Get-ChildItem -LiteralPath $parent -Force | Where-Object {$_.Name -ne 'sandbox'}).Count) { throw 'Other environment present; no cache quarantine performed.' }
-    }
     $archive = Join-Path $Bridge ('__pycache__.pre-history.' + [guid]::NewGuid().ToString('N'))
     # Same-directory atomic rename; preserve bytes and existing restrictive ACLs.
     [IO.Directory]::Move($cache,$archive)
