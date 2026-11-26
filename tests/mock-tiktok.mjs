@@ -58,6 +58,7 @@ globalThis.fetch = async (input, options) => {
     const headers = new Headers(options?.headers);
     const length=Number(headers.get('Content-Length')),bytes=options?.body;
     const valid=options?.method==='PUT'&&length>0&&bytes?.length===length&&headers.get('Content-Range')==='bytes 0-'+(length-1)+'/'+length;
+    if(valid&&Buffer.from(bytes).subarray(8).toString()==='ambiguous-transfer')throw new Error('Mock transfer lost response');
     return new Response(null,{status:valid&&(length===4||Buffer.from(bytes).subarray(4,8).toString()==='ftyp')?201:400});
   }
   return originalFetch(input,options);

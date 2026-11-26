@@ -281,6 +281,28 @@ test('local MP4 agent upload binds review to exact bytes and prevents repeat sub
  expect(again.events.filter(e=>e.action==='execution_claimed')).toHaveLength(1);
 });
 
+test('ambiguous transfer with accepted ID reconciles terminal status without retry',async ({request})=>{
+ const {createHash}=await import('node:crypto');
+ const accounts=await (await request.get('/api/gateway/v1/accounts',{headers:agent})).json();
+ const bytes=Buffer.from('0000ftypambiguous-transfer');
+ const localMedia={name:'mock_transfer.mp4',size:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')};
+ const base='/api/gateway/v1/posts';
+ const data={requestId:crypto.randomUUID(),accountId:accounts.accounts[0].id,localMedia,caption:'Transfer reconciliation fixture',mode:'inbox'};
+ const url=base+'/'+data.requestId;
+ const binary={...agent,'Content-Type':'video/mp4'};
+ expect((await request.post(base,{headers:agent,data})).status()).toBe(201);
+ expect((await request.post(url+'/approve',{headers:operator,data:{...data,videoUrl:'',confirm:true,mediaSha256:localMedia.sha256}})).status()).toBe(200);
+ const sent=await (await request.post(url+'/execute-file',{headers:binary,data:bytes})).json();
+ expect(sent.state).toBe('uncertain');expect(sent.publishId).toMatch(/^server-inbox-/);
+ expect((await request.post(url+'/execute-file',{headers:binary,data:bytes})).status()).toBe(409);
+ const status=await (await request.post(url+'/status',{headers:agent})).json();
+ expect(status.state).toBe('submitted');expect(status.status).toBe('PUBLISH_COMPLETE');expect(status.statusSource).toBe('tiktok');expect(status.publishId).toBe(sent.publishId);
+ expect(status.events.filter(e=>e.action==='execution_claimed')).toHaveLength(1);
+ expect(status.events.filter(e=>e.action==='upload_initialized')).toHaveLength(1);
+ expect((await request.post(url+'/archive',{headers:operator})).status()).toBe(200);
+ expect((await request.post(url+'/execute-file',{headers:binary,data:bytes})).status()).toBe(409);
+});
+
 test('terminal archival frees active queue but never permits reusing an executed id',async ({request})=>{
  const accounts=await (await request.get('/api/gateway/v1/accounts',{headers:agent})).json();const accountId=accounts.accounts[0].id;
  const base='/api/gateway/v1/posts',data={requestId:crypto.randomUUID(),accountId,videoUrl:'https://example.com/archive.mp4',caption:'Archive',mode:'inbox'};

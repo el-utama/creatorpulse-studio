@@ -82,8 +82,8 @@ export async function execute(id:string,video?:Uint8Array){
   requireLocalSandbox();
   if(!video||video.length!==post.localMedia.size||Buffer.from(video.subarray(4,8)).toString("ascii")!=="ftyp"||createHash("sha256").update(video).digest("hex")!==post.localMedia.sha256)throw new GatewayError(400,"Local video does not match the reviewed file.");
  }else if(video!==undefined)throw new GatewayError(400,"This draft requires an HTTPS URL, not file bytes.");
- if(post.state==="submitted")return post;
  if(archived)throw new GatewayError(409,"Rencana telah diarsipkan.");
+ if(post.state==="submitted")return post;
  if(post.state!=="approved"||(post.approvedUntil||0)<=Date.now())throw new GatewayError(409,"Persetujuan tidak tersedia atau kedaluwarsa. Jangan mengulang permintaan yang belum pasti.");
  const token=await vaultToken(post.accountId),{account}=await loadAccount(post.accountId);
  const identity=await profileIdentity(token);
@@ -124,8 +124,11 @@ export async function checkStatus(id:string){
  // Do not race the in-flight transfer. A stale sending record with an accepted ID is recoverable by status only.
  if(post.state==="sending"&&Date.now()-Date.parse(post.updatedAt)<120000)return {...post,statusSource:"stored" as const};
  const result=await readAccount(post.accountId,t=>fetchPublishStatus(t,post.publishId!));
- if(post.state!=="sending"&&post.status===result.status&&post.error===(result.status==="FAILED"?explainFailure(result.fail_reason):undefined))return {...post,statusSource:"tiktok" as const};
- return {...await change(post,raw,{...(post.state==="sending"?{state:"uncertain" as const}:{}),status:result.status,error:result.status==="FAILED"?explainFailure(result.fail_reason):undefined},"status_checked","agent"),statusSource:"tiktok" as const};
+ const terminal=["PUBLISH_COMPLETE","FAILED","SEND_TO_USER_INBOX"].includes(result.status);
+ const state:State=terminal?"submitted":post.state==="sending"?"uncertain":post.state;
+ const error=result.status==="FAILED"?explainFailure(result.fail_reason):undefined;
+ if(post.state===state&&post.status===result.status&&post.error===error)return {...post,statusSource:"tiktok" as const};
+ return {...await change(post,raw,{state,status:result.status,error},"status_checked","agent"),statusSource:"tiktok" as const};
 }
 
 export async function archive(id:string){
