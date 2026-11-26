@@ -227,6 +227,7 @@ def execute():
                 return result("OWNER_HELPER_SYNTAX_FAILED",commit=commit)
             return result("OWNER_HISTORY_UPGRADE",commit=commit,owner_script=str(helper),
                           sha256=hashlib.sha256(helper.read_bytes()).hexdigest(),
+                          account_count=gateway.get("accounts"),
                           action="Open the exact reviewed helper location. Owner checks Verify and Windows CI for this revision, independently stages in an administrator-controlled directory, then runs elevated with no arguments and approves UPGRADE. No Hermes elevation or secret access. Resume same controller afterward.")
         if capability["history_version"] != 1:
             return result("HISTORY_CAPABILITY_UNVERIFIED",commit=commit)

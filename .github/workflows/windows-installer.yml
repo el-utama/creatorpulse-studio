@@ -106,6 +106,75 @@ jobs:
             Assert-PrivatePath $fixture $sid.Value
             Write-Host 'Exact extra USER Allow removal fixture passed; trusted access retained.'
           } finally { Remove-Item -LiteralPath $fixture -Recurse -Force }
+      - name: Exercise actual history ACL gate on disposable Sandbox tree
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tokens = $null; $errors = $null
+          $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $pwd 'integrations/hermes/windows-owner-history.ps1'),[ref]$tokens,[ref]$errors)
+          if ($errors.Count) { throw 'History updater parse failed' }
+          # A helper tested in isolation is not sufficient. Assert the real top-level
+          # call is present, exactly once, before the first strict ACL validation.
+          $statements = @($ast.EndBlock.Statements)
+          $calls = @($statements | Where-Object { $_ -is [System.Management.Automation.Language.AssignmentStatementAst] -and $_.Extent.Text -eq '$aclRepaired = Invoke-HistoryAclGate $root $userSid $sid' })
+          $strict = @($statements | Where-Object { $_ -is [System.Management.Automation.Language.ForEachStatementAst] -and $_.Extent.Text -match 'Assert-PrivatePath \$p \$sid' })
+          if ($calls.Count -ne 1 -or $strict.Count -ne 1 -or $calls[0].Extent.StartOffset -ge $strict[0].Extent.StartOffset) { throw 'Actual history entry point does not invoke ACL repair before strict checks' }
+          foreach ($name in @('Assert-PrivatePath','Get-ScopedPaths','Remove-ScopedUserAllow','Get-SandboxUserAllowPaths','Invoke-HistoryAclGate')) {
+            $fn = $ast.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name},$false)
+            if (-not $fn) { throw "Missing function: $name" }
+            . ([scriptblock]::Create($fn.Extent.Text))
+          }
+          $installer = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $pwd 'integrations/hermes/windows-owner-start.ps1'),[ref]$tokens,[ref]$errors)
+          $fn = $installer.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Set-BridgeItemAcl'},$false)
+          . ([scriptblock]::Create($fn.Extent.Text))
+          $base = Join-Path $env:RUNNER_TEMP ('history-flow-' + [guid]::NewGuid())
+          $root = Join-Path $base 'CreatorPulseBridge'
+          try {
+            $null = New-Item -ItemType Directory -Path $root
+            foreach ($relative in @('python','local-bridge\data\sandbox','local-bridge\.secrets\sandbox')) {
+              $null = New-Item -ItemType Directory -Force -Path (Join-Path $root $relative)
+            }
+            foreach ($relative in @('sandbox-launcher.py','local-bridge\bridge.py','local-bridge\run.py','python-3.13.17-embed-amd64.zip','python\python.exe','local-bridge\data\sandbox\creatorpulse.sqlite3','local-bridge\.secrets\sandbox\bridge.env')) {
+              Set-Content -LiteralPath (Join-Path $root $relative) -Value 'fixture-only'
+            }
+            $service = [Security.Principal.SecurityIdentifier]::new('S-1-5-32-545')
+            $sid = $service.Value
+            $user = [Security.Principal.WindowsIdentity]::GetCurrent().User
+            $userSid = $user.Value
+            $data = Join-Path $root 'local-bridge\data\sandbox'
+            foreach ($path in @(Get-ScopedPaths $root)) {
+              $rights = if ($path -eq $data -or $path.StartsWith($data+'\')) {'Modify'} else {'ReadAndExecute'}
+              Set-BridgeItemAcl (Get-Item -LiteralPath $path) $service $rights
+            }
+            $acl = Get-Acl -LiteralPath $root
+            $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($user,'FullControl','ContainerInherit,ObjectInherit','None','Allow'))
+            Set-Acl -LiteralPath $root -AclObject $acl
+            $child = Join-Path $root 'local-bridge\bridge.py'
+            $acl = Get-Acl -LiteralPath $child
+            $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($user,'FullControl','Allow'))
+            Set-Acl -LiteralPath $child -AclObject $acl
+            $before = (Get-Acl -LiteralPath $root).Sddl
+            function Read-Host { 'DECLINE' }
+            $declined = $false
+            try { $null = Invoke-HistoryAclGate $root $userSid $sid } catch { $declined = $_.Exception.Message -like '*Owner declined*' }
+            if (-not $declined -or (Get-Acl -LiteralPath $root).Sddl -cne $before) { throw 'Declining repair modified ACL or did not stop' }
+            # Production guard must stop before touching ACL.
+            $prod = Join-Path $root 'local-bridge\data\production'
+            $null = New-Item -ItemType Directory -Path $prod
+            function Read-Host { 'UPGRADE' }
+            $blocked = $false
+            try { $null = Invoke-HistoryAclGate $root $userSid $sid } catch { $blocked = $_.Exception.Message -like '*Other environment*' }
+            if (-not $blocked -or (Get-Acl -LiteralPath $root).Sddl -cne $before) { throw 'Production isolation guard failed' }
+            Remove-Item -LiteralPath $prod
+            # Execute exactly the same assignment AST used in the real updater.
+            . ([scriptblock]::Create($calls[0].Extent.Text))
+            if ($aclRepaired -ne $true) { throw 'Actual entry point did not repair USER ACL' }
+            Assert-PrivatePath $root $sid
+            Assert-PrivatePath $child $sid
+            if ((Get-Content -LiteralPath $child -Raw).Trim() -ne 'fixture-only') { throw 'Code content changed during ACL repair' }
+            if ((Invoke-HistoryAclGate $root $userSid $sid) -ne $false) { throw 'Clean retry was not idempotent' }
+            Write-Host 'Actual history entry point: owner decline, Production guard, scoped ACL repair and clean retry passed.'
+          } finally { Remove-Item -LiteralPath $base -Recurse -Force }
       - name: Test deterministic recovery state machine
         shell: powershell
         run: |
