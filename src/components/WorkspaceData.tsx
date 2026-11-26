@@ -26,7 +26,7 @@ export function WorkspaceData({view,onNavigate,disabled,revision,onActive,onLoad
  const sharedGeneration=useRef(0);
  const sharedReady=sharedData.key===sharedKey&&sharedData.revision===revision;
  const sharedLoading=sharedDirectory.length>0&&!sharedReady;
- const sharedRows=sharedReady?sharedData.rows:sharedDirectory.map(a=>({...a,shared:true,videos:[],cursor:null}));
+ const sharedRows:Entry[]=sharedReady?sharedData.rows:sharedDirectory.map(a=>({...a,shared:true,videos:[],cursor:null}));
  const sharedSlots=new Set(sharedDirectory.map(a=>a.slot));
  const workspaceRows=[...browserRows.filter(a=>!sharedSlots.has(a.slot)),...sharedRows];
  const rows=view==="accounts"?browserRows:workspaceRows;
