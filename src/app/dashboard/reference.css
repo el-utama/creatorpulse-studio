@@ -204,3 +204,7 @@
  .r1 .r1-bottomnav button{font-size:10px}
  .r1 .r1-main .r1-queue-mobile-row .r1-bottom{padding-left:0}
 }
+
+/* Visual re-audit: tablet review should remain a readable dialog, not a full-width sheet. */
+@media(min-width:640px){.r1 .r1-review-dialog{width:min(700px,calc(100% - 32px));max-height:90dvh}}
+@media(max-width:1024px){html:has(.r1){scroll-padding-top:70px;scroll-padding-bottom:calc(78px + env(safe-area-inset-bottom,0px))}.r1 .r1-main :is(button,a,input,select,textarea){scroll-margin-block:12px}}
