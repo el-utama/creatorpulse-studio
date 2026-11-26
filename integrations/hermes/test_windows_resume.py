@@ -94,6 +94,19 @@ class RuntimeTests(unittest.TestCase):
             self.assertEqual(sys.path,before)
 
 
+class ResearchReadTests(unittest.TestCase):
+    def test_actual_read_probe_and_fail_closed(self):
+        from windows_resume import check_research_read
+        payload=dict(region="ID",days=7,provenance="agent_submitted_unverified",observations=[])
+        with patch("windows_resume.rpc_batch",return_value=[payload]) as rpc:
+            self.assertEqual(check_research_read(["fixture"]),dict(state="passed",region="ID",days=7,observations=0))
+            rpc.assert_called_once_with(["fixture"],[("list_trends",{"region":"ID","days":7})])
+            rpc.return_value=[{**payload,"region":"US"}]
+            self.assertEqual(check_research_read([])["state"],"unverified")
+            rpc.side_effect=ValueError("private")
+            self.assertEqual(check_research_read([])["state"],"unverified")
+
+
 class ValidationReportTests(unittest.TestCase):
     def test_reports_only_after_cli_passes(self):
         from windows_resume import finish_validation
