@@ -28,7 +28,7 @@ export async function saveAccount(input:Omit<VaultAccount,"epoch">,expectedEpoch
  });
  return a.epoch;
 }
-// Enrollment is create-only. A separately authenticated browser may bind to an
+// Enrollment is create-only. A separately authenticated browser may observe an
 // existing enrollment, but cannot replace its tokens or invalidate its epoch.
 export async function enrollAccount(input:Omit<VaultAccount,"epoch">){
  if(!validSlot(input.slot)||slotForId(input.openId)!==input.slot||!input.access)throw new GatewayError(400,"Akun atau token tidak lengkap.");
