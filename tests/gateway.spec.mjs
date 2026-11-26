@@ -136,7 +136,7 @@ test('enroll and monitor without browser, separate credentials and sourced trend
  const saved=await firstTrend.json();expect(saved.duplicate).toBe(false);
  const repeated=await request.post('/api/gateway/v1/trends',{headers:agent,data:{...observation,topic:'  EXAMPLE   trend ',sourceUrl:observation.sourceUrl+'#anchor',evidence:'New wording, same source and day'}});
  expect(repeated.status()).toBe(200);
- const duplicate=await repeated.json();expect(duplicate.duplicate).toBe(true);expect(duplicate.observation.id).toBe(saved.observation.id);expect(duplicate.observation.evidence).toBe(observation.evidence);
+ const repeatedTrend=await repeated.json();expect(repeatedTrend.duplicate).toBe(true);expect(repeatedTrend.observation.id).toBe(saved.observation.id);expect(repeatedTrend.observation.evidence).toBe(observation.evidence);
  const concurrent={...observation,topic:'Concurrent trend fixture'};
  const results=await Promise.all([1,2].map(()=>request.post('/api/gateway/v1/trends',{headers:agent,data:concurrent})));
  expect(results.filter(r=>r.status()===201)).toHaveLength(1);
