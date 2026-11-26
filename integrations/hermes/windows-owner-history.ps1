@@ -426,6 +426,43 @@ function Invoke-HistoryAclGate([string]$Root,[string]$UserSid,[string]$ServiceSi
     Write-Host 'Scoped USER Allow removal verified. Service task and database have not been changed.'
     return $true
 }
+# -B suppresses bytecode writes, not reads. Never trust old cache bytes.
+function Get-HistoryCachePath([string]$Bridge,[string]$ServiceSid) {
+    Assert-PrivatePath $Bridge $ServiceSid
+    $items = @(Get-ChildItem -LiteralPath $Bridge -Force)
+    foreach ($item in $items) {
+        if ($item.Name -in @('bridge','bridge.pyc') -or $item.Name -match '(?i)^bridge(?:\..+)?\.pyd$') {
+            throw "Unexpected Python import shadow: $($item.Name)"
+        }
+    }
+    $cache = @($items | Where-Object {$_.Name -eq '__pycache__'})
+    if (-not $cache.Count) { return }
+    if ($cache.Count -ne 1 -or -not $cache[0].PSIsContainer -or ($cache[0].Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Unexpected Python cache path; no quarantine performed.' }
+    Assert-PrivatePath $cache[0].FullName $ServiceSid $false $true
+    foreach ($entry in @(Get-ChildItem -LiteralPath $cache[0].FullName -Force)) {
+        if ($entry.PSIsContainer -or ($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $entry.Name -notmatch '^[A-Za-z_][A-Za-z0-9_]*\.cpython-[0-9]{2,3}(?:\.opt-[12])?\.pyc$') { throw 'Unexpected Python cache content; no quarantine performed.' }
+        Assert-PrivatePath $entry.FullName $ServiceSid $false $true
+    }
+    return $cache[0].FullName
+}
+function Move-HistoryCache([string]$Bridge,[string]$ServiceSid) {
+    # Only called after owner approval and the known Sandbox task has stopped.
+    $cache = Get-HistoryCachePath $Bridge $ServiceSid
+    if (-not $cache) { return }
+    foreach ($parent in @((Join-Path $Bridge 'data'),(Join-Path $Bridge '.secrets'))) {
+        $item = Get-Item -LiteralPath $parent -Force
+        if (-not $item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Unexpected environment parent; no cache quarantine performed.' }
+        if (@(Get-ChildItem -LiteralPath $parent -Force | Where-Object {$_.Name -ne 'sandbox'}).Count) { throw 'Other environment present; no cache quarantine performed.' }
+    }
+    $archive = Join-Path $Bridge ('__pycache__.pre-history.' + [guid]::NewGuid().ToString('N'))
+    # Same-directory atomic rename; preserve bytes and existing restrictive ACLs.
+    [IO.Directory]::Move($cache,$archive)
+    Assert-PrivatePath $archive $ServiceSid $false $true
+    foreach ($entry in @(Get-ChildItem -LiteralPath $archive -Force)) { Assert-PrivatePath $entry.FullName $ServiceSid $false $true }
+    if (Get-HistoryCachePath $Bridge $ServiceSid) { throw 'Active Python cache remains after quarantine.' }
+    Write-Host 'Legacy Python bytecode cache quarantined; no cached code will be restored.'
+    return $archive
+}
 function Invoke-Storage([string]$Uri,[string]$Command,[string]$Token) {
     $r = Invoke-RestMethod -Uri $Uri -Method Post -Headers @{Authorization="Bearer $Token"} -ContentType 'application/json' -Body $Command -TimeoutSec 10 -MaximumRedirection 0
     return $r.result
@@ -553,16 +590,15 @@ except BaseException as exc:
 '@
 $actualLauncher = [IO.File]::ReadAllText($launcher)
 if (($actualLauncher -replace "\r\n","`n").TrimEnd() -cne ($expectedLauncher -replace "\r\n","`n").TrimEnd()) { throw 'Installed launcher differs from reviewed source; do not execute.' }
-foreach ($shadow in @('bridge','bridge.pyc','__pycache__')) {
-    if (Test-Path -LiteralPath (Join-Path $bridge $shadow)) { throw "Unexpected Python import shadow or bytecode cache: $shadow" }
-}
+$legacyCache = Get-HistoryCachePath $bridge $sid
+if ($legacyCache) { Write-Host 'Legacy Python cache detected. With owner approval it will be quarantined after the known Sandbox task stops; cache bytes are not trusted.' }
 $rows = @([IO.File]::ReadAllLines($secret) | Where-Object { $_.StartsWith('CREATORPULSE_BRIDGE_TOKEN=') })
 if ($rows.Count -ne 1) { throw 'Existing Sandbox credential unavailable.' }
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $token = $rows[0].Substring('CREATORPULSE_BRIDGE_TOKEN='.Length).Trim()
 if ($token -notmatch '^cp_sandbox_bridge_[A-Za-z0-9_-]{32,}$') { throw 'Wrong environment credential.' }
 Wait-Bridge $token $sid $false
-if ($installed -eq $expected -and -not $runtimeRepairs.Count) {
+if ($installed -eq $expected -and -not $runtimeRepairs.Count -and -not $legacyCache) {
     try { Wait-Bridge $token $sid $true; [pscustomobject]@{state='HISTORY_READY';changed=$false;local='PONG';https='PONG';history_version=1} | ConvertTo-Json; return } catch { throw 'New code already installed but history probe failed. Inspect existing service; do not reinstall.' }
 }
 Write-Host 'Upgrade only the known Sandbox bridge.py. Stop/restart its existing scheduled task, back up the SQLite database, preserve all credentials, runtime bytes, task configuration and tunnel routes. If reported above, correct ownership only on the verified existing Python runtime. Production is untouched.'
@@ -577,6 +613,7 @@ $changed = $false
 try {
     Stop-KnownTask
     $stopped = $true
+    $cacheArchive = Move-HistoryCache $bridge $sid
     if ($runtimeRepairs.Count) {
         foreach ($item in $runtimeRepairs) { Repair-ReviewedRuntimeOwner $item $sid }
         foreach ($item in $runtimeItems) { Assert-PrivatePath $item $sid $false $true }
@@ -597,15 +634,17 @@ try {
     if ((Get-BridgeBlobSha ([IO.File]::ReadAllText($code))) -ne $expected) { throw 'Installed source verification failed.' }
     & $python -I -B -c "import sys; compile(open(sys.argv[1],encoding='utf-8').read(),sys.argv[1],'exec')" $code
     if ($LASTEXITCODE -ne 0) { throw 'Updated Python source failed compilation.' }
+    if (Get-HistoryCachePath $bridge $sid) { throw 'Active Python cache unexpectedly present before restart.' }
     Start-ScheduledTask -TaskName 'CreatorPulseBridge-Sandbox' -TaskPath '\'
     Wait-Bridge $token $sid $true
-    [pscustomobject]@{state='HISTORY_READY';changed=$true;sqlite_backup=$backup;code_backup=$codeBackup;local='PONG';https='PONG';history_version=1} | ConvertTo-Json
+    [pscustomobject]@{state='HISTORY_READY';changed=$true;sqlite_backup=$backup;code_backup=$codeBackup;cache_archive=$cacheArchive;local='PONG';https='PONG';history_version=1} | ConvertTo-Json
 } catch {
     # Do not replace the live database with a stale backup. Schema addition is backward compatible.
     if ($stopped) {
         try {
             if ((Get-ScheduledTask -TaskName 'CreatorPulseBridge-Sandbox' -TaskPath '\').State -eq 'Running') { Stop-KnownTask }
             if ($changed) { [IO.File]::WriteAllBytes($code,$oldBytes); Set-Acl -LiteralPath $code -AclObject $codeAcl }
+            if (Get-HistoryCachePath $bridge $sid) { throw 'Unsafe cache still active; refusing to restart from unreviewed bytecode.' }
             Start-ScheduledTask -TaskName 'CreatorPulseBridge-Sandbox' -TaskPath '\'
             Wait-Bridge $token $sid $false
         } catch { throw 'Upgrade failed and old service recovery is not verified. Keep backups; no other changes.' }
