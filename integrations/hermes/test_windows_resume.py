@@ -46,6 +46,54 @@ class Gates(unittest.TestCase):
         with self.assertRaises(ValueError):
             account_id({"accounts":[]})
 
+class RuntimeTests(unittest.TestCase):
+    def test_prefer_machine_git_and_reject_windowsapps_alias(self):
+        from windows_resume import git_executable
+        with patch("windows_resume.Path.is_file", return_value=True), patch("windows_resume.shutil.which") as which:
+            self.assertEqual(git_executable(),r"C:\Program Files\Git\cmd\git.exe")
+            which.assert_not_called()
+        # Use slash separators for a portable fixture; actual Windows Path uses native separators.
+        with patch("windows_resume.Path.is_file", return_value=False), patch("windows_resume.shutil.which",return_value="C:/Program Files/WindowsApps/package/git.exe"):
+            self.assertIsNone(git_executable())
+        with patch("windows_resume.Path.is_file", return_value=False), patch("windows_resume.shutil.which",return_value="C:/Tools/Git/bin/git.exe"):
+            self.assertEqual(git_executable(),"C:/Tools/Git/bin/git.exe")
+
+    def test_checkout_uses_explicit_git_and_requires_clean_matching_branch(self):
+        from windows_resume import checked_git
+        from types import SimpleNamespace
+        git="fixture-git"
+        with patch("windows_resume.run") as run:
+            run.side_effect=[SimpleNamespace(returncode=0,stdout=x) for x in ("sandbox","","a"*40,"a"*40)]
+            self.assertEqual(checked_git(git),"a"*40)
+            self.assertEqual(run.call_count,4)
+            self.assertTrue(all(c.args[0][0]==git for c in run.call_args_list))
+            run.side_effect=[SimpleNamespace(returncode=0,stdout=x) for x in ("sandbox"," M changed","a"*40,"a"*40)]
+            self.assertIsNone(checked_git(git))
+
+    def test_reuse_existing_isolated_yaml_without_path_mutation(self):
+        import sys
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        from windows_resume import controller_yaml
+        with TemporaryDirectory() as directory, patch.dict("os.environ",{"LOCALAPPDATA":directory}):
+            lib=Path(directory)/"hermes"/"cache"/"scratch"/"pyyaml-lib"
+            before=list(sys.path)
+            loader=Mock(side_effect=ValueError("missing"))
+            self.assertIsNone(controller_yaml(SimpleNamespace(load_yaml=loader)))
+            self.assertEqual(loader.call_count,1)
+            (lib/"yaml").mkdir(parents=True)
+            (lib/"yaml"/"__init__.py").touch()
+            sentinel=object()
+            def load():
+                if str(lib) not in sys.path:
+                    raise ValueError("missing")
+                return sentinel
+            self.assertIs(controller_yaml(SimpleNamespace(load_yaml=load)),sentinel)
+            self.assertEqual(sys.path,before)
+            self.assertIsNone(controller_yaml(SimpleNamespace(load_yaml=Mock(side_effect=ValueError("missing")))))
+            self.assertEqual(sys.path,before)
+
+
 class ValidationReportTests(unittest.TestCase):
     def test_reports_only_after_cli_passes(self):
         from windows_resume import finish_validation
