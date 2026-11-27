@@ -229,3 +229,23 @@ test('empty and unavailable libraries remain distinct; scope cannot change compo
  await expect(page.getByLabel('Workspace account')).toHaveValue(gamma.slot);
  expect(accountWrites).toBe(0);
 });
+
+
+test('operate redesign prioritizes actions and groups performance without decorative cards',async({page,context,browserName})=>{
+ const {accounts}=await installWorkspaceFixture(page,context,{stress:true});
+ await page.setViewportSize({width:1440,height:900});await page.goto('/dashboard');
+ await nav(page,'AI Agent').click();await page.getByLabel('Kunci operator',{exact:true}).fill('fixture-operator');await page.getByRole('button',{name:'Buka akses'}).click();
+ await expect(page.getByText('Bridge data loaded',{exact:true})).toBeVisible();await nav(page,'Overview').click();
+ for(const width of [1440,1280,900,390,320]){
+  await page.setViewportSize({width,height:900});
+  const actions=page.locator('.cp-action-center');const summary=page.getByRole('region',{name:'Performance summary'});
+  await expect(actions).toBeVisible();await expect(summary).toBeVisible();
+  expect((await actions.boundingBox()).y).toBeLessThan((await summary.boundingBox()).y);
+  await expect(summary.locator('.r1-metric')).toHaveCount(4);await expect(summary.locator('.r1-metric-icon')).toHaveCount(0);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  await page.screenshot({path:'engine-test-results/'+browserName+'-operate-overview-'+width+'.png'});
+ }
+ await page.setViewportSize({width:1440,height:900});
+ const account=page.getByRole('button',{name:'Select shared account '+accounts[1].name,exact:true});await account.click();await expect(account).toHaveAttribute('aria-pressed','true');await expect(page.getByLabel('Workspace account')).toHaveValue(accounts[1].slot);
+ await expect(page.getByRole('heading',{level:1,name:'Overview',exact:true})).toBeVisible();
+});

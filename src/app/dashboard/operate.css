@@ -1,0 +1,52 @@
+/* Operate redesign: first coherent surface; legacy component geometry remains in reference.css until migrated. */
+.r1.cp-operate{--bg:#f7f8fa;--paper:#fff;--ink:#17243a;--muted:#526176;--soft:#526176;--line:#e0e4eb;--accent:#4338b7;--accent-soft:#ecebfa;--shadow:none;--radius-panel:10px;--sidebar:224px;--topbar:56px;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.r1.cp-operate .r1-sidebar{background:#f4f5f8;padding:22px 12px 14px}
+.r1.cp-operate .r1-brandmark{box-shadow:none;background:var(--ink);border-radius:8px}
+.r1.cp-operate .r1-brandtag{font-size:12px;letter-spacing:0;text-transform:none}
+.r1.cp-operate .r1-navlabel{text-transform:none;letter-spacing:0;font-weight:600;font-size:12px}
+.r1.cp-operate .r1-nav button{font-weight:500;color:var(--muted)}
+.r1.cp-operate .r1-nav button.r1-active{font-weight:650;color:var(--accent)}
+.r1.cp-operate .r1-nav button.r1-active:after{display:none}
+.r1.cp-operate .r1-side-accounts{margin-top:20px;padding-top:16px}
+.r1.cp-operate .r1-side-accounts button{min-height:40px;font-size:13px}
+.r1.cp-operate .r1-side-accounts .r1-navlabel{padding-block:10px 5px}
+.r1.cp-operate .r1-side-footer{padding-top:16px}
+.r1.cp-operate .r1-operator{border-left:0;padding-left:0}
+.r1.cp-operate .r1-page-head{margin-bottom:16px}
+.r1.cp-operate .r1-page-head h1{font-weight:660;letter-spacing:-.025em}
+.r1.cp-operate .r1-panel{border-radius:10px;box-shadow:none}
+.r1.cp-operate .r1-btn{box-shadow:none;border-radius:8px}
+.r1.cp-operate .r1-btn.r1-primary:hover{background:#332b99;border-color:#332b99}
+.r1.cp-operate .r1-panel-head h2{font-size:16px;font-weight:650;letter-spacing:-.015em}
+.r1.cp-operate .r1-scope{margin-bottom:12px}
+.r1.cp-operate .cp-read-note{margin:0 0 16px}
+.r1.cp-operate .cp-overview{display:grid;gap:20px;min-width:0}
+.r1.cp-operate .cp-action-center{min-width:0}
+.r1.cp-operate .cp-action-center .r1-panel-head{padding-block:14px;border-bottom:1px solid var(--line)}
+.r1.cp-operate .cp-action-center .r1-attention{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:0;gap:0}
+.r1.cp-operate .cp-action-center .r1-attention-row{min-height:72px;padding:12px 16px;gap:10px;border:0;border-right:1px solid var(--line);border-bottom:1px solid var(--line);min-width:0;text-align:left}
+.r1.cp-operate .cp-action-center .r1-attention-row:last-child{border-right:0}
+.r1.cp-operate .cp-action-center .r1-issue-icon{background:transparent;border-radius:0;width:24px;height:24px}
+.r1.cp-operate .cp-action-center .r1-row-title{font-weight:650}
+.r1.cp-operate .cp-action-center .r1-row-detail{font-size:12px;overflow-wrap:anywhere}
+.r1.cp-operate .cp-action-center .r1-count{font-size:19px;font-weight:650;white-space:nowrap}
+.r1.cp-operate .cp-action-center .r1-attention-row:hover{background:#f8f9fc}
+.r1.cp-operate .cp-metrics{overflow:hidden}
+.r1.cp-operate .cp-metrics .r1-metric-grid{gap:0;margin:0;grid-template-columns:repeat(4,minmax(0,1fr))}
+.r1.cp-operate .cp-metrics .r1-metric{padding:16px 20px;gap:6px;min-height:100px;border-right:1px solid var(--line)}
+.r1.cp-operate .cp-metrics .r1-metric:last-child{border-right:0}
+.r1.cp-operate .cp-metrics .r1-metric-top{font-size:13px;font-weight:550}
+.r1.cp-operate .cp-metrics .r1-metric-value{font-size:28px;font-weight:640;letter-spacing:-.025em}
+.r1.cp-operate .cp-metrics .r1-metric-note{font-size:12px;line-height:1.4}
+.r1.cp-operate .cp-account-performance.r1-dashboard-grid{display:block;margin:0}
+.r1.cp-operate .cp-account-performance .r1-performance-table th:nth-child(2){width:110px}
+.r1.cp-operate .cp-account-performance .r1-performance-table th:nth-child(3){width:144px}
+.r1.cp-operate .cp-account-performance .r1-performance-table th:nth-child(4){width:105px}
+.r1.cp-operate .cp-activity{margin:0}
+.r1.cp-operate .r1-main .r1-crumb{font-size:13px}
+.r1.cp-operate ::selection{background:var(--accent-soft);color:var(--ink)}
+@media(min-width:1280px){.r1.cp-operate .cp-action-center .r1-attention-row:nth-child(3n){border-right:0}}
+@media(min-width:1025px) and (max-width:1279px){.r1.cp-operate{--sidebar:196px}.r1.cp-operate .r1-sidebar{padding-inline:10px}}
+@media(max-width:1024px){.r1.cp-operate .r1-topbar{height:56px}.r1.cp-operate .r1-main{padding-top:18px}.r1.cp-operate .cp-overview{gap:16px}.r1.cp-operate .cp-action-center .r1-attention{grid-template-columns:repeat(2,minmax(0,1fr))}.r1.cp-operate .cp-action-center .r1-attention-row{min-height:70px}}
+@media(max-width:639px){.r1.cp-operate .cp-action-center .r1-attention{grid-template-columns:minmax(0,1fr)}.r1.cp-operate .cp-action-center .r1-attention-row{border-right:0;padding:10px 12px;min-height:58px}.r1.cp-operate .cp-action-center .r1-attention-row:last-child{border-bottom:0}.r1.cp-operate .cp-metrics .r1-metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.r1.cp-operate .cp-metrics .r1-metric{padding:12px;min-height:95px}.r1.cp-operate .cp-metrics .r1-metric:nth-child(2n){border-right:0}.r1.cp-operate .cp-metrics .r1-metric:nth-child(-n+2){border-bottom:1px solid var(--line)}.r1.cp-operate .cp-metrics .r1-metric-value{font-size:25px}.r1.cp-operate .cp-read-note{font-size:12px;margin-bottom:12px}}
+@media(max-width:350px){.r1.cp-operate .cp-metrics .r1-metric{padding:10px}.r1.cp-operate .cp-action-center .r1-attention-row{padding-inline:10px;gap:8px}.r1.cp-operate .cp-action-center .r1-row-detail{font-size:12px}}
