@@ -162,7 +162,6 @@ export default function DashboardPage() {
   const needsReview=scopedPosts?.filter(p=>p.state==="draft"||(p.state==="approved"&&(p.approvedUntil||0)<Date.now())).length;
   const descriptions:Record<string,string>={analytics:"Performance and next actions",accounts:"Manage account access",content:"Public video library",publish:"Review and track publications",status:"Publication history",review:"Drafts awaiting approval",agent:"Integration and research",compose:"Select a target and prepare your video"};
   return <div className="r1 cp-production">
-    <a className="cp-skip" href="#main-content">Skip to content</a>
     <header className="r1-topbar cp-masthead">
       <div className="cp-masthead-inner">{brand}
         <nav aria-label="Workspace navigation" className="cp-primary-nav">{navButtons(false)}</nav>

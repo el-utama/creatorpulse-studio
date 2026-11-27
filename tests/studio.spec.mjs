@@ -296,7 +296,7 @@ test('navigation highlights exactly the current tab immediately and mobile edito
  const state=await page.getByRole('navigation',{name:'Workspace navigation'}).getByRole('button').evaluateAll(els=>els.map(el=>({selected:el.getAttribute('aria-current'),color:getComputedStyle(el).backgroundColor})));
  expect(state.filter(x=>x.selected==='page')).toHaveLength(1);expect(state.filter(x=>x.selected!== 'page').every(x=>x.color==='rgba(0, 0, 0, 0)')).toBe(true);expect(state.find(x=>x.selected==='page').color).not.toBe('rgba(0, 0, 0, 0)');
  await page.setViewportSize({width:390,height:844});await compose(page);
- const editor=page.getByRole('heading',{name:'Post details',exact:true});await expect(editor).toBeVisible();await expect(page.getByRole('heading',{name:'Target account',exact:true})).toBeVisible();
+ const editor=page.getByRole('heading',{name:'Create a post',exact:true});await expect(editor).toBeVisible();await expect(page.getByRole('heading',{name:'Target account',exact:true})).toBeVisible();
 });
 
 test('mobile dashboard has compact toolbar, native bottom navigation and readable input sizes',async({page,context})=>{
@@ -310,7 +310,7 @@ test('mobile dashboard has compact toolbar, native bottom navigation and readabl
   const heading=page.getByRole('heading',{level:1});const font=await heading.evaluate(el=>parseFloat(getComputedStyle(el).fontSize));expect(font).toBeGreaterThanOrEqual(22);expect(font).toBeLessThanOrEqual(width<=380?22:24);expect(await heading.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   await page.mouse.move(width-2,2);await page.screenshot({path:'test-results/mobile-native-overview-'+width+'.png'});
-  await compose(page);await expect(page.getByLabel('URL video')).toBeVisible();const editorTitle=page.getByRole('heading',{name:'Post details',exact:true});await expect(editorTitle).toBeVisible();expect(await editorTitle.evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeLessThanOrEqual(16);expect(await editorTitle.evaluate(el=>el.getBoundingClientRect().height)).toBeLessThanOrEqual(22);expect(await page.getByLabel('URL video').evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
+  await compose(page);await expect(page.getByLabel('URL video')).toBeVisible();const editorTitle=page.getByRole('heading',{name:'Create a post',exact:true});await expect(editorTitle).toBeVisible();expect(await editorTitle.evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeLessThanOrEqual(16);expect(await editorTitle.evaluate(el=>el.getBoundingClientRect().height)).toBeLessThanOrEqual(22);expect(await page.getByLabel('URL video').evaluate(el=>parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
   expect(await page.getByRole('button',{name:'URL',exact:true}).evaluate(el=>Math.round(el.getBoundingClientRect().top))).toBe(await page.getByRole('button',{name:'File',exact:true}).evaluate(el=>Math.round(el.getBoundingClientRect().top)));
   await page.mouse.move(width-2,2);await page.screenshot({path:'test-results/mobile-native-publish-'+width+'.png'});
   await nav(page,'AI Agent').click();await expect(page.getByText('Belum disiapkan',{exact:true})).toBeVisible();await page.screenshot({path:'test-results/mobile-native-agent-'+width+'.png'});
