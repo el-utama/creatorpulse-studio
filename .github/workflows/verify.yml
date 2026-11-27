@@ -2,7 +2,7 @@ name: Verify
 on:
   pull_request:
   push:
-    branches: [main, refactor/ui-ux-v2]
+    branches: [main, sandbox, refactor/ui-ux-v2]
 permissions:
   contents: read
 jobs:
@@ -28,6 +28,7 @@ jobs:
           APP_URL: http://localhost:3000
       - run: npm install --no-save --package-lock=false @playwright/test@1.56.1
       - run: npx playwright install --with-deps chromium
+        id: browser_install
       - run: npx playwright test
         env:
           APP_URL: http://localhost:3000
@@ -38,5 +39,19 @@ jobs:
           path: test-results/
           if-no-files-found: error
       - run: npx playwright test --config playwright.gateway.config.mjs
+        if: ${{ !cancelled() && steps.browser_install.outcome == 'success' }}
         env:
           GATEWAY_TEST: "1"
+      - name: Install Firefox and WebKit for responsive engine checks
+        if: ${{ !cancelled() && steps.browser_install.outcome == 'success' }}
+        run: npx playwright install --with-deps firefox webkit
+        id: engine_install
+      - name: Firefox and WebKit workspace checks
+        if: ${{ !cancelled() && steps.engine_install.outcome == 'success' }}
+        run: npx playwright test --config playwright.ui-engines.config.mjs
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() && steps.engine_install.outcome == 'success' }}
+        with:
+          name: workspace-engine-design-checks
+          path: engine-test-results/
+          if-no-files-found: error

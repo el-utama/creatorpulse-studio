@@ -2,16 +2,21 @@
 
 Workspace operasional kreator TikTok untuk satu operator dengan maksimum tiga akun, menggunakan Next.js App Router, TypeScript dan Tailwind. Hermes adalah agent opsional; Local Bridge menyediakan penyimpanan SQLite lokal.
 
-**Status (2026-11-25):** V4 baseline multi-account sudah di main (6d9e1f2), CI pada revisi yang di-merge lulus ([run 45524478755](https://github.com/el-utama/creatorpulse-studio/actions/runs/45524478755)). Produksi terakhir diverifikasi masih pada V3 (60c9ae1), karena build-rate limit. Kualitas desain V4 belum diterima oleh owner; bukan rilis final. Lihat [status dan acceptance gate](docs/WORKSPACE_V4.md).
+**Status Sandbox (2026-11-26):** Bridge, enrollment, riset, sinkronisasi lintas browser dan dedicated one-shot cron telah melalui pengujian aktual yang dilaporkan. Fokus MVP: riset → pembuatan konten nyata → laporan/review → publikasi setelah persetujuan manusia. Lihat [checkpoint dan acceptance evidence](docs/STATUS.md) untuk baseline, batas bukti, blocker dan langkah berikutnya. Production merupakan release gate terpisah.
+
+## Hermes: install or resume from repository
+
+Agents must start with [AGENTS.md](AGENTS.md) and execute the [Sandbox installation and recovery runbook](integrations/hermes/SANDBOX_RUNBOOK.md). It includes safe Windows preflight and owner-only persistent startup. Do not repeat completed steps or relay individual terminal commands.
 
 ## Dokumentasi aktif
 
 | Dokumen | Kegunaan |
 |---|---|
+| [Sandbox checkpoint / MVP](docs/STATUS.md) | Status pengujian aktual, keputusan, blocker dan handoff |
 | [Workspace V4](docs/WORKSPACE_V4.md) | Target desain, baseline aktual, alur pengguna dan release gates |
 | [Local-first architecture](docs/ARCHITECTURE_LOCAL_FIRST.md) | Batas tanggung jawab, storage, keamanan |
 | [Local Bridge](local-bridge/README.md) | Setup host, HTTPS, secrets, enrollment dan backup |
-| [Hermes onboarding](integrations/hermes/ONBOARDING.md) | Bootstrap profil existing dan pengujian MCP/chat |
+| [Hermes onboarding](integrations/hermes/ONBOARDING.md) | Bootstrap profil khusus environment dan pengujian MCP terminal |
 | [Integrations](integrations/README.md) | REST/MCP, OpenAPI dan opsi n8n historis |
 | [Agent OpenAPI](public/agent-openapi.json) | Kontrak gateway v1 |
 | [Audit V3](docs/AUDIT_V3.md) | Temuan historis dan risiko yang masih terbuka |
@@ -33,7 +38,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Isi environment secara lokal sesuai `.env.example`; jangan commit secret. Pada Windows gunakan Copy-Item untuk menyalin file. APP_URL dan redirect harus sesuai environment yang benar-benar terdaftar di TikTok. Untuk project existing jangan ubah redirect atau kredensial TikTok hanya demi preview. Jangan menganggap preview memiliki OAuth yang berfungsi.
+Isi environment secara lokal sesuai `.env.example`; jangan commit secret. Pada Windows gunakan Copy-Item untuk menyalin file. APP_URL dan redirect harus sesuai environment yang benar-benar terdaftar di TikTok. Untuk project existing jangan ubah redirect atau kredensial TikTok hanya demi preview. Use canonical Sandbox Preview with separate TikTok Sandbox credentials. See Hermes onboarding; never share gateway keys between environments.
 
 ## Deployment
 
@@ -116,7 +121,7 @@ File manual MP4/MOV maksimal 4 MB; video lebih besar menggunakan HTTPS URL pada 
 ### Keamanan
 - Maksimal tiga sesi TikTok terpisah dalam browser. Token akun belum enrolled berada dalam cookie HttpOnly, Secure di produksi, SameSite=Lax.
 - Gateway opsional memakai SQLite Local Bridge; Vercel melakukan enkripsi/dekripsi dan panggilan TikTok. Agent tidak memperoleh token OAuth atau operator/bridge/vault key.
-- Riwayat publikasi manual dan marker permintaan belum pasti berada di localStorage per akun. Logout tidak menghapus riwayat itu, tidak memutus vault, dan tidak mencabut izin TikTok.
+- Sandbox history protocol v1 menyediakan riwayat publikasi manual terpusat untuk akses operator yang berwenang; akses lintas browser telah dikonfirmasi owner. Legacy localStorage dan status permintaan belum pasti tetap perlu diperlakukan sesuai jalur kompatibilitas; lihat checkpoint. Logout tidak memutus vault atau mencabut izin TikTok.
 - Persetujuan agent dilakukan operator melalui dashboard, bukan oleh model.
 
 ### Refresh Token

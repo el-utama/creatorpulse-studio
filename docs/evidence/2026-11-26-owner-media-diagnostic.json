@@ -1,0 +1,41 @@
+{
+  "state": "TECHNICAL_DECODE_PASSED",
+  "file": "F:\\TOY4U\\test_upload.mp4",
+  "expected_sha256": "dc71c7dc5583256ed3aeb97c42a8867c010c34a8231a68b08b4415f146432958",
+  "visual_playback_verified": false,
+  "tiktok_playback_verified": false,
+  "publication_calls": 0,
+  "size": 1336038,
+  "sha256": "dc71c7dc5583256ed3aeb97c42a8867c010c34a8231a68b08b4415f146432958",
+  "streams": [
+    {
+      "codec_type": "video",
+      "codec_name": "h264",
+      "profile": "High",
+      "level": 32,
+      "pix_fmt": "yuv420p",
+      "width": 1280,
+      "height": 720,
+      "r_frame_rate": "1758720/53549",
+      "avg_frame_rate": "1758720/53549",
+      "time_base": "1/1758720",
+      "start_time": "0.000000",
+      "duration": "13.975500",
+      "nb_frames": "459",
+      "color_space": "bt709",
+      "color_range": "tv",
+      "color_transfer": "bt709",
+      "color_primaries": "bt709"
+    }
+  ],
+  "format": {
+    "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+    "duration": "13.975500",
+    "start_time": "0.000000",
+    "size": "1336038",
+    "bit_rate": "764788"
+  },
+  "decode_returncode": 0,
+  "decode_errors": "",
+  "sha256_after": "dc71c7dc5583256ed3aeb97c42a8867c010c34a8231a68b08b4415f146432958"
+}

@@ -1,0 +1,485 @@
+name: Windows installer validation
+on:
+  pull_request:
+  push:
+    branches: [sandbox]
+    paths:
+      - 'integrations/hermes/*.ps1'
+      - '.github/workflows/windows-installer.yml'
+      - 'integrations/hermes/*.py'
+      - 'AGENTS.md'
+permissions:
+  contents: read
+jobs:
+  parse-and-preflight:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse scripts using Windows PowerShell 5.1 (never execute owner installer)
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($name in @('windows-owner-start.ps1','windows-preflight.ps1','windows-owner-agent.ps1','windows-agent-check.ps1','windows-owner-history.ps1')) {
+            $tokens = $null
+            $errors = $null
+            $path = Join-Path $pwd "integrations/hermes/$name"
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile($path,[ref]$tokens,[ref]$errors)
+            if ($errors.Count) {
+              $errors | ForEach-Object { Write-Host $_.Message }
+              throw "PowerShell syntax failed: $name"
+            }
+            if ($name -eq 'windows-owner-start.ps1') {
+              $parameters = @($ast.ParamBlock.Parameters | ForEach-Object { $_.Name.VariablePath.UserPath })
+              if ($parameters.Count -ne 2 -or 'PythonArchive' -notin $parameters -or 'PythonSha256' -notin $parameters) { throw 'Installer parameter contract changed.' }
+              $raw = Get-Content -LiteralPath $path -Raw
+              if ([regex]::Matches($raw,'\$ErrorActionPreference = ''Stop''').Count -ne 1) { throw 'Duplicate installer body.' }
+            }
+            Write-Host "Syntax valid: $name"
+          }
+      - name: Verify embedded owner upgrade payload matches repository source
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tokens = $null
+          $errors = $null
+          $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $pwd 'integrations/hermes/windows-owner-history.ps1'),[ref]$tokens,[ref]$errors)
+          if ($errors.Count) { throw 'History upgrade parser failed' }
+          foreach ($name in @('Get-BridgePayload','Get-BridgeBlobSha')) {
+            $fn = $ast.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name},$false)
+            if (-not $fn) { throw "Missing helper $name" }
+            . ([scriptblock]::Create($fn.Extent.Text))
+          }
+          $expected = git rev-parse HEAD:local-bridge/bridge.py
+          if ((Get-BridgeBlobSha (Get-BridgePayload)) -ne $expected) { throw 'Embedded payload differs from reviewed Git source' }
+          Write-Host 'History upgrade payload verified against Git blob.'
+      - name: Verify history updater accepts safe inherited runtime ACL but rejects extra access
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tokens = $null; $errors = $null
+          $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $pwd 'integrations/hermes/windows-owner-history.ps1'),[ref]$tokens,[ref]$errors)
+          foreach ($name in @('Assert-PrivatePath','Repair-ReviewedRuntimeOwner','Remove-ScopedUserAllow')) {
+            $fn = $ast.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name},$false)
+            . ([scriptblock]::Create($fn.Extent.Text))
+          }
+          $installer = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $pwd 'integrations/hermes/windows-owner-start.ps1'),[ref]$tokens,[ref]$errors)
+          $fn = $installer.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Set-BridgeItemAcl'},$false)
+          . ([scriptblock]::Create($fn.Extent.Text))
+          $fixture = Join-Path $env:RUNNER_TEMP ('history-acl-' + [guid]::NewGuid())
+          try {
+            $null = New-Item -ItemType Directory -Path $fixture
+            $sid = [Security.Principal.SecurityIdentifier]::new('S-1-5-32-545')
+            Set-BridgeItemAcl (Get-Item $fixture) $sid ReadAndExecute
+            $child = Join-Path $fixture 'runtime.py'
+            Set-Content -LiteralPath $child -Value 'fixture'
+            $acl = Get-Acl -LiteralPath $child
+            $acl.SetOwner([Security.Principal.SecurityIdentifier]::new('S-1-5-32-544'))
+            Set-Acl -LiteralPath $child -AclObject $acl
+            Assert-PrivatePath $child $sid.Value $false $true
+            $current = [Security.Principal.WindowsIdentity]::GetCurrent().User
+            $acl = Get-Acl -LiteralPath $child
+            $acl.SetOwner($current)
+            Set-Acl -LiteralPath $child -AclObject $acl
+            $blockedOwner = $false
+            try { Assert-PrivatePath $child $sid.Value $false $true } catch { $blockedOwner = $_.Exception.Message -like '*ACL owner unexpected*' }
+            if (-not $blockedOwner) { throw 'Untrusted runtime owner was not blocked' }
+            if ((Assert-PrivatePath $child $sid.Value $false $true $current.Value) -ne $child) { throw 'Review-only owner gate failed' }
+            Repair-ReviewedRuntimeOwner $child $sid.Value
+            Assert-PrivatePath $child $sid.Value $false $true
+            Write-Host 'Scoped runtime ownership repair fixture passed.'
+            $acl = Get-Acl -LiteralPath $child
+            $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new([Security.Principal.SecurityIdentifier]::new('S-1-1-0'),'Read','Allow'))
+            Set-Acl -LiteralPath $child -AclObject $acl
+            $blocked = $false
+            try { Assert-PrivatePath $child $sid.Value $false $true } catch { $blocked = $true }
+            if (-not $blocked) { throw 'Unexpected runtime access accepted' }
+            Write-Host 'Safe inherited runtime ACL fixture passed.'
+            # Simulate the exact extra explicit USER FullControl observed on PC09.
+            $acl = Get-Acl -LiteralPath $fixture
+            $userRule = [Security.AccessControl.FileSystemAccessRule]::new($current,'FullControl','ContainerInherit,ObjectInherit','None','Allow')
+            $acl.AddAccessRule($userRule)
+            Set-Acl -LiteralPath $fixture -AclObject $acl
+            $blockedUser = $false
+            try { Assert-PrivatePath $fixture $sid.Value } catch { $blockedUser = $_.Exception.Message -like '*Unexpected ACL identity/type*' }
+            if (-not $blockedUser) { throw 'Unexpected USER ACE was not blocked' }
+            Remove-ScopedUserAllow $fixture $current.Value
+            Assert-PrivatePath $fixture $sid.Value
+            Write-Host 'Exact extra USER Allow removal fixture passed; trusted access retained.'
+          } finally { Remove-Item -LiteralPath $fixture -Recurse -Force }
+      - name: Exercise actual history ACL gate on disposable Sandbox tree
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tokens = $null; $errors = $null
+          $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $pwd 'integrations/hermes/windows-owner-history.ps1'),[ref]$tokens,[ref]$errors)
+          if ($errors.Count) { throw 'History updater parse failed' }
+          # A helper tested in isolation is not sufficient. Assert the real top-level
+          # call is present, exactly once, before the first strict ACL validation.
+          $statements = @($ast.EndBlock.Statements)
+          $calls = @($statements | Where-Object { $_ -is [System.Management.Automation.Language.AssignmentStatementAst] -and $_.Extent.Text -eq '$aclRepaired = Invoke-HistoryAclGate $root $userSid $sid' })
+          $strict = @($statements | Where-Object { $_ -is [System.Management.Automation.Language.ForEachStatementAst] -and $_.Extent.Text -match 'Assert-PrivatePath \$p \$sid' })
+          if ($calls.Count -ne 1 -or $strict.Count -ne 1 -or $calls[0].Extent.StartOffset -ge $strict[0].Extent.StartOffset) { throw 'Actual history entry point does not invoke ACL repair before strict checks' }
+          foreach ($name in @('Assert-PrivatePath','Get-ScopedPaths','Remove-ScopedUserAllow','Get-SandboxUserAllowPaths','Invoke-HistoryAclGate')) {
+            $fn = $ast.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name},$false)
+            if (-not $fn) { throw "Missing function: $name" }
+            . ([scriptblock]::Create($fn.Extent.Text))
+          }
+          $installer = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $pwd 'integrations/hermes/windows-owner-start.ps1'),[ref]$tokens,[ref]$errors)
+          $fn = $installer.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Set-BridgeItemAcl'},$false)
+          . ([scriptblock]::Create($fn.Extent.Text))
+          $base = Join-Path $env:RUNNER_TEMP ('history-flow-' + [guid]::NewGuid())
+          $root = Join-Path $base 'CreatorPulseBridge'
+          try {
+            $null = New-Item -ItemType Directory -Path $root
+            foreach ($relative in @('python','local-bridge\data\sandbox','local-bridge\.secrets\sandbox')) {
+              $null = New-Item -ItemType Directory -Force -Path (Join-Path $root $relative)
+            }
+            foreach ($relative in @('sandbox-launcher.py','local-bridge\bridge.py','local-bridge\run.py','python-3.13.17-embed-amd64.zip','python\python.exe','local-bridge\data\sandbox\creatorpulse.sqlite3','local-bridge\.secrets\sandbox\bridge.env')) {
+              Set-Content -LiteralPath (Join-Path $root $relative) -Value 'fixture-only'
+            }
+            $service = [Security.Principal.SecurityIdentifier]::new('S-1-5-32-545')
+            $sid = $service.Value
+            $user = [Security.Principal.WindowsIdentity]::GetCurrent().User
+            $userSid = $user.Value
+            $data = Join-Path $root 'local-bridge\data\sandbox'
+            foreach ($path in @(Get-ScopedPaths $root)) {
+              $rights = if ($path -eq $data -or $path.StartsWith($data+'\')) {'Modify'} else {'ReadAndExecute'}
+              Set-BridgeItemAcl (Get-Item -LiteralPath $path) $service $rights
+            }
+            $acl = Get-Acl -LiteralPath $root
+            $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($user,'FullControl','ContainerInherit,ObjectInherit','None','Allow'))
+            Set-Acl -LiteralPath $root -AclObject $acl
+            $child = Join-Path $root 'local-bridge\bridge.py'
+            $acl = Get-Acl -LiteralPath $child
+            $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($user,'FullControl','Allow'))
+            Set-Acl -LiteralPath $child -AclObject $acl
+            $before = (Get-Acl -LiteralPath $root).Sddl
+            function Read-Host { 'DECLINE' }
+            $declined = $false
+            try { $null = Invoke-HistoryAclGate $root $userSid $sid } catch { $declined = $_.Exception.Message -like '*Owner declined*' }
+            if (-not $declined -or (Get-Acl -LiteralPath $root).Sddl -cne $before) { throw 'Declining repair modified ACL or did not stop' }
+            # Production guard must stop before touching ACL.
+            $prod = Join-Path $root 'local-bridge\data\production'
+            $null = New-Item -ItemType Directory -Path $prod
+            function Read-Host { 'UPGRADE' }
+            $blocked = $false
+            try { $null = Invoke-HistoryAclGate $root $userSid $sid } catch { $blocked = $_.Exception.Message -like '*Other environment*' }
+            if (-not $blocked -or (Get-Acl -LiteralPath $root).Sddl -cne $before) { throw 'Production isolation guard failed' }
+            Remove-Item -LiteralPath $prod
+            # Execute exactly the same assignment AST used in the real updater.
+            . ([scriptblock]::Create($calls[0].Extent.Text))
+            if ($aclRepaired -ne $true) { throw 'Actual entry point did not repair USER ACL' }
+            Assert-PrivatePath $root $sid
+            Assert-PrivatePath $child $sid
+            if ((Get-Content -LiteralPath $child -Raw).Trim() -ne 'fixture-only') { throw 'Code content changed during ACL repair' }
+            if ((Invoke-HistoryAclGate $root $userSid $sid) -ne $false) { throw 'Clean retry was not idempotent' }
+            Write-Host 'Actual history entry point: owner decline, Production guard, scoped ACL repair and clean retry passed.'
+          } finally { Remove-Item -LiteralPath $base -Recurse -Force }
+      - name: Exercise legacy bytecode quarantine in actual history upgrade flow
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tokens = $null; $errors = $null
+          $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $pwd 'integrations/hermes/windows-owner-history.ps1'),[ref]$tokens,[ref]$errors)
+          if ($errors.Count) { throw 'History updater parse failed' }
+          $top = @($ast.EndBlock.Statements)
+          $pre = @($top | Where-Object { $_.Extent.Text -eq '$legacyCache = Get-HistoryCachePath $bridge $sid' })
+          $flow = @($top | Where-Object { $_ -is [System.Management.Automation.Language.TryStatementAst] -and $_.Extent.Text -match 'Stop-KnownTask' })
+          if ($pre.Count -ne 1 -or $flow.Count -ne 1 -or $pre[0].Extent.StartOffset -ge $flow[0].Extent.StartOffset) { throw 'Cache preflight missing from actual entry point' }
+          $body = @($flow[0].Body.Statements)
+          $stop = @($body | Where-Object {$_.Extent.Text -eq 'Stop-KnownTask'})
+          $move = @($body | Where-Object {$_.Extent.Text -eq '$cacheArchive = Move-HistoryCache $bridge $sid'})
+          $start = @($body | Where-Object {$_.Extent.Text -eq "Start-ScheduledTask -TaskName 'CreatorPulseBridge-Sandbox' -TaskPath '\'"})
+          if ($stop.Count -ne 1 -or $move.Count -ne 1 -or $start.Count -ne 1 -or $stop[0].Extent.StartOffset -ge $move[0].Extent.StartOffset -or $move[0].Extent.StartOffset -ge $start[0].Extent.StartOffset) { throw 'Quarantine must execute after task stop and before restart' }
+          if ($flow[0].CatchClauses.Extent.Text -notmatch 'Get-HistoryCachePath \$bridge \$sid') { throw 'Rollback must reject active cache' }
+          foreach ($name in @('Assert-PrivatePath','Get-HistoryCachePath','Move-HistoryCache')) {
+            $fn = $ast.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name},$false)
+            if (-not $fn) { throw "Missing function: $name" }
+            . ([scriptblock]::Create($fn.Extent.Text))
+          }
+          $installer = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $pwd 'integrations/hermes/windows-owner-start.ps1'),[ref]$tokens,[ref]$errors)
+          $fn = $installer.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Set-BridgeItemAcl'},$false)
+          . ([scriptblock]::Create($fn.Extent.Text))
+          $bridge = Join-Path $env:RUNNER_TEMP ('history-cache-' + [guid]::NewGuid())
+          try {
+            $null = New-Item -ItemType Directory -Path $bridge
+            foreach ($relative in @('data\sandbox','.secrets\sandbox','__pycache__')) { $null = New-Item -ItemType Directory -Force -Path (Join-Path $bridge $relative) }
+            $source = Join-Path $bridge 'bridge.py'
+            $cache = Join-Path $bridge '__pycache__'
+            # Produce valid stale bytecode for the runner's own Python version.
+            $pyc = & python -I -B -c "import os,sys,py_compile,pathlib; p=pathlib.Path(sys.argv[1]); p.write_bytes(b'marker = 111111\n'); old=p.stat(); c=py_compile.compile(str(p),doraise=True); p.write_bytes(b'marker = 222222\n'); os.utime(p,ns=(old.st_atime_ns,old.st_mtime_ns)); print(c)" $source
+            if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $pyc -PathType Leaf)) { throw 'Stale bytecode fixture creation failed' }
+            & python -I -B -c "import sys; sys.path.insert(0,sys.argv[1]); import bridge; assert bridge.marker == 111111" $bridge
+            if ($LASTEXITCODE -ne 0) { throw 'Fixture did not demonstrate cached import with -B' }
+            $service = [Security.Principal.SecurityIdentifier]::new('S-1-5-32-545')
+            $sid = $service.Value
+            foreach ($item in @((Get-Item -LiteralPath $bridge)) + @(Get-ChildItem -LiteralPath $bridge -Recurse -Force)) { Set-BridgeItemAcl $item $service ReadAndExecute }
+            $hash = (Get-FileHash -LiteralPath $pyc -Algorithm SHA256).Hash
+            $sddl = (Get-Acl -LiteralPath $pyc).Sddl
+            . ([scriptblock]::Create($pre[0].Extent.Text))
+            if ($legacyCache -ne $cache -or -not (Test-Path -LiteralPath $pyc)) { throw 'Preflight must be non-mutating' }
+            $prod = Join-Path $bridge 'data\production'
+            $null = New-Item -ItemType Directory -Path $prod
+            $blocked = $false
+            try { $null = Get-HistoryCachePath $bridge $sid } catch { $blocked = $_.Exception.Message -like '*Other environment*' }
+            if (-not $blocked -or -not (Test-Path -LiteralPath $pyc)) { throw 'Production preflight guard failed' }
+            $blocked = $false
+            try { $null = Move-HistoryCache $bridge $sid } catch { $blocked = $_.Exception.Message -like '*Other environment*' }
+            if (-not $blocked -or -not (Test-Path -LiteralPath $pyc)) { throw 'Production mutation guard failed' }
+            Remove-Item -LiteralPath $prod
+            $extra = Join-Path $cache 'not-cache.txt'
+            Set-Content -LiteralPath $extra -Value 'fixture'
+            $blocked = $false
+            try { $null = Get-HistoryCachePath $bridge $sid } catch { $blocked = $_.Exception.Message -like '*Unexpected Python cache content*' }
+            if (-not $blocked) { throw 'Unexpected cache contents were accepted' }
+            Remove-Item -LiteralPath $extra
+            $shadow = Join-Path $bridge 'bridge.cp313-win_amd64.pyd'
+            Set-Content -LiteralPath $shadow -Value 'fixture'
+            $blocked = $false
+            try { $null = Get-HistoryCachePath $bridge $sid } catch { $blocked = $_.Exception.Message -like '*Unexpected Python import shadow*' }
+            if (-not $blocked) { throw 'Native import shadow was accepted' }
+            Remove-Item -LiteralPath $shadow
+            . ([scriptblock]::Create($move[0].Extent.Text))
+            $archived = Join-Path $cacheArchive (Split-Path -Leaf $pyc)
+            if ((Test-Path -LiteralPath $cache) -or (Get-FileHash -LiteralPath $archived -Algorithm SHA256).Hash -ne $hash -or (Get-Acl -LiteralPath $archived).Sddl -cne $sddl) { throw 'Quarantine failed to preserve bytes/ACL or active cache remains' }
+            if (Move-HistoryCache $bridge $sid) { throw 'Clean retry must be idempotent' }
+            & python -I -B -c "import sys; sys.path.insert(0,sys.argv[1]); import bridge; assert bridge.marker == 222222" $bridge
+            if ($LASTEXITCODE -ne 0 -or (Test-Path -LiteralPath $cache)) { throw 'Restart import did not use source or recreated cache' }
+            Write-Host 'Actual history cache flow: preflight, Production guard, unexpected-content and shadow rejection, quarantine with preserved ACL/bytes, clean source import and retry passed.'
+          } finally { Remove-Item -LiteralPath $bridge -Recurse -Force }
+      - name: Test deterministic recovery state machine
+        shell: powershell
+        run: |
+          python -m unittest discover -s integrations/hermes -p test_windows_resume.py -v
+          if ($LASTEXITCODE -ne 0) { throw 'Recovery state tests failed' }
+      - name: Run read-only Windows preflight
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $r = & ./integrations/hermes/windows-preflight.ps1 | ConvertFrom-Json
+          if (-not $r.host -or -not $r.identity) { throw 'Preflight report invalid.' }
+          Write-Host 'Preflight JSON valid.'
+      - name: Test ACL repair on disposable fixture (not host service root)
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tokens = $null
+          $errors = $null
+          $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $pwd 'integrations/hermes/windows-owner-start.ps1'),[ref]$tokens,[ref]$errors)
+          if ($errors.Count) { throw 'Parser errors' }
+          foreach ($name in @('Get-BridgeTree','Set-BridgeItemAcl')) {
+            $fn = $ast.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name},$false)
+            if (-not $fn) { throw "Missing helper $name" }
+            . ([scriptblock]::Create($fn.Extent.Text))
+          }
+          $fixture = Join-Path $env:RUNNER_TEMP ('cp-acl-' + [guid]::NewGuid())
+          try {
+            $null = New-Item -ItemType Directory -Path $fixture
+            $file = Join-Path $fixture 'fixture.txt'
+            Set-Content -LiteralPath $file -Value 'test only'
+            $everyone = [Security.Principal.SecurityIdentifier]::new('S-1-1-0')
+            $service = [Security.Principal.SecurityIdentifier]::new('S-1-5-32-545')
+            $acl = Get-Acl -LiteralPath $file
+            $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($everyone,'Read','Allow'))
+            Set-Acl -LiteralPath $file -AclObject $acl
+            $items = @(Get-BridgeTree -Path $fixture)
+            if ($items.Count -ne 2) { throw 'Tree enumeration failed' }
+            foreach ($item in $items) { Set-BridgeItemAcl -Item $item -ServiceSid $service }
+            $actual = Get-Acl -LiteralPath $file
+            if (@($actual.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]) | Where-Object {$_.IdentityReference -eq $everyone}).Count) { throw 'Unexpected Everyone ACE retained' }
+            if ((Get-Content -LiteralPath $file) -ne 'test only') { throw 'Fixture contents changed' }
+            Write-Host 'ACL normalization fixture passed.'
+          } finally {
+            if (Test-Path -LiteralPath $fixture) { Remove-Item -LiteralPath $fixture -Recurse -Force }
+          }
+      - name: Test owner credential helpers on disposable fixture
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tokens = $null
+          $errors = $null
+          $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $pwd 'integrations/hermes/windows-owner-agent.ps1'),[ref]$tokens,[ref]$errors)
+          if ($errors.Count) { throw 'Parser errors' }
+          foreach ($name in @('Get-ExistingAgentKey','New-AgentCredentialAcl','Assert-AgentCredentialAcl','Write-AgentCredential','Get-LegacyPrivateItems','Get-LegacyPrivateTree','Protect-LegacyPrivateItem')) {
+            $fn = $ast.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name},$false)
+            if (-not $fn) { throw "Missing helper $name" }
+            . ([scriptblock]::Create($fn.Extent.Text))
+          }
+          $root = Join-Path $env:RUNNER_TEMP ('cp-credentials-' + [guid]::NewGuid())
+          $null = New-Item -ItemType Directory -Path $root
+          try {
+            $key = 'cp_sandbox_agent_' + [guid]::NewGuid().ToString('N')
+            $source = Join-Path $root 'source'
+            $null = New-Item -ItemType Directory -Path $source
+            Set-Content -LiteralPath (Join-Path $source 'vercel.env') -Value @("CREATORPULSE_AGENT_KEY=$key",'CREATORPULSE_BRIDGE_TOKEN=fixture-not-for-agent') -Encoding Ascii
+            if ((Get-ExistingAgentKey $source) -cne $key) { throw 'Existing Agent Key extraction failed' }
+            Set-Content -LiteralPath (Join-Path $source 'hermes.env') -Value ('CREATORPULSE_AGENT_KEY=cp_sandbox_agent_' + [guid]::NewGuid().ToString('N')) -Encoding Ascii
+            $rejected = $false
+            try { $null = Get-ExistingAgentKey $source } catch { $rejected = $_.Exception.Message -like '*disagree*' }
+            if (-not $rejected) { throw 'Mismatched sources not rejected' }
+            $sid = [Security.Principal.SecurityIdentifier]::new('S-1-5-32-545')
+            $out = Join-Path $root 'export'
+            $null = [IO.Directory]::CreateDirectory($out,(New-AgentCredentialAcl $sid))
+            Assert-AgentCredentialAcl $out $sid
+            $file = Join-Path $out 'hermes.env'
+            Write-AgentCredential $file "CREATORPULSE_AGENT_KEY=$key" $sid
+            Write-AgentCredential $file "CREATORPULSE_AGENT_KEY=$key" $sid
+            $rejected = $false
+            try { Write-AgentCredential $file 'different' $sid } catch { $rejected = $_.Exception.Message -like '*differs*' }
+            if (-not $rejected -or [IO.File]::ReadAllText($file) -cne "CREATORPULSE_AGENT_KEY=$key") { throw 'Credential overwrite guard failed' }
+            $legacy = Join-Path $root 'retired'
+            $legacySecrets = Join-Path $legacy 'local-bridge\.secrets\sandbox'
+            $null = New-Item -ItemType Directory -Path $legacySecrets -Force
+            $privateFile = Join-Path $legacySecrets 'vercel.env'
+            Set-Content -LiteralPath $privateFile -Value 'fixture-not-real' -Encoding Ascii
+            $unrelated = Join-Path $legacy 'keep.txt'
+            Set-Content -LiteralPath $unrelated -Value 'keep' -Encoding Ascii
+            $unrelatedAcl = (Get-Acl -LiteralPath $unrelated).Sddl
+            $targets = @(Get-LegacyPrivateItems $legacy)
+            if ($targets.Count -ne 1 -or $targets[0].FullName -ne $legacySecrets) { throw 'Retired path selection incorrect' }
+            foreach ($item in @(Get-LegacyPrivateTree $targets[0])) { Protect-LegacyPrivateItem $item }
+            if ((Get-Content -LiteralPath $privateFile) -ne 'fixture-not-real' -or (Get-Acl -LiteralPath $unrelated).Sddl -ne $unrelatedAcl) { throw 'Retired fixture contents or unrelated ACL changed' }
+            Write-Host 'Retired Sandbox copy protection fixture passed.'
+            Write-Host 'Owner credential extraction, scoped ACL and no-overwrite fixture passed.'
+          } finally { Remove-Item -LiteralPath $root -Recurse -Force }
+      - name: Start real Bridge from scheduled task under disposable standard user
+        shell: powershell
+        timeout-minutes: 8
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tokens = $null
+          $errors = $null
+          $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $pwd 'integrations/hermes/windows-owner-start.ps1'),[ref]$tokens,[ref]$errors)
+          if ($errors.Count) { throw 'Parser errors' }
+          foreach ($name in @('Get-BridgeTree','Set-BridgeItemAcl','Write-BridgeLauncher','New-BridgeTaskAction','Initialize-BridgeBatchLogonApi','Ensure-BridgeBatchLogon')) {
+            $fn = $ast.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name},$false)
+            if (-not $fn) { throw "Missing helper $name" }
+            . ([scriptblock]::Create($fn.Extent.Text))
+          }
+          $suffix = [guid]::NewGuid().ToString('N').Substring(0,10)
+          $user = 'cpTest' + $suffix
+          $task = 'cpTest-' + $suffix
+          $root = Join-Path $env:ProgramData $task
+          $password = 'Aa9!' + [guid]::NewGuid().ToString('N')
+          $token = 'cp_sandbox_bridge_' + [guid]::NewGuid().ToString('N')
+          $account = $null
+          $logName = 'Microsoft-Windows-TaskScheduler/Operational'
+          & wevtutil.exe sl $logName /e:true
+          if ($LASTEXITCODE -ne 0) { throw 'Could not enable task diagnostic log on disposable runner' }
+          $since = Get-Date
+          try {
+            $account = New-LocalUser -Name $user -Password (ConvertTo-SecureString $password -AsPlainText -Force)
+            $identity = "$env:COMPUTERNAME\$user"
+            $usersGroup = Get-LocalGroup -SID 'S-1-5-32-545'
+            if (-not @(Get-LocalGroupMember -Group $usersGroup.Name | Where-Object {$_.SID -eq $account.SID}).Count) { Add-LocalGroupMember -Group $usersGroup.Name -Member $identity }
+            Initialize-BridgeBatchLogonApi
+            $sid = $account.SID.Value
+            $adminGroup = Get-LocalGroup -SID 'S-1-5-32-544'
+            if (@(Get-LocalGroupMember -Group $adminGroup.Name | Where-Object {$_.SID -eq $account.SID}).Count) { throw 'Fixture account unexpectedly administrator' }
+            $hadRight = [CreatorPulse.BatchLogon]::Has($sid,'SeBatchLogonRight')
+            [CreatorPulse.BatchLogon]::Change($sid,'SeDenyBatchLogonRight',$true)
+            try {
+                $denied = $false
+                try { $null = Ensure-BridgeBatchLogon -Sid $account.SID -User $user -Password $password } catch { $denied = $_.Exception.Message -like '*explicitly denied*' }
+                if (-not $denied -or -not [CreatorPulse.BatchLogon]::Has($sid,'SeDenyBatchLogonRight') -or [CreatorPulse.BatchLogon]::Has($sid,'SeBatchLogonRight') -ne $hadRight) { throw 'Deny policy preservation failed' }
+            } finally {
+                [CreatorPulse.BatchLogon]::Change($sid,'SeDenyBatchLogonRight',$false)
+            }
+            $granted = Ensure-BridgeBatchLogon -Sid $account.SID -User $user -Password $password
+            if ($granted -and -not [CreatorPulse.BatchLogon]::Has($sid,'SeBatchLogonRight')) { throw 'Expected explicit batch right absent' }
+            if (Ensure-BridgeBatchLogon -Sid $account.SID -User $user -Password $password) { throw 'Batch provisioning is not idempotent' }
+            Write-Host "Effective batch logon, Deny preservation and idempotence passed; explicit grant=$granted"
+            $null = New-Item -ItemType Directory -Path $root
+            $bridge = Join-Path $root 'local-bridge'
+            $runtime = Join-Path $root 'python'
+            $data = Join-Path $bridge 'data\sandbox'
+            $secrets = Join-Path $bridge '.secrets\sandbox'
+            $null = New-Item -ItemType Directory -Path $data,$secrets,$runtime -Force
+            Copy-Item -LiteralPath 'local-bridge/run.py','local-bridge/bridge.py' -Destination $bridge
+            Set-Content -LiteralPath (Join-Path $secrets 'bridge.env') -Value "CREATORPULSE_BRIDGE_TOKEN=$token" -Encoding Ascii
+            $zip = Join-Path $root 'python.zip'
+            Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.13.17/python-3.13.17-embed-amd64.zip' -UseBasicParsing -OutFile $zip
+            if ((Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash -ne '9e35319bffedab8b36ad44d8f377cb4f1733bcec257a0b6d04d94f01486ddb38') { throw 'Fixture runtime hash mismatch' }
+            Expand-Archive -LiteralPath $zip -DestinationPath $runtime
+            $launcher = Join-Path $root 'sandbox-launcher.py'
+            Write-BridgeLauncher -Path $launcher
+            $python = Join-Path $runtime 'python.exe'
+            foreach ($item in @(Get-BridgeTree -Path $root)) {
+                $rights = if ($item.FullName -eq $data -or $item.FullName.StartsWith($data + '\',[StringComparison]::OrdinalIgnoreCase)) { 'Modify' } else { 'ReadAndExecute' }
+                Set-BridgeItemAcl -Item $item -ServiceSid $account.SID -ServiceRights $rights
+            }
+            $action = New-BridgeTaskAction -Python $python -Launcher $launcher -WorkingDirectory $bridge
+            $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 3) -MultipleInstances IgnoreNew -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+            Register-ScheduledTask -TaskName $task -Action $action -Trigger (New-ScheduledTaskTrigger -AtStartup) -Settings $settings -User $identity -Password $password -RunLevel Limited | Out-Null
+            $registered = Get-ScheduledTask -TaskName $task
+            Write-Host "Registered fixture: state=$($registered.State) logon=$($registered.Principal.LogonType) runlevel=$($registered.Principal.RunLevel)"
+            & schtasks.exe /Run /TN "\$task"
+            if ($LASTEXITCODE -ne 0) { throw 'Native scheduler start failed' }
+            $ok = $false
+            for ($i=0; $i -lt 45; $i++) {
+                try {
+                    $response = Invoke-RestMethod -Uri 'http://127.0.0.1:8766/storage/v1' -Method Post -Headers @{Authorization="Bearer $token"} -ContentType 'application/json' -Body '["PING"]' -TimeoutSec 2
+                    if ($response.result -eq 'PONG') { $ok = $true; break }
+                } catch {}
+                Start-Sleep -Seconds 1
+            }
+            if (-not $ok) {
+                $info = Get-ScheduledTaskInfo -TaskName $task
+                Write-Host "Fixture last task result: $($info.LastTaskResult) state=$((Get-ScheduledTask -TaskName $task).State)"
+                Write-Host 'Matching scheduler events:'
+                Get-WinEvent -FilterHashtable @{LogName=$logName;StartTime=$since} -ErrorAction SilentlyContinue | Where-Object {$_.Message -like "*$task*"} | Select-Object -First 20 Id,Message | Format-List | Out-String | Write-Host
+                $status = Join-Path $data 'bridge-startup.json'
+                if (Test-Path -LiteralPath $status) { Get-Content -LiteralPath $status | Write-Host }
+                throw 'Real scheduled-task PING failed.'
+            }
+            $listener = @(Get-NetTCPConnection -LocalPort 8766 -State Listen)
+            if ($listener.Count -ne 1 -or $listener[0].LocalAddress -ne '127.0.0.1') { throw 'Unexpected fixture listener' }
+            $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$($listener[0].OwningProcess)"
+            $owner = Invoke-CimMethod -InputObject $proc -MethodName GetOwner
+            if ($owner.ReturnValue -ne 0 -or $owner.User -ne $user) { throw 'Fixture identity mismatch' }
+            Write-Host 'Real restricted-user scheduled task: authenticated PONG.'
+            $caps = Invoke-RestMethod -Uri 'http://127.0.0.1:8766/storage/v1' -Method Post -Headers @{Authorization="Bearer $token"} -ContentType 'application/json' -Body '["MANUAL_CAPS"]' -TimeoutSec 10
+            if ($caps.result -ne 1) { throw 'History capability missing' }
+            $claim = Invoke-RestMethod -Uri 'http://127.0.0.1:8766/storage/v1' -Method Post -Headers @{Authorization="Bearer $token"} -ContentType 'application/json' -Body '["MANUAL_BEGIN","aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","00000000-0000-4000-8000-000000000001","inbox"]' -TimeoutSec 10
+            $accept = Invoke-RestMethod -Uri 'http://127.0.0.1:8766/storage/v1' -Method Post -Headers @{Authorization="Bearer $token"} -ContentType 'application/json' -Body '["MANUAL_ACCEPT","aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","00000000-0000-4000-8000-000000000001","fixture-history"]' -TimeoutSec 10
+            if ($accept.result -ne 1) { throw 'History write failed' }
+            $query = Invoke-RestMethod -Uri 'http://127.0.0.1:8766/storage/v1' -Method Post -Headers @{Authorization="Bearer $token"} -ContentType 'application/json' -Body '["HGETALL","creatorpulse:v3:vault"]' -TimeoutSec 10
+            if ($null -eq $query.result -or @($query.result).Count -ne 0) { throw 'Unexpected fixture SQLite read' }
+            $db = Join-Path $data 'creatorpulse.sqlite3'
+            if (-not (Test-Path -LiteralPath $db -PathType Leaf)) { throw 'Fixture SQLite file missing' }
+            Stop-ScheduledTask -TaskName $task
+            for ($i=0; $i -lt 30 -and (Get-NetTCPConnection -LocalPort 8766 -State Listen -ErrorAction SilentlyContinue); $i++) { Start-Sleep -Seconds 1 }
+            if (Get-NetTCPConnection -LocalPort 8766 -State Listen -ErrorAction SilentlyContinue) { throw 'Fixture task did not stop' }
+            Start-ScheduledTask -TaskName $task
+            $restarted = $false
+            for ($i=0; $i -lt 45; $i++) {
+                try {
+                    $response = Invoke-RestMethod -Uri 'http://127.0.0.1:8766/storage/v1' -Method Post -Headers @{Authorization="Bearer $token"} -ContentType 'application/json' -Body '["PING"]' -TimeoutSec 2
+                    if ($response.result -eq 'PONG') { $restarted = $true; break }
+                } catch {}
+                Start-Sleep -Seconds 1
+            }
+            if (-not $restarted) { throw 'Fixture restart PING failed' }
+            $listener = @(Get-NetTCPConnection -LocalPort 8766 -State Listen)
+            if ($listener.Count -ne 1 -or $listener[0].LocalAddress -ne '127.0.0.1') { throw 'Restart listener mismatch' }
+            $owner = Invoke-CimMethod -InputObject (Get-CimInstance Win32_Process -Filter "ProcessId=$($listener[0].OwningProcess)") -MethodName GetOwner
+            if ($owner.ReturnValue -ne 0 -or $owner.User -ne $user) { throw 'Restart identity mismatch' }
+            $history = Invoke-RestMethod -Uri 'http://127.0.0.1:8766/storage/v1' -Method Post -Headers @{Authorization="Bearer $token"} -ContentType 'application/json' -Body '["MANUAL_LIST","aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]' -TimeoutSec 10
+            if (@($history.result).Count -ne 1 -or $history.result[0].id -ne 'fixture-history') { throw 'History not persisted across task restart' }
+            Write-Host 'Manual history persisted across restricted-user task restart.'
+            Write-Host 'SQLite read and restricted-user task restart: authenticated PONG.'
+          } finally {
+            if (Get-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue) {
+                Stop-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue
+                Unregister-ScheduledTask -TaskName $task -Confirm:$false
+            }
+            if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+            if ($account) {
+                Initialize-BridgeBatchLogonApi
+                foreach ($right in @('SeBatchLogonRight','SeDenyBatchLogonRight')) {
+                    if ([CreatorPulse.BatchLogon]::Has($account.SID.Value,$right)) { [CreatorPulse.BatchLogon]::Change($account.SID.Value,$right,$false) }
+                }
+                Remove-LocalUser -Name $user
+            }
+            Remove-Variable password,token -ErrorAction SilentlyContinue
+          }

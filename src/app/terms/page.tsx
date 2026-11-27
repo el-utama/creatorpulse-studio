@@ -14,8 +14,8 @@ export default function TermsPage() {
         </div>
       </nav>
 
-      <main className="flex-1 px-4 py-8 sm:px-6 lg:px-8">
-        <article className="max-w-3xl mx-auto prose prose-lg max-w-none">
+      <main id="main-content" className="flex-1 px-4 py-8 sm:px-6 lg:px-8">
+        <article lang="en" className="max-w-3xl mx-auto text-base leading-relaxed break-words">
           <h1 className="text-2xl font-bold mb-6">Terms of Service</h1>
           <p className="text-muted-foreground mb-4">
             Effective date: November 23, 2026

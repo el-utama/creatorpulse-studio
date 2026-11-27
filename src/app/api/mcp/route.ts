@@ -14,7 +14,7 @@ const definitions=[
  {name:"list_posts",description:"Inspect queue and approval state.",inputSchema:object({})},
  {name:"get_post",description:"Read exact draft and publication status.",inputSchema:object({postId:id},["postId"])},
  {name:"execute_approved_post",description:"Send approved draft to TikTok once; cannot approve. Never retry uncertain outcomes.",inputSchema:object({postId:id},["postId"])},
- {name:"get_publish_status",description:"Check status of submitted post.",inputSchema:object({postId:id},["postId"])}
+ {name:"get_publish_status",description:"Check publication status; statusSource=tiktok only when upstream queried, stored otherwise. API completion does not prove playback.",inputSchema:object({postId:id},["postId"])}
 ];
 const headers={"Cache-Control":"no-store"};
 const result=(id:unknown,value:unknown)=>NextResponse.json({jsonrpc:"2.0",id,result:value},{headers});

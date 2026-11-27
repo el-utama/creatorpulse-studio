@@ -28,3 +28,6 @@ Rotating enrollment epochs invalidate older browser bindings and prior approvals
 
 ## V4 browser workspace (baseline)
 The V4 dashboard reorganizes browser-authorized accounts across Overview, Accounts, Content and Publishing. Browser-scoped reads use the session account slot (not a gateway bearer). Existing active-session mutations and publication account identity checks remain. Gateway REST v1/MCP, vault storage keys, local SQLite and operator credential boundary do not change. Manual history remains browser-local, agent history is in the bridge. See [Workspace V4](WORKSPACE_V4.md) for exact UI routes, limitations and unfinished design targets.
+
+## Sandbox-first Hermes isolation (supersedes existing-profile onboarding)
+Use dedicated Hermes profiles, fresh profile creation without cloning credentials or memories, explicit environment adapter, separate Bridge services (Sandbox 8766 / Production 8765), DBs and role-prefixed credentials. Vercel gateway validates canonical environment URL and key prefixes, rejects mismatched environment headers. Profile isolation is not OS-level isolation; owner configures separate service identity and secret permissions. Sandbox OAuth/dashboard confirmed by owner, real Bridge/Hermes still untested. No production release or messaging modifications in this change.

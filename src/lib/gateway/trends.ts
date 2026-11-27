@@ -1,5 +1,5 @@
-import {randomUUID} from "node:crypto";
-import {GatewayError,redis,trendList} from "./store";
+import {createHash,randomUUID} from "node:crypto";
+import {GatewayError,redis,trendList,withSlotLock} from "./store";
 const types=["topic","hashtag","music","video","keyword"];
 const sources=["tiktok_creative_center","tiktok_discovery_api","google_trends","web_research","manual"];
 const str=(v:unknown,n:number)=>typeof v==="string"&&v.trim().length>0&&v.length<=n?v.trim():null;
@@ -18,13 +18,32 @@ export function normalizeObservation(input:unknown):Observation{
  if(changePct!==null&&!metric)throw new GatewayError(400,"Definisi metrik wajib untuk persentase perubahan.");
  return {id:randomUUID(),type,topic,region,source,sourceUrl,observedAt:new Date(time).toISOString(),receivedAt:new Date().toISOString(),evidence,changePct:changePct as number|null,metric};
 }
+// Stable identity for a source's daily observation. Preserve query parameters
+// (they may identify different datasets), but ignore URL fragments.
+function observationIdentity(o:Observation){
+ const url=new URL(o.sourceUrl);url.hash="";
+ const topic=o.topic.normalize("NFKC").trim().replace(/\s+/g," ").toLowerCase();
+ return JSON.stringify([o.region,o.type,o.source,url.href,topic,o.observedAt.slice(0,10)]);
+}
+async function storedTrends(){
+ const entries=await redis<string[]>(["LRANGE",trendList,0,499]);
+ return entries.map(s=>JSON.parse(s) as Observation);
+}
 export async function recordTrend(x:unknown){
- const observation=normalizeObservation(x);
- await redis(["EVAL","redis.call('LPUSH',KEYS[1],ARGV[1]); redis.call('LTRIM',KEYS[1],0,499); return 1",1,trendList,JSON.stringify(observation)]);
- return observation;
+ const observation=normalizeObservation(x),identity=observationIdentity(observation);
+ // Use the existing restricted Bridge lock protocol. No schema or host upgrade.
+ // The lock covers read + append for the same identity within the retained 500 rows.
+ const lock=createHash("sha256").update("trend-dedup:v1:"+identity).digest("hex").slice(0,32);
+ return withSlotLock(lock,async()=>{
+  const existing=(await storedTrends()).find(o=>observationIdentity(o)===identity);
+  if(existing)return {observation:existing,duplicate:true};
+  const inserted=await redis(["EVAL","redis.call('LPUSH',KEYS[1],ARGV[1]); redis.call('LTRIM',KEYS[1],0,499); return 1",1,trendList,JSON.stringify(observation)]);
+  if(inserted!==1)throw new GatewayError(503,"Penyimpanan observasi belum terkonfirmasi.");
+  return {observation,duplicate:false};
+ });
 }
 export async function listTrends(region:string,days:number){
- const entries=await redis<string[]>(["LRANGE",trendList,0,499]);
+ const entries=await storedTrends();
  const cutoff=Date.now()-days*86400000;
- return entries.map(s=>JSON.parse(s) as Observation).filter(x=>x.region===region&&Date.parse(x.observedAt)>=cutoff).sort((a,b)=>Date.parse(b.observedAt)-Date.parse(a.observedAt));
+ return entries.filter(x=>x.region===region&&Date.parse(x.observedAt)>=cutoff).sort((a,b)=>Date.parse(b.observedAt)-Date.parse(a.observedAt));
 }
