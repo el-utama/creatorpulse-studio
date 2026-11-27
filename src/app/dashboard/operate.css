@@ -57,3 +57,7 @@
 .r1.cp-production .cp-cover-missing{position:absolute;left:8px;right:8px;top:calc(50% + 22px);text-align:center;font-size:12px;color:var(--muted);pointer-events:none}
 .r1.cp-production .cp-video-info .r1-content-title{min-height:2.8em}
 @media(max-width:639px){.r1.cp-production .r1-library .r1-content-toolbar .r1-toolbar-left{width:100%;flex:1 1 100%}.r1.cp-production .r1-library .r1-content-toolbar .r1-toolbar-left .r1-field{width:100%;max-width:none;flex:1 1 100%}.r1.cp-production .r1-library .r1-content-toolbar .r1-toolbar-left input{width:100%;flex:1;min-width:0}.r1.cp-production .cp-cover-missing{font-size:11px}}
+
+/* The content toolbar now has one search field, not the legacy search/account pair. Explicitly replace the inherited two-track grid at every width. */
+.r1.cp-production .r1-library .r1-content-toolbar .r1-toolbar-left{display:grid;grid-template-columns:minmax(0,1fr);width:100%;min-width:0}
+@media(max-width:639px){.r1.cp-production .r1-library .r1-content-toolbar{grid-template-columns:minmax(0,1fr)}.r1.cp-production .r1-library .r1-content-toolbar .r1-toolbar-left .r1-field{width:100%;max-width:none}.r1.cp-production .r1-library .r1-content-toolbar .r1-toolbar-left .r1-field input{flex:1 1 0;width:0;min-width:0;max-width:100%}}
