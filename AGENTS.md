@@ -20,3 +20,5 @@ After owner action, run the same controller again. No placeholders, manual crede
 
 ## Frontend design review (redesign branch)
 For visual or interaction changes, read [.agents/skills/creatorpulse-ux/SKILL.md](.agents/skills/creatorpulse-ux/SKILL.md), [PRODUCT.md](PRODUCT.md), [DESIGN.md](DESIGN.md) and [docs/UX_REDESIGN.md](docs/UX_REDESIGN.md). This is the project-specific design workflow informed by reviewed upstream skills; it does not authorize external executables, publishing, production, or host changes. Green CI is necessary but insufficient: compare actual rendered views against the accepted design direction. Do not merge the redesign before visual acceptance.
+
+**Owner design override (2026-11-27):** Existing UI and prior DESIGN.md are not requirements. If unsuitable, replace layouts and components rather than preserve them. Preserve capabilities, data provenance and security/consent invariants, not visual classes. Rejected candidates are anti-references. Change UI-specific assertions for intentional presentation changes, but never weaken functional/security coverage. Use the current DESIGN.md and actual render acceptance; do not merge on CI alone.

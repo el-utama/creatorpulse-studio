@@ -1,15 +1,16 @@
-# CreatorPulse Studio — Studio Desk design
+# CreatorPulse — Production Workspace
 
-Status: replacement candidate, not approved for canonical Sandbox. User rejected earlier Operate visual direction as too similar to baseline.
+**Authority:** owner explicitly rejected all previous visual directions. No obligation to preserve their layout, component appearance, theme, card hierarchy or existing design documents. Preserve actual capabilities, account/target isolation, data provenance, access and approval boundaries. Do not invent data or hide errors. Existing Sandbox stays unchanged until candidate is verified.
 
-## Direction
-A full-width editorial workspace, with compact forest-toned masthead and light paper working surface. Inspired by editorial production desks (clear section boundaries and actionable lists), not a literal control room or SaaS dashboard kit. Desktop navigation is horizontal; mobile retains familiar bottom navigation. One visible native account scope selector with grouped provenance across all views, disabled during compose. It never selects a posting target. No sidebar, repeated filter, fake connection indicator or decorative card icons. Prioritize actual task and meaningful values.
+## Design intent
+A daily video production workspace, not a generic analytics dashboard. White canvas, restrained blue action, black wordmark, compact navigation. Media and work items define the composition. Main title is simple; one scope selector with contextual provenance; desktop horizontal navigation and touch-sized mobile navigation. Use familiar system sans, 28/24 headings, 18 section, 14 body, 12 metadata. Palette: #fff, #17181c, #565a65, #e3e5e9, #f7f8fa, #2455b8. No decorative colored masthead, giant hero metric, unnecessary card framing, repeated explanatory heading, or duplicate responsive publication queue.
 
-## Tokens
-Canvas #f6f5f1; surface #fff; masthead #203831; ink #202820; secondary #52605a; line #dedfd7; action #245e50; selected #e3f0e9. System sans, tabular data, 30 desktop / 24 mobile page title, 16 section, 14 body, 13 controls, 12 metadata; 4/8/12/16/20/24/32 spacing; 6 control / 8 region radius. Dark masthead with explicit contrast, not full dark mode.
+## Views
+- Overview: action inbox ordered by unresolved/unknown then zero counts; four compact performance metrics without separate cards; account comparison and secondary activity in unboxed sections.
+- Content: media gallery by default, meaningful poster with real provider cover or explicit neutral fallback; title, full identity, date, views, likes, comments, shares. List remains available for comparison. Search/sort/load more/error/empty states retained.
+- Publishing: one job list across desktop and mobile, caption/target/source/mode/update/status/review. No UUID clutter; identifier remains in details. All queue/review/history gates intact.
+- Accounts: separate browser and shared access, readable identity, stats and actions, disconnect confirmation. No invented status.
+- Agent: real status and enrollment, research and integration, full names. Compose: explicit account selection, actual editor and preview, no dead disabled review button before selection. Never use view scope as target.
 
-## Workflow composition
-Overview: primary performance surface with actual loaded-video views and other metrics, right task rail with global actions, full-width secondary activity. Mobile action rail above performance. Accounts: one responsive access management row per identity, distinct permissions, stats and actions. Content: search and sort/list/grid toolbar, account scope above it. Publishing: grouped summary, queue/review/history tabs, full captions in review, preserve human consent. Compose: full-width responsive editor/preview, scope disabled independent of target. Agent: status and research / management columns; no implication of live connection. All existing data, real statuses, consent and access semantics preserved.
-
-## Acceptance
-Compare actual renders with baseline and rejected candidate. No sidebar at any width, one scope control, clear account provenance, horizontal desktop navigation, accessible mobile nav, readable target and status, no clipping or missing data. Existing security assertions unchanged. Do not merge until exact CI and visual review. No runtime package installation or release action. Native owner sessions remain distinct from fixtures.
+## Quality gates
+Actual rendered views at desktop/mobile and dense/empty/error states, visual judgement separately from automation. Retest security/approval exactly, no weakening. Current rejected styles replaced in operate.css; legacy reference.css remains compatibility for existing form/table/dialog primitives pending migration, not an authority. Retire it where obsolete rather than layering more rules. No full dark mode unless specifically designed. Owner native session cannot be inferred from fixtures.

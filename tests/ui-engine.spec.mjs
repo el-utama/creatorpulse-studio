@@ -148,6 +148,7 @@ test('realistic data density keeps dates, headers and full captions usable',asyn
     if(await compact.count())expect(await compact.first().evaluate(el=>getComputedStyle(el).display)).toBe('flex');
    }
    if(view==='Content'){
+    await page.getByRole('button',{name:'List view'}).click();
     await expect(page.getByText(longTitle,{exact:true}).filter({visible:true})).toBeVisible();
     const dates=await page.locator('.r1-video-table:visible .r1-date').evaluateAll(els=>els.map(el=>getComputedStyle(el).whiteSpace));
     expect(dates.every(v=>v==='nowrap')).toBe(true);
@@ -241,7 +242,7 @@ test('operate redesign prioritizes actions and groups performance without decora
   await page.setViewportSize({width,height:900});
   const actions=page.locator('.cp-action-center');const summary=page.getByRole('region',{name:'Performance summary'});
   await expect(actions).toBeVisible();await expect(summary).toBeVisible();
-  const ab=await actions.boundingBox(),sb=await summary.boundingBox();if(width>1024){expect(ab.x).toBeGreaterThan(sb.x+sb.width-1);expect(Math.abs(ab.y-sb.y)).toBeLessThanOrEqual(2)}else{expect(ab.y).toBeLessThan(sb.y)}
+  const ab=await actions.boundingBox(),sb=await summary.boundingBox();expect(ab.y).toBeLessThan(sb.y);expect(Math.abs(ab.x-sb.x)).toBeLessThanOrEqual(2);
   await expect(summary.locator('.r1-metric')).toHaveCount(4);await expect(summary.locator('.r1-metric-icon')).toHaveCount(0);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   await page.screenshot({path:'engine-test-results/'+browserName+'-operate-overview-'+width+'.png'});
@@ -286,4 +287,11 @@ test('desk shell has a single scope control and no sidebar across all workspaces
    if([1440,390].includes(width))await page.screenshot({path:'engine-test-results/'+browserName+'-desk-'+view.toLowerCase().replaceAll(' ','-')+'-'+width+'.png',fullPage:true});
   }
  }
+});
+
+
+test('production workspace defaults to media gallery and one publication job representation',async({page,context,browserName})=>{
+ const {accounts}=await installWorkspaceFixture(page,context,{stress:true});await page.setViewportSize({width:1440,height:900});await page.goto('/dashboard?view=agent');await page.getByLabel('Kunci operator',{exact:true}).fill('fixture-operator');await page.getByRole('button',{name:'Buka akses'}).click();await expect(page.getByText('Bridge data loaded',{exact:true})).toBeVisible();await nav(page,'Content').click();await expect(page.getByRole('button',{name:'Grid view'})).toHaveAttribute('aria-pressed','true');
+ for(const width of [1440,900,390,320]){await page.setViewportSize({width,height:900});await nav(page,'Content').click();await expect(page.locator('.cp-video-gallery .cp-video-item')).toHaveCount(3);await expect(page.locator('.cp-video-item').first().getByText('Comments',{exact:true})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);await page.screenshot({path:'engine-test-results/'+browserName+'-production-content-'+width+'.png',fullPage:true});await nav(page,'Publishing').click();await expect(page.locator('.cp-job').filter({hasText:'FINAL CAPTION MARKER'})).toHaveCount(1);await expect(page.locator('.r1-publication-table')).toHaveCount(0);expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);await page.screenshot({path:'engine-test-results/'+browserName+'-production-publishing-'+width+'.png',fullPage:true});}
+ const job=page.locator('.cp-job').filter({hasText:'FINAL CAPTION MARKER'});await job.getByRole('button',{name:'Review',exact:true}).click();await expect(page.getByRole('dialog',{name:'Review agent draft'})).toBeVisible();await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toHaveCount(0);
 });
