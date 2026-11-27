@@ -1,6 +1,10 @@
 # CreatorPulse — Sandbox checkpoint
 
-**Checkpoint: 2026-11-26 (Asia/Jakarta).** Last verified code baseline: [99ade59](https://github.com/el-utama/creatorpulse-studio/commit/99ade59c3bf214b30be88d69950d464398a4869e). This is a handoff and acceptance record, not an installer or a claim of production readiness. Live evidence below comes from operator confirmations and Hermes reports in the development conversation; raw host logs have not been independently collected into Git. CI links are independently checked GitHub Actions conclusions.
+**Checkpoint: 2026-11-27 (Asia/Jakarta).** Last verified code baseline: [146b523](https://github.com/el-utama/creatorpulse-studio/commit/146b523adab7de3225bb314cf106ab15f6b8cde4). This is a handoff and acceptance record, not an installer or a claim of production readiness. Live evidence below comes from operator confirmations and Hermes reports in the development conversation; raw host logs have not been independently collected into Git. CI links are independently checked GitHub Actions conclusions.
+
+## Current acceptance checkpoint — 2026-11-27
+
+Exact 146b523 [Verify](https://github.com/el-utama/creatorpulse-studio/actions/runs/45919840709) passed 24 Chromium, 6 Firefox/WebKit, 14 Gateway, 25 Hermes and 10 Bridge tests; [Windows CI](https://github.com/el-utama/creatorpulse-studio/actions/runs/45919840692) passed. Canonical Sandbox alias READY at the same SHA. Fixture screenshots reviewed at desktop, compact and mobile sizes. Account context stays on the current tab, persists across navigation and never sets the manual compose target. This supersedes earlier UI navigation notes. Preview-toolbar opt-out was requested through the Vercel project API; its read response omits the setting, so actual overlay disappearance is unverified. No production setting change requested. Light-only theme is intentional, dark/system deferred. Native owner browser acceptance, actual web TikTok playback and live-workflow release hold remain separate. Follow-up distinguishes empty/failed public video reads, keeps unavailable scope visible rather than silently widening on directory errors, and adds explicit empty/error and compose guard regression. Verify follow-up SHA before accepting it. No new publication, scheduler or Windows action.
 
 ## Release hold — 2026-11-26 owner evidence
 
