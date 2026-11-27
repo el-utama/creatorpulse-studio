@@ -10,8 +10,8 @@ test('workspace design contract: navigation, resize, content scope and readable 
  await page.getByRole('button',{name:'Buka akses'}).click();
  await expect(page.getByText('Bridge data loaded',{exact:true})).toBeVisible();
  await page.setViewportSize({width:1280,height:420});
- const shared=page.getByRole('button',{name:'Select shared account Studio Beta',exact:true});
- await shared.click();await expect(page.getByRole('heading',{level:1,name:'AI Agent',exact:true})).toBeVisible();
+ const shared=page.getByLabel('Workspace account');
+ await shared.selectOption(accounts[1].slot);await expect(page.getByRole('heading',{level:1,name:'AI Agent',exact:true})).toBeVisible();
  await expect(page.getByLabel('Workspace account')).toHaveValue(accounts[1].slot);
  await nav(page,'Overview').click();await expect(page.getByLabel('Workspace account')).toHaveValue(accounts[1].slot);
  await expect(page.locator('.r1-metric-grid').getByText('8.2K',{exact:true})).toBeVisible();
@@ -21,14 +21,14 @@ test('workspace design contract: navigation, resize, content scope and readable 
  await expect(page.locator('.r1-queue').getByText('Morning studio routine',{exact:true})).toHaveCount(0);
  await nav(page,'Accounts').click();await expect(page.getByLabel('Workspace account')).toHaveValue(accounts[1].slot);
  await expect(page.locator('.r1-account-directory [data-account-selected=true]').filter({visible:true})).toHaveCount(1);
- await nav(page,'Content').click();await expect(page.getByLabel('Filter accounts')).toHaveValue(accounts[1].slot);
+ await nav(page,'Content').click();await expect(page.getByLabel('Workspace account')).toHaveValue(accounts[1].slot);
  await expect(page.locator('.r1-filter-context').getByText('Studio Beta',{exact:true})).toBeVisible();
  await expect(page.locator('.r1-library').getByText('Behind the scenes',{exact:true}).filter({visible:true})).toBeVisible();
- await expect(shared).toHaveAttribute('aria-pressed','true');
- expect(await page.locator('.r1-sidebar').evaluate(el=>el.scrollHeight>el.clientHeight)).toBe(true);
+ await expect(shared).toHaveValue(accounts[1].slot);
+ await expect(page.locator('.r1-sidebar')).toHaveCount(0);await expect(page.locator('.cp-primary-nav')).toBeVisible();
  for(const width of [1025,1024,900,768,390,320,1440]){
   await page.setViewportSize({width,height:844});
-  await expect(page.getByLabel('Filter accounts')).toHaveValue(accounts[1].slot);
+  await expect(page.getByLabel('Workspace account')).toHaveValue(accounts[1].slot);
   await expect(page.locator('.r1-library').getByText('Behind the scenes',{exact:true}).filter({visible:true})).toBeVisible();
   const library=page.locator('.r1-library');
   const visibleRows=library.locator('[data-account-slot]:visible');
@@ -46,7 +46,7 @@ test('workspace design contract: navigation, resize, content scope and readable 
  await expect(page.locator('.r1-library [data-account-slot]:visible')).toHaveCount(1);
  await expect(page.locator('.r1-library [data-account-slot]:visible .r1-video-account')).toHaveText('Studio Beta');
  await page.getByRole('button',{name:'List view'}).click();
- await page.getByRole('button',{name:'Clear account filter'}).click();await expect(page.getByLabel('Filter accounts')).toHaveValue('all');
+ await page.getByRole('button',{name:'Clear account filter'}).click();await expect(page.getByLabel('Workspace account')).toHaveValue('all');
  await expect(page.locator('.r1-library [data-account-slot]:visible')).toHaveCount(3);
  for(const width of [1440,900,390,320]){
   await page.setViewportSize({width,height:844});
@@ -88,13 +88,13 @@ test('workspace scroll and toolbar remain reachable across resize and modal',asy
   }
   if(width===390||width===1440)await page.screenshot({path:'engine-test-results/'+browserName+'-scrolled-agent-'+width+'.png'});
  }
- await nav(page,'Content').click();await expect(page.getByLabel('Filter accounts')).toBeVisible();
+ await nav(page,'Content').click();await expect(page.getByLabel('Workspace account')).toBeVisible();
  await expect.poll(async()=>(await scrollState()).y).toBeLessThanOrEqual(2);
  for(const width of [320,390,640,900,1024,1025,1440]){
   await page.setViewportSize({width,height:600});
   const bar=page.getByRole('group',{name:'Content controls'});
   const geometry=await bar.evaluate(el=>{const bounds=el.getBoundingClientRect();return [...el.querySelectorAll('input,select,button')].map(e=>{const r=e.getBoundingClientRect();return {inside:r.left>=bounds.left-1&&r.right<=bounds.right+1,width:r.width,height:r.height}})});
-  expect(geometry).toHaveLength(5);
+  expect(geometry).toHaveLength(4);
   for(const r of geometry){expect(r.inside).toBe(true);expect(r.width).toBeGreaterThan(20);expect(r.height).toBeGreaterThanOrEqual(width<=1024?42:38)}
   await page.getByRole('button',{name:'Grid view'}).click();
   await expect(page.getByRole('button',{name:'Grid view'})).toHaveAttribute('aria-pressed','true');
@@ -190,20 +190,21 @@ test('empty and unavailable libraries remain distinct; scope cannot change compo
  await page.getByLabel('Kunci operator',{exact:true}).fill('fixture-operator');await page.getByRole('button',{name:'Buka akses'}).click();
  await expect(page.getByText('Bridge data loaded',{exact:true})).toBeVisible();
  await nav(page,'Content').click();
- const alphaButton=page.getByRole('button',{name:'Select shared account '+alpha.name,exact:true});
- await alphaButton.focus();await alphaButton.press('Enter');
+ const alphaButton=page.getByLabel('Workspace account');
+ await alphaButton.focus();await alphaButton.press('Home');await alphaButton.press('ArrowDown');await alphaButton.press('Enter');
+ await expect(alphaButton).toHaveValue(alpha.slot);
  await expect(page.getByRole('heading',{level:1,name:'Content',exact:true})).toBeVisible();
- await expect(page.getByLabel('Filter accounts')).toHaveValue(alpha.slot);
+ await expect(page.getByLabel('Workspace account')).toHaveValue(alpha.slot);
  await expect(page.getByText('No public videos in the loaded library.',{exact:true})).toBeVisible();
  await expect(page.locator('.r1-library .r1-table:visible')).toHaveCount(0);
  await expect(page.getByRole('button',{name:'Load more'})).toBeDisabled();
  await page.screenshot({path:'engine-test-results/'+browserName+'-empty-library.png'});
- await page.getByLabel('Filter accounts').selectOption(beta.slot);
+ await page.getByLabel('Workspace account').selectOption(beta.slot);
  await expect(page.getByText('Videos could not be loaded for this selection.',{exact:true})).toBeVisible();
  await page.getByLabel('Search content').fill('not present');
  await expect(page.getByText('Videos could not be loaded for this selection.',{exact:true})).toBeVisible();
  await page.screenshot({path:'engine-test-results/'+browserName+'-unavailable-library.png'});
- await page.getByLabel('Filter accounts').selectOption(gamma.slot);
+ await page.getByLabel('Workspace account').selectOption(gamma.slot);
  await expect(page.locator('.r1-library [data-account-slot]:visible')).toHaveCount(1);
  await page.getByLabel('Search content').fill('not present');
  await expect(page.getByText('No videos match your search.',{exact:false})).toBeVisible();
@@ -240,13 +241,13 @@ test('operate redesign prioritizes actions and groups performance without decora
   await page.setViewportSize({width,height:900});
   const actions=page.locator('.cp-action-center');const summary=page.getByRole('region',{name:'Performance summary'});
   await expect(actions).toBeVisible();await expect(summary).toBeVisible();
-  expect((await actions.boundingBox()).y).toBeLessThan((await summary.boundingBox()).y);
+  const ab=await actions.boundingBox(),sb=await summary.boundingBox();if(width>1024){expect(ab.x).toBeGreaterThan(sb.x+sb.width-1);expect(Math.abs(ab.y-sb.y)).toBeLessThanOrEqual(2)}else{expect(ab.y).toBeLessThan(sb.y)}
   await expect(summary.locator('.r1-metric')).toHaveCount(4);await expect(summary.locator('.r1-metric-icon')).toHaveCount(0);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   await page.screenshot({path:'engine-test-results/'+browserName+'-operate-overview-'+width+'.png'});
  }
  await page.setViewportSize({width:1440,height:900});
- const account=page.getByRole('button',{name:'Select shared account '+accounts[1].name,exact:true});await account.click();await expect(account).toHaveAttribute('aria-pressed','true');await expect(page.getByLabel('Workspace account')).toHaveValue(accounts[1].slot);
+ const account=page.getByLabel('Workspace account');await account.selectOption(accounts[1].slot);await expect(account).toHaveValue(accounts[1].slot);await expect(page.getByLabel('Workspace account')).toHaveValue(accounts[1].slot);
  await expect(page.getByRole('heading',{level:1,name:'Overview',exact:true})).toBeVisible();
 });
 
@@ -267,5 +268,22 @@ test('account management has one readable permission row and consistent publishi
   if([1440,1280,390].includes(width))await page.screenshot({path:'engine-test-results/'+browserName+'-operate-accounts-'+width+'.png'});
   await nav(page,'Publishing').click();await expect(page.locator('.cp-summary-strip .r1-summary-box')).toHaveCount(3);await expect(page.locator('.cp-publishing-tabs .r1-tab-count')).toHaveCount(0);await expect(page.getByRole('button',{name:'Lock session'})).toBeVisible();
   if([1440,1280,390].includes(width))await page.screenshot({path:'engine-test-results/'+browserName+'-operate-publishing-'+width+'.png'});
+ }
+});
+
+
+test('desk shell has a single scope control and no sidebar across all workspaces',async({page,context,browserName})=>{
+ test.setTimeout(90000);const {accounts}=await installWorkspaceFixture(page,context,{stress:true});
+ await page.setViewportSize({width:1440,height:900});await page.goto('/dashboard');await nav(page,'AI Agent').click();await page.getByLabel('Kunci operator',{exact:true}).fill('fixture-operator');await page.getByRole('button',{name:'Buka akses'}).click();await expect(page.getByText('Bridge data loaded',{exact:true})).toBeVisible();
+ await page.getByLabel('Workspace account').selectOption(accounts[1].slot);
+ for(const width of [1600,1440,1280,1025,900,390,320]){
+  await page.setViewportSize({width,height:900});
+  for(const view of ['Overview','Accounts','Content','Publishing','AI Agent']){
+   await nav(page,view).click();await expect(page.getByRole('heading',{level:1,name:view,exact:true})).toBeVisible();await expect(page.getByLabel('Workspace account')).toHaveCount(1);await expect(page.getByLabel('Workspace account')).toHaveValue(accounts[1].slot);await expect(page.locator('.r1-sidebar')).toHaveCount(0);expect(await page.getByRole('navigation',{name:'Workspace navigation'}).count()).toBe(1);
+   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+   const main=await page.locator('#main-content').boundingBox();expect(main.x).toBeLessThanOrEqual(Math.max(0,(width-1520)/2)+1);
+   if(width>1024)await expect(page.locator('.cp-primary-nav')).toBeVisible();else await expect(page.locator('.r1-bottomnav')).toBeVisible();
+   if([1440,390].includes(width))await page.screenshot({path:'engine-test-results/'+browserName+'-desk-'+view.toLowerCase().replaceAll(' ','-')+'-'+width+'.png',fullPage:true});
+  }
  }
 });

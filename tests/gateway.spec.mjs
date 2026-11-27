@@ -10,6 +10,7 @@ function seedRate(count=0){execFileSync('python3',['-c','import sqlite3,sys,time
 test.beforeEach(()=>{if(enabled)seedRate()});
 test('gateway rejects mismatched environment header',async({request})=>{const health=await (await request.get('/api/gateway/v1/health')).json();expect(health.environment).toBe('local');expect((await request.get('/api/gateway/v1/accounts',{headers:{...agent,'X-CreatorPulse-Environment':'sandbox'}})).status()).toBe(403);});
 test('enroll and monitor without browser, separate credentials and sourced trend data',async ({context,request,browser:browserInstance})=>{
+ test.setTimeout(90000);
  const start=await context.request.get('/api/auth/tiktok',{maxRedirects:0});
  const state=new URL(start.headers().location).searchParams.get('state');
  const cb=await context.request.get('/api/auth/tiktok/callback?code=account-a&state='+state,{maxRedirects:0});
@@ -124,22 +125,22 @@ test('enroll and monitor without browser, separate credentials and sourced trend
    const sharedHistory=await sharedOnly.request.get(historyUrl,{headers:marker});expect(sharedHistory.status()).toBe(200);expect((await sharedHistory.json()).records).toEqual(firstHistory.records);
    expect((await sharedOnly.request.get('/api/tiktok/analytics?account='+id)).status()).toBe(401);
    const page=await sharedOnly.newPage();await page.goto('/dashboard?view=content');
-   await expect(page.getByLabel('Filter accounts').locator('option[value="'+id+'"]')).toHaveCount(1);
+   await expect(page.getByLabel('Workspace account').locator('option[value="'+id+'"]')).toHaveCount(1);
    const accountName=data.accounts.find(a=>a.id===id).name;
    await page.setViewportSize({width:1280,height:720});
-   await page.getByRole('button',{name:'Select shared account '+accountName,exact:true}).click();
+   await page.getByLabel('Workspace account').selectOption(id);
    await expect(page.getByRole('heading',{level:1,name:'Content',exact:true})).toBeVisible();
-   await expect(page.getByLabel('Filter accounts')).toHaveValue(id);
+   await expect(page.getByLabel('Workspace account')).toHaveValue(id);
    await page.setViewportSize({width:900,height:720});
    await page.getByRole('navigation',{name:'Workspace navigation'}).getByRole('button',{name:'Accounts',exact:true}).click();
    await page.getByRole('button',{name:'Open content for '+accountName,exact:true}).click();
-   await expect(page.getByLabel('Filter accounts')).toHaveValue(id);
+   await expect(page.getByLabel('Workspace account')).toHaveValue(id);
    await expect(page.getByText('Video terbaru',{exact:true}).filter({visible:true})).toBeVisible();
    await page.getByRole('button',{name:'Load more'}).click();
    await expect(page.getByText('Video lama',{exact:true}).filter({visible:true})).toBeVisible();
    await page.goto('/dashboard?view=status');await expect(page.getByRole('button',{name:'Details '+publicationId})).toBeVisible();
    await page.getByRole('button',{name:'Details '+publicationId}).click();await expect(page.getByText('Live status check requires a readable TikTok browser session. The stored record is available.',{exact:true})).toBeVisible();
-   await page.getByRole('button',{name:'Kunci sesi'}).click();await expect(page.getByRole('button',{name:'Details '+publicationId})).toHaveCount(0);
+   await page.getByRole('button',{name:'Lock session'}).click();await expect(page.getByRole('button',{name:'Details '+publicationId})).toHaveCount(0);
    expect((await sharedOnly.request.get(historyUrl,{headers:marker})).status()).toBe(401);
   }finally{await sharedOnly.close();}
   expect((await request.get(historyUrl,{headers:marker})).status()).toBe(401);

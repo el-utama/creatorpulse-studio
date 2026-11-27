@@ -192,7 +192,7 @@ test('multi-account OAuth, switch, isolation and removal',async ({page,context})
  const mismatch=await context.request.post('/api/tiktok/publish',{multipart:{accountId:'account-b',requestId:crypto.randomUUID(),mode:'inbox',consent:'true',videoUrl:'https://example.com/video.mp4'}});
  expect(mismatch.status()).toBe(409);
  const scoped=await context.request.get('/api/tiktok/analytics?account='+b.slot);expect((await scoped.json()).user_info.open_id).toBe('account-b');expect(await profile()).toBe('account-a');expect((await context.request.get('/api/tiktok/analytics?account='+'f'.repeat(32))).status()).toBe(401);
- await page.goto('/dashboard');await expect(page.getByRole('heading',{name:'Account performance'}).locator('xpath=ancestor::section[1]').getByText('Account A',{exact:true}).filter({visible:true})).toBeVisible();await expect(page.getByRole('heading',{name:'Account performance'}).locator('xpath=ancestor::section[1]').getByText('Account B',{exact:true}).filter({visible:true})).toBeVisible();await nav(page,'Content').click();await page.getByLabel('Filter accounts').selectOption(b.slot);await expect(page.locator('.r1-library').locator('.r1-desktop-table,.r1-mobile-only').getByText('Account B',{exact:true}).filter({visible:true})).toBeVisible();await expect(page.locator('.r1-library').locator('.r1-desktop-table,.r1-mobile-only').getByText('Account A',{exact:true})).toHaveCount(0);
+ await page.goto('/dashboard');await expect(page.getByRole('heading',{name:'Account performance'}).locator('xpath=ancestor::section[1]').getByText('Account A',{exact:true}).filter({visible:true})).toBeVisible();await expect(page.getByRole('heading',{name:'Account performance'}).locator('xpath=ancestor::section[1]').getByText('Account B',{exact:true}).filter({visible:true})).toBeVisible();await nav(page,'Content').click();await page.getByLabel('Workspace account').selectOption(b.slot);await expect(page.locator('.r1-library').locator('.r1-desktop-table,.r1-mobile-only').getByText('Account B',{exact:true}).filter({visible:true})).toBeVisible();await expect(page.locator('.r1-library').locator('.r1-desktop-table,.r1-mobile-only').getByText('Account A',{exact:true})).toHaveCount(0);
  const denied=await context.request.post('/api/auth/accounts',{headers:{Origin:'https://other.example'},data:{action:'remove',slot:b.slot}});expect(denied.status()).toBe(403);
  expect((await context.request.post('/api/auth/accounts',{data:{action:'remove',slot:b.slot}})).ok()).toBe(true);expect(await profile()).toBe('account-a');
  expect((await context.request.post('/api/auth/logout')).ok()).toBe(true);
@@ -274,7 +274,7 @@ test('AI workspace: health failure is actionable and operator key has one entry 
  await expect(page.getByLabel('Kunci operator',{exact:true})).toHaveValue('');
 });
 
-test('desktop sidebar uses flat compact rows and centers icons',async({page,context})=>{
+test('desktop horizontal navigation uses flat compact controls and full width workspace',async({page,context})=>{
  await context.addCookies([{name:'creatorpulse_access_token',value:'mock-only',url:'http://localhost:3000'}]);
  await page.route('**/api/tiktok/analytics',route=>route.fulfill({json:{user_info:{open_id:'sidebar-test',display_name:'Utama',avatar_url:'',follower_count:10,following_count:2,likes_count:20,video_count:0},videos:{data:[]}}}));
  await page.setViewportSize({width:1440,height:900});await page.goto('/dashboard');await expect(page.getByRole('heading',{name:'Account performance',exact:true})).toBeVisible();
@@ -283,7 +283,7 @@ test('desktop sidebar uses flat compact rows and centers icons',async({page,cont
   const style=await tab.evaluate(el=>({shadow:getComputedStyle(el).boxShadow,align:getComputedStyle(el).alignItems,height:el.getBoundingClientRect().height}));
   expect(style.shadow==='none'||style.shadow.replaceAll('rgba(0, 0, 0, 0) 0px 0px 0px 0px','').replace(/[,\s]/g,'')==='').toBe(true);expect(style.align).toBe('center');expect(style.height).toBeLessThanOrEqual(46);
  }
- expect(await page.locator('.r1-sidebar').evaluate(el=>el.getBoundingClientRect().width)).toBeLessThanOrEqual(224);
+ await expect(page.locator('.r1-sidebar')).toHaveCount(0);await expect(page.locator('.cp-primary-nav')).toBeVisible();const work=await page.locator('#main-content').boundingBox();expect(work.width).toBeGreaterThanOrEqual(1400);
  await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'test-results/ux-compact-sidebar-desktop.png',fullPage:true});
 });
 
@@ -325,7 +325,7 @@ test('V4 three-account overview and scoped content at all viewport sizes',async(
  await page.route('**/api/auth/accounts',route=>route.fulfill({json:{accounts,active:accounts[0].slot,legacy:false,limit:3}}));
  await page.route('**/api/tiktok/analytics**',route=>{const slot=new URL(route.request().url()).searchParams.get('account');const i=accounts.findIndex(a=>a.slot===slot);if(i<0)return route.fulfill({status:401,json:{error:'Unknown account'}});const a=accounts[i];return route.fulfill({json:{user_info:{open_id:'id-'+i,display_name:a.name,avatar_url:'',follower_count:[12500,8200,4100][i],likes_count:100,video_count:1},videos:{data:[{id:'video-'+i,title:'Content '+i,cover_image_url:'',create_time:1,share_url:'https://www.tiktok.com/',view_count:[92000,65000,29400][i],like_count:10,comment_count:1,share_count:0}]}}});});
  for(const width of [320,390,430,768,1440]){await page.setViewportSize({width,height:900});await page.goto('/dashboard');await expect(page.getByText('24.8K',{exact:true})).toBeVisible();await expect(page.getByText('186.4K',{exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'Account performance'}).locator('xpath=ancestor::section[1]').getByText('Studio Alpha',{exact:true}).filter({visible:true})).toBeVisible();await expect(page.getByRole('heading',{name:'Account performance'}).locator('xpath=ancestor::section[1]').getByText('Studio Beta',{exact:true}).filter({visible:true})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);await page.screenshot({path:'test-results/v4-overview-'+width+'.png',fullPage:true});}
- await nav(page,'Content').click();await expect(page.getByText('Content 0',{exact:true}).filter({visible:true})).toBeVisible();await expect(page.getByText('Content 2',{exact:true}).filter({visible:true})).toBeVisible();await page.getByLabel('Filter accounts').selectOption(accounts[1].slot);await expect(page.getByText('Content 1',{exact:true}).filter({visible:true})).toBeVisible();await expect(page.getByText('Content 0',{exact:true})).toHaveCount(0);await page.screenshot({path:'test-results/v4-content-filtered.png',fullPage:true});await nav(page,'Accounts').click();await page.screenshot({path:'test-results/v4-accounts.png',fullPage:true});
+ await nav(page,'Content').click();await expect(page.getByText('Content 0',{exact:true}).filter({visible:true})).toBeVisible();await expect(page.getByText('Content 2',{exact:true}).filter({visible:true})).toBeVisible();await page.getByLabel('Workspace account').selectOption(accounts[1].slot);await expect(page.getByText('Content 1',{exact:true}).filter({visible:true})).toBeVisible();await expect(page.getByText('Content 0',{exact:true})).toHaveCount(0);await page.screenshot({path:'test-results/v4-content-filtered.png',fullPage:true});await nav(page,'Accounts').click();await page.screenshot({path:'test-results/v4-accounts.png',fullPage:true});
 });
 
 test('R1 operational reference screenshots, real fixture counts and lock isolation',async({page,context})=>{
@@ -335,22 +335,22 @@ test('R1 operational reference screenshots, real fixture counts and lock isolati
  await page.setViewportSize({width:1440,height:900});await page.goto('/dashboard');await expect(page.getByText('24.8K',{exact:true})).toBeVisible();
  await nav(page,'AI Agent').click();await page.getByLabel('Kunci operator',{exact:true}).fill('fixture-operator');await page.getByRole('button',{name:'Buka akses'}).click();await expect(page.getByText('Bridge data loaded',{exact:true})).toBeVisible();
  await page.setViewportSize({width:1280,height:420});
- await page.getByRole('button',{name:'Select shared account Studio Beta',exact:true}).click();
+ await page.getByLabel('Workspace account').selectOption(accounts[1].slot);
  await expect(page.getByRole('heading',{name:'AI Agent',exact:true,level:1})).toBeVisible();
  await expect(page.getByLabel('Workspace account')).toHaveValue(accounts[1].slot);
  await nav(page,'Content').click();
- await expect(page.getByLabel('Filter accounts')).toHaveValue(accounts[1].slot);
+ await expect(page.getByLabel('Workspace account')).toHaveValue(accounts[1].slot);
  await expect(page.locator('.r1-library').getByText('Behind the scenes',{exact:true}).filter({visible:true})).toBeVisible();
- await expect(page.getByRole('button',{name:'Select shared account Studio Beta',exact:true})).toHaveAttribute('aria-pressed','true');
- expect(await page.locator('.r1-sidebar').evaluate(el=>el.scrollHeight>el.clientHeight)).toBe(true);
+ await expect(page.getByLabel('Workspace account')).toHaveValue(accounts[1].slot);
+ await expect(page.locator('.r1-sidebar')).toHaveCount(0);await expect(page.locator('.cp-primary-nav')).toBeVisible();
  for(const width of [1025,1024,900,768,390,320,1280]){
   await page.setViewportSize({width,height:720});
-  await expect(page.getByLabel('Filter accounts')).toHaveValue(accounts[1].slot);
+  await expect(page.getByLabel('Workspace account')).toHaveValue(accounts[1].slot);
   await expect(page.locator('.r1-library').getByText('Behind the scenes',{exact:true}).filter({visible:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   await expect(page.getByRole('button',{name:'Operator access: unlocked'})).toBeVisible();
  }
- await page.getByLabel('Filter accounts').selectOption('all');
+ await page.getByLabel('Workspace account').selectOption('all');
  for(const width of [1440,1280,1100,1025,1024,900,768,430,390,320]){await page.setViewportSize({width,height:900});for(const [label,file] of [['Overview','overview'],['Accounts','accounts'],['Content','content'],['Publishing','publishing'],['AI Agent','agent']]){await nav(page,label).click();await page.evaluate(()=>window.scrollTo(0,0));await expect(page.getByRole('heading',{level:1,name:label,exact:true})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);await page.screenshot({path:'test-results/r1-'+file+'-'+width+'.png',fullPage:true});}}
  let accountFailure=true;
  await page.route('**/api/gateway/v1/accounts/*/capabilities',route=>route.fulfill(accountFailure?{status:401,json:{error:'TikTok account needs reconnect'}}:{json:{creator_nickname:'Studio Beta',creator_username:'fixture',privacy_level_options:['SELF_ONLY'],comment_disabled:true,duet_disabled:true,stitch_disabled:true,max_video_post_duration_sec:60}}));

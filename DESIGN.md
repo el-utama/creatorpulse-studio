@@ -1,33 +1,15 @@
-# CreatorPulse Studio — Operate visual direction
+# CreatorPulse Studio — Studio Desk design
 
-Status: redesign candidate, not approved or deployed to canonical Sandbox. Supersedes the stale original design specification on this branch only.
+Status: replacement candidate, not approved for canonical Sandbox. User rejected earlier Operate visual direction as too similar to baseline.
 
-## Direction: editorial operations desk
-A quiet, daylight work surface that lets the operator scan decisions first. Distinctiveness comes from order and measured density, not decoration. One familiar sans-serif family (system stack for reliable cross-platform rendering), tabular numerals, no display fonts. White working canvas, soft cool-gray navigation, deep blue-ink text, restrained indigo action, semantic amber/red/green reserved for real statuses.
+## Direction
+A full-width editorial workspace, with compact forest-toned masthead and light paper working surface. Inspired by editorial production desks (clear section boundaries and actionable lists), not a literal control room or SaaS dashboard kit. Desktop navigation is horizontal; mobile retains familiar bottom navigation. One visible native account scope selector with grouped provenance across all views, disabled during compose. It never selects a posting target. No sidebar, repeated filter, fake connection indicator or decorative card icons. Prioritize actual task and meaningful values.
 
 ## Tokens
-| Token | Value / intent |
-|---|---|
-| Canvas | #f7f8fa |
-| Surface | #ffffff |
-| Navigation | #f4f5f8 |
-| Ink | #17243a |
-| Secondary | #526176 |
-| Border | #e0e4eb |
-| Action | #4338b7 |
-| Selected | #ecebfa |
-| Type | 28/24/22 page title by screen, 16 section, 14 body, 13 controls, 12 metadata |
-| Space | 4, 8, 12, 16, 20, 24, 32px |
-| Radius | 8 controls, 10 grouped surfaces |
-| Hit areas | 40 desktop, 44 mobile where practical |
+Canvas #f6f5f1; surface #fff; masthead #203831; ink #202820; secondary #52605a; line #dedfd7; action #245e50; selected #e3f0e9. System sans, tabular data, 30 desktop / 24 mobile page title, 16 section, 14 body, 13 controls, 12 metadata; 4/8/12/16/20/24/32 spacing; 6 control / 8 region radius. Dark masthead with explicit contrast, not full dark mode.
 
-## Composition
-Desktop: stable left navigation, shallow workspace header, compact page action. Sidebar account rows indicate selection with a check, not a navigation arrow. Scope remains independent of route and publishing target. No status dot implying live connectivity.
-
-Overview: a compact action center first, then one grouped metric strip (four metrics separated by rules, not nested identical cards), then full-width account performance and secondary content/activity. Action order matches DOM and visual order. Mobile uses the same order with a two-by-two metric group. Account rows retain source and loaded-view provenance. Existing Content, Publishing, Compose, Accounts and Agent behavior is retained in phase one; coherent page-specific redesign follows after comparing actual renders.
+## Workflow composition
+Overview: primary performance surface with actual loaded-video views and other metrics, right task rail with global actions, full-width secondary activity. Mobile action rail above performance. Accounts: one responsive access management row per identity, distinct permissions, stats and actions. Content: search and sort/list/grid toolbar, account scope above it. Publishing: grouped summary, queue/review/history tabs, full captions in review, preserve human consent. Compose: full-width responsive editor/preview, scope disabled independent of target. Agent: status and research / management columns; no implication of live connection. All existing data, real statuses, consent and access semantics preserved.
 
 ## Acceptance
-Inspect actual 1440, 1280, 900, 390, 320 renders, including locked, long, empty and failed states; compare before/after. No misleading source, counts, targets or status. Preserve accessibility, existing tests and review boundaries. Do not claim quality from overflow or screenshots alone. See docs/UX_REDESIGN.md. Light-only candidate; no partial dark mode.
-
-## Phase 2: access management and publication workspace
-Accounts uses a single responsive directory row per browser identity, with distinct permission labels, three metrics and reachable actions. Do not duplicate table and card representations for management tasks. Full names remain readable. Publishing uses the same grouped summary strip as Accounts, with simple tabs instead of repeated counters. The lock action is labeled Lock session; behavior and consent are unchanged. Content and queue names may wrap rather than lose identity. Native browser acceptance still separate.
+Compare actual renders with baseline and rejected candidate. No sidebar at any width, one scope control, clear account provenance, horizontal desktop navigation, accessible mobile nav, readable target and status, no clipping or missing data. Existing security assertions unchanged. Do not merge until exact CI and visual review. No runtime package installation or release action. Native owner sessions remain distinct from fixtures.
