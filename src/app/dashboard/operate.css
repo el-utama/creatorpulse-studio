@@ -98,3 +98,12 @@
 @container data-panel (max-width:1000px){.r1.cp-desk .cp-directory-row{grid-template-columns:minmax(0,1fr) auto;gap:14px 20px}.r1.cp-desk .cp-directory-access{grid-column:1;grid-row:2}.r1.cp-desk .cp-directory-stats{grid-column:1 / -1;grid-row:3;max-width:440px}.r1.cp-desk .cp-directory-actions{grid-column:2;grid-row:1 / 3;align-self:start}}
 @container data-panel (max-width:560px){.r1.cp-desk .cp-directory-row{display:flex;flex-direction:column;align-items:stretch;gap:14px;padding:16px}.r1.cp-desk .cp-directory-actions{justify-content:space-between;align-self:stretch}.r1.cp-desk .cp-directory-actions .r1-btn{flex:1}.r1.cp-desk .cp-directory-actions .r1-action-menu{width:44px;min-height:44px}.r1.cp-desk .cp-directory-access{gap:8px}.r1.cp-desk .cp-directory-stats{max-width:none;padding-top:12px;border-top:1px solid var(--line)}}
 @media(max-width:639px){.r1.cp-desk .cp-summary-strip .r1-summary-box{padding:10px 8px}.r1.cp-desk .cp-summary-strip .r1-metric-value{font-size:22px}.r1.cp-desk .cp-directory-actions .r1-btn{min-height:44px}.r1.cp-desk .cp-action-center .r1-panel-head{padding:12px 14px}.r1.cp-desk .cp-action-center .r1-attention-row{min-height:54px}.r1.cp-desk .cp-overview .r1-panel-head{flex-wrap:wrap;gap:4px 12px}.r1.cp-desk .cp-overview .r1-panel-head>.r1-grow{flex:1 1 155px}.r1.cp-desk .cp-overview .r1-panel-head .r1-link{min-height:36px}}
+
+/* Render review: prevent empty rail stretch, preserve selected identity on narrow screens, finish accent migration. */
+.r1.cp-desk .cp-action-center{align-self:start}
+.r1.cp-desk .cp-scope-identity{display:none}
+.r1.cp-desk .r1-bar-track{background:#e5ede6}.r1.cp-desk .r1-bar-track i{background:#528773}
+.r1.cp-desk .cp-account-performance .r1-performance-table th:nth-child(4){width:116px;white-space:nowrap}
+.r1.cp-desk .r1-library .r1-content-toolbar .r1-toolbar-right{width:auto;flex:0 1 auto;min-width:0}
+.r1.cp-desk .r1-library .r1-content-toolbar .r1-toolbar-right .r1-field{min-width:132px}
+@media(max-width:639px){.r1.cp-desk .cp-scope-identity{display:block;grid-column:1/-1;font-size:13px;font-weight:650;overflow-wrap:anywhere}.r1.cp-desk .cp-scope-bar{gap:6px 8px}.r1.cp-desk .r1-library .r1-content-toolbar .r1-toolbar-right{width:100%;flex:1 1 100%}.r1.cp-desk .r1-library .r1-content-toolbar .r1-toolbar-right .r1-field{min-width:0}}

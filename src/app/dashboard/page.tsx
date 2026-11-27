@@ -167,7 +167,7 @@ export default function DashboardPage() {
       <div className="cp-masthead-inner">{brand}
         <nav aria-label="Workspace navigation" className="cp-primary-nav">{navButtons(false)}</nav>
         <div className="r1-top-controls">
-          <button className="r1-btn r1-icon-only" aria-label="Refresh workspace" title={lastUpdated||"Refresh"} onClick={refresh} disabled={publishing||analyticsLoading}><RefreshCw size={17}/></button>
+          <button className="r1-btn r1-icon-only" aria-label="Refresh workspace" title={lastUpdated||"Refresh"} onClick={refresh} disabled={publishing||analyticsLoading||draftDirty}><RefreshCw size={17}/></button>
           <button type="button" className="r1-operator" title={"Operator access: "+operatorState} aria-label={"Operator access: "+operatorState} onClick={()=>go("agent")}><Lock size={16}/><span>{operatorState==="unlocked"?"Operator":operatorState==="locked"?"Locked":"Unknown"}</span></button>
         </div>
       </div>
@@ -181,7 +181,8 @@ export default function DashboardPage() {
             {!!gatewaySummary?.accounts.length&&<optgroup label="Shared · read-only">{gatewaySummary.accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</optgroup>}
             {!!sidebarAccounts.filter(a=>!gatewaySummary?.accounts.some(v=>v.id===a.slot)).length&&<optgroup label="This browser">{sidebarAccounts.filter(a=>!gatewaySummary?.accounts.some(v=>v.id===a.slot)).map(a=><option key={a.slot} value={a.slot}>{a.name}</option>)}</optgroup>}
           </select>
-          <span className="cp-scope-hint">{activeTab==="compose"?"Choose the publishing target below.":activeTab==="accounts"?"All connected accounts remain visible.":activeTab==="agent"?"Settings and research are workspace-wide.":accountFilter!=="all"&&gatewaySummary?.accounts.some(a=>a.id===accountFilter)?"Shared account · read-only":"Filters this workspace, not the publishing target."}</span>
+          {accountFilter!=="all"&&<span className="cp-scope-identity">{scopeAccounts.find(a=>a.slot===accountFilter)?.name??"Selected account unavailable"}</span>}
+          <span className="cp-scope-hint">{activeTab==="compose"?"Choose the publishing target below.":activeTab==="accounts"?"All connected accounts remain visible.":activeTab==="agent"?"Settings and research are workspace-wide.":accountFilter!=="all"&&gatewaySummary?.accounts.some(a=>a.id===accountFilter)?"Shared read-only · manual posting requires browser sign-in":"Filters views, not the publishing target."}</span>
         </div>
         {inPublishing&&activeTab!=="compose"&&<><div className="r1-account-summary cp-summary-strip">{[["Agent queue",scopedPosts?.filter(p=>!["submitted","cancelled","rejected"].includes(p.state)).length],["Needs review",needsReview],["Submitted",scopedPosts?.filter(p=>p.state==="submitted").length]].map(([label,value])=><div key={label} className={"r1-summary-box "+(label==="Needs review"?"r1-summary-warn":"")}><div className="r1-small r1-muted">{label}</div><div className="r1-metric-value">{value??"—"}</div></div>)}</div><nav aria-label="Publishing views" className="r1-tabs cp-publishing-tabs">{[{id:"publish",label:"Queue"},{id:"review",label:"Review"},{id:"status",label:"History"}].map(t=><button key={t.id} onClick={()=>go(t.id)} aria-label={t.label} aria-current={activeTab===t.id?"page":undefined} className={activeTab===t.id?"r1-active":""}>{t.label}</button>)}</nav></>}
         <WorkspaceData view={activeTab} onNavigate={go} disabled={publishing} revision={revision} onActive={receiveActive} onLoading={setAnalyticsLoading} latestPublication={publishId} onAccounts={setSidebarAccounts} accountFilter={accountFilter} onFilterChange={selectScope} gatewaySummary={gatewaySummary} onSelectAgentHistory={setHistoryAgentId}/>

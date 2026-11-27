@@ -221,7 +221,7 @@ test('empty and unavailable libraries remain distinct; scope cannot change compo
  await target.selectOption(alpha.slot);
  await page.getByRole('button',{name:'Continue',exact:true}).click();
  await expect(page.getByLabel('URL video')).toBeVisible();
- await page.getByLabel('URL video').fill('https://example.com/video.mp4');
+ await page.getByLabel('URL video').fill('https://example.com/video.mp4');await expect(page.getByRole('button',{name:'Refresh workspace'})).toBeDisabled();
  page.once('dialog',d=>d.dismiss());await nav(page,'Overview').click();
  await expect(page.getByLabel('URL video')).toHaveValue('https://example.com/video.mp4');
  await expect(alphaButton).toBeDisabled();
@@ -279,7 +279,7 @@ test('desk shell has a single scope control and no sidebar across all workspaces
  for(const width of [1600,1440,1280,1025,900,390,320]){
   await page.setViewportSize({width,height:900});
   for(const view of ['Overview','Accounts','Content','Publishing','AI Agent']){
-   await nav(page,view).click();await expect(page.getByRole('heading',{level:1,name:view,exact:true})).toBeVisible();await expect(page.getByLabel('Workspace account')).toHaveCount(1);await expect(page.getByLabel('Workspace account')).toHaveValue(accounts[1].slot);await expect(page.locator('.r1-sidebar')).toHaveCount(0);expect(await page.getByRole('navigation',{name:'Workspace navigation'}).count()).toBe(1);
+   await nav(page,view).click();await expect(page.getByRole('heading',{level:1,name:view,exact:true})).toBeVisible();await expect(page.getByLabel('Workspace account')).toHaveCount(1);await expect(page.getByLabel('Workspace account')).toHaveValue(accounts[1].slot);await expect(page.locator('.r1-sidebar')).toHaveCount(0);expect(await page.getByRole('navigation',{name:'Workspace navigation'}).count()).toBe(1);if(width<=639){await expect(page.locator('.cp-scope-identity')).toHaveText(accounts[1].name);await expect(page.locator('.cp-scope-identity')).toBeVisible();expect(await page.locator('.cp-scope-identity').evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)}
    expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
    const main=await page.locator('#main-content').boundingBox();expect(main.x).toBeLessThanOrEqual(Math.max(0,(width-1520)/2)+1);
    if(width>1024)await expect(page.locator('.cp-primary-nav')).toBeVisible();else await expect(page.locator('.r1-bottomnav')).toBeVisible();
