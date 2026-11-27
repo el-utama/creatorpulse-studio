@@ -28,3 +28,6 @@ Overview: a compact action center first, then one grouped metric strip (four met
 
 ## Acceptance
 Inspect actual 1440, 1280, 900, 390, 320 renders, including locked, long, empty and failed states; compare before/after. No misleading source, counts, targets or status. Preserve accessibility, existing tests and review boundaries. Do not claim quality from overflow or screenshots alone. See docs/UX_REDESIGN.md. Light-only candidate; no partial dark mode.
+
+## Phase 2: access management and publication workspace
+Accounts uses a single responsive directory row per browser identity, with distinct permission labels, three metrics and reachable actions. Do not duplicate table and card representations for management tasks. Full names remain readable. Publishing uses the same grouped summary strip as Accounts, with simple tabs instead of repeated counters. The lock action is labeled Lock session; behavior and consent are unchanged. Content and queue names may wrap rather than lose identity. Native browser acceptance still separate.

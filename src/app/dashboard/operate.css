@@ -50,3 +50,31 @@
 @media(max-width:1024px){.r1.cp-operate .r1-topbar{height:56px}.r1.cp-operate .r1-main{padding-top:18px}.r1.cp-operate .cp-overview{gap:16px}.r1.cp-operate .cp-action-center .r1-attention{grid-template-columns:repeat(2,minmax(0,1fr))}.r1.cp-operate .cp-action-center .r1-attention-row{min-height:70px}}
 @media(max-width:639px){.r1.cp-operate .cp-action-center .r1-attention{grid-template-columns:minmax(0,1fr)}.r1.cp-operate .cp-action-center .r1-attention-row{border-right:0;padding:10px 12px;min-height:58px}.r1.cp-operate .cp-action-center .r1-attention-row:last-child{border-bottom:0}.r1.cp-operate .cp-metrics .r1-metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.r1.cp-operate .cp-metrics .r1-metric{padding:12px;min-height:95px}.r1.cp-operate .cp-metrics .r1-metric:nth-child(2n){border-right:0}.r1.cp-operate .cp-metrics .r1-metric:nth-child(-n+2){border-bottom:1px solid var(--line)}.r1.cp-operate .cp-metrics .r1-metric-value{font-size:25px}.r1.cp-operate .cp-read-note{font-size:12px;margin-bottom:12px}}
 @media(max-width:350px){.r1.cp-operate .cp-metrics .r1-metric{padding:10px}.r1.cp-operate .cp-action-center .r1-attention-row{padding-inline:10px;gap:8px}.r1.cp-operate .cp-action-center .r1-row-detail{font-size:12px}}
+
+/* Phase 2: task-oriented account directory, shared summary treatment and quieter publishing tabs. */
+.r1.cp-operate .cp-summary-strip{gap:0;border:1px solid var(--line);border-radius:10px;background:var(--paper);overflow:hidden}
+.r1.cp-operate .cp-summary-strip .r1-summary-box{border-right:1px solid var(--line);padding:12px 16px}
+.r1.cp-operate .cp-summary-strip .r1-summary-box:last-child{border-right:0}
+.r1.cp-operate .cp-summary-strip .r1-metric-value{font-size:24px;font-weight:640}
+.r1.cp-operate .cp-directory-row{display:grid;grid-template-columns:minmax(180px,1.45fr) minmax(210px,1.2fr) minmax(210px,1.15fr) auto;gap:20px;align-items:center;padding:18px 20px;border-top:1px solid var(--line)}
+.r1.cp-operate .cp-directory-identity,.r1.cp-operate .cp-directory-identity .r1-flex{min-width:0}
+.r1.cp-operate .cp-directory-identity .r1-account-name{white-space:normal;overflow-wrap:anywhere;display:block;max-height:none;font-size:14px;font-weight:650}
+.r1.cp-operate .cp-directory-access,.r1.cp-operate .cp-directory-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:0;min-width:0}
+.r1.cp-operate .cp-directory-stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+.r1.cp-operate .cp-directory-row dt{color:var(--muted);font-size:12px;line-height:1.3;margin-bottom:5px}
+.r1.cp-operate .cp-directory-row dd{margin:0;min-width:0;font-size:14px;font-weight:600}
+.r1.cp-operate .cp-directory-row .r1-pill{white-space:normal;overflow-wrap:normal;word-break:normal;font-size:12px;max-width:none}
+.r1.cp-operate .cp-directory-stats dd{white-space:nowrap}
+.r1.cp-operate .cp-directory-actions{display:flex;align-items:center;gap:6px;justify-content:flex-end}
+.r1.cp-operate .cp-directory-actions .r1-action-menu{width:40px;min-height:40px;border:1px solid var(--line);border-radius:8px}
+.r1.cp-operate .cp-directory-actions .r1-action-menu:hover{color:var(--bad);background:#fff1f1}
+.r1.cp-operate .cp-directory-actions .r1-btn{min-height:40px}
+.r1.cp-operate .cp-publishing-tabs{background:transparent;border-bottom:1px solid var(--line);border-radius:0;padding-inline:4px;margin-top:4px}
+.r1.cp-operate .r1-gateway .r1-queue{border-radius:10px}
+.r1.cp-operate .r1-library .r1-video-account,.r1.cp-operate .r1-publication-table .r1-account-name{display:block;white-space:normal;overflow-wrap:anywhere;max-height:none;-webkit-line-clamp:unset}
+.r1.cp-operate .r1-library .r1-video-table th:nth-child(2){width:190px}
+.r1.cp-operate .r1-publication-table th:nth-child(2){width:184px}
+.r1.cp-operate .r1-main .r1-review-dialog .r1-panel-head h2{font-size:16px}
+@container data-panel (max-width:1000px){.r1.cp-operate .cp-directory-row{grid-template-columns:minmax(0,1fr) auto;gap:14px 20px}.r1.cp-operate .cp-directory-access{grid-column:1;grid-row:2}.r1.cp-operate .cp-directory-stats{grid-column:1 / -1;grid-row:3;max-width:440px}.r1.cp-operate .cp-directory-actions{grid-column:2;grid-row:1 / 3;align-self:start}}
+@container data-panel (max-width:560px){.r1.cp-operate .cp-directory-row{display:flex;flex-direction:column;align-items:stretch;gap:14px;padding:16px}.r1.cp-operate .cp-directory-actions{justify-content:space-between;align-self:stretch}.r1.cp-operate .cp-directory-actions .r1-btn{flex:1}.r1.cp-operate .cp-directory-actions .r1-action-menu{width:44px;min-height:44px}.r1.cp-operate .cp-directory-access{gap:8px}.r1.cp-operate .cp-directory-stats{max-width:none;padding-top:12px;border-top:1px solid var(--line)}}
+@media(max-width:639px){.r1.cp-operate .cp-summary-strip .r1-summary-box{padding:10px 8px}.r1.cp-operate .cp-summary-strip .r1-metric-value{font-size:22px}.r1.cp-operate .cp-directory-actions .r1-btn{min-height:44px}.r1.cp-operate .cp-action-center .r1-panel-head{padding:12px 14px}.r1.cp-operate .cp-action-center .r1-attention-row{min-height:54px}.r1.cp-operate .cp-overview .r1-panel-head{flex-wrap:wrap;gap:4px 12px}.r1.cp-operate .cp-overview .r1-panel-head>.r1-grow{flex:1 1 155px}.r1.cp-operate .cp-overview .r1-panel-head .r1-link{min-height:36px}}

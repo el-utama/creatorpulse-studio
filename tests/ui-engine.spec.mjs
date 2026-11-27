@@ -56,7 +56,7 @@ test('workspace design contract: navigation, resize, content scope and readable 
    if(width===900||width===390)await page.screenshot({path:'engine-test-results/'+browserName+'-'+slug+'-'+width+'.png',fullPage:true});
   }
  }
- await page.getByRole('button',{name:'Kunci sesi'}).click();
+ await page.getByRole('button',{name:'Lock session'}).click();
  await expect(page.getByRole('button',{name:'Operator access: locked'})).toBeVisible();
  await nav(page,'Content').click();await expect(page.locator('.r1-filter-context')).toHaveCount(0);
 });
@@ -248,4 +248,24 @@ test('operate redesign prioritizes actions and groups performance without decora
  await page.setViewportSize({width:1440,height:900});
  const account=page.getByRole('button',{name:'Select shared account '+accounts[1].name,exact:true});await account.click();await expect(account).toHaveAttribute('aria-pressed','true');await expect(page.getByLabel('Workspace account')).toHaveValue(accounts[1].slot);
  await expect(page.getByRole('heading',{level:1,name:'Overview',exact:true})).toBeVisible();
+});
+
+
+test('account management has one readable permission row and consistent publishing summary',async({page,context,browserName})=>{
+ const {accounts}=await installWorkspaceFixture(page,context,{stress:true});
+ await page.setViewportSize({width:1440,height:900});await page.goto('/dashboard?view=agent');
+ await page.getByLabel('Kunci operator',{exact:true}).fill('fixture-operator');await page.getByRole('button',{name:'Buka akses'}).click();await expect(page.getByText('Bridge data loaded',{exact:true})).toBeVisible();
+ for(const width of [1600,1440,1280,900,390,320]){
+  await page.setViewportSize({width,height:900});await nav(page,'Accounts').click();
+  const list=page.locator('.cp-directory-list');await expect(list.locator('.cp-directory-row')).toHaveCount(3);
+  const row=list.locator('.cp-directory-row').filter({hasText:accounts[0].name});await expect(row.getByText(accounts[0].name,{exact:true})).toBeVisible();
+  const connected=row.getByText('Connected',{exact:true});await expect(connected).toBeVisible();
+  expect(await connected.evaluate(el=>{const r=document.createRange();r.selectNodeContents(el);return r.getClientRects().length})).toBe(1);
+  const issues=await list.locator('.cp-directory-row :is(.r1-pill,.r1-num,button)').evaluateAll(els=>els.filter(el=>el.scrollWidth>el.clientWidth+1).map(el=>el.textContent));expect(issues).toEqual([]);
+  await expect(row.getByRole('button',{name:'Disconnect '+accounts[0].name})).toBeVisible();await expect(row.getByRole('button',{name:'Open content for '+accounts[0].name})).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  if([1440,1280,390].includes(width))await page.screenshot({path:'engine-test-results/'+browserName+'-operate-accounts-'+width+'.png'});
+  await nav(page,'Publishing').click();await expect(page.locator('.cp-summary-strip .r1-summary-box')).toHaveCount(3);await expect(page.locator('.cp-publishing-tabs .r1-tab-count')).toHaveCount(0);await expect(page.getByRole('button',{name:'Lock session'})).toBeVisible();
+  if([1440,1280,390].includes(width))await page.screenshot({path:'engine-test-results/'+browserName+'-operate-publishing-'+width+'.png'});
+ }
 });

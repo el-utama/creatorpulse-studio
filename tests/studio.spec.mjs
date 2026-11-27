@@ -270,7 +270,7 @@ test('AI workspace: health failure is actionable and operator key has one entry 
  await expect(page.getByText('Belum ada rencana publikasi.',{exact:true})).toBeVisible();
  await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'test-results/ux-ai-operator-mobile.png',fullPage:true});
  await page.setViewportSize({width:1440,height:900});await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'test-results/ux-ai-operator-desktop.png',fullPage:true});
- await page.getByRole('button',{name:'Kunci sesi'}).click();await expect(page.getByRole('heading',{name:'Approval',exact:true})).toHaveCount(0);
+ await page.getByRole('button',{name:'Lock session'}).click();await expect(page.getByRole('heading',{name:'Approval',exact:true})).toHaveCount(0);
  await expect(page.getByLabel('Kunci operator',{exact:true})).toHaveValue('');
 });
 
@@ -359,7 +359,7 @@ test('R1 operational reference screenshots, real fixture counts and lock isolati
  await directReviewButton().click();
  const accountDialog=page.getByRole('dialog',{name:'Review agent draft'});await expect(accountDialog.getByRole('alert').filter({hasText:'TikTok account needs reconnect'})).toBeVisible();await expect(accountDialog.getByRole('alert').filter({hasText:'Video preview unavailable'})).toBeVisible();await expect(page.locator('.r1-operator')).toHaveText(/Operator/);await expect(accountDialog.getByRole('button',{name:'Approve Direct Post',exact:true})).toBeDisabled();await page.keyboard.press('Escape');await expect(accountDialog).toHaveCount(0);accountFailure=false;
  for(const width of [320,390,900,1024,1440]){await page.setViewportSize({width,height:900});await directReviewButton().click();const dialog=page.getByRole('dialog',{name:'Review agent draft'});await expect(dialog).toBeVisible();await expect(dialog.getByText('Buka dan tinjau video:',{exact:false})).toBeVisible();const approve=dialog.getByRole('button',{name:'Approve Direct Post',exact:true});await expect(approve).toBeVisible();await expect(approve).toBeDisabled();const geometry=await dialog.evaluate(el=>{const box=el.getBoundingClientRect(),body=el.querySelector('.r1-review-body');return {left:box.left,right:box.right,scroll:el.scrollWidth,client:el.clientWidth,bodyScroll:body.scrollWidth,bodyClient:body.clientWidth}});expect(geometry.left).toBeGreaterThanOrEqual(10);expect(geometry.right).toBeLessThanOrEqual(width-10);if(width>=640)expect(geometry.right-geometry.left).toBeLessThanOrEqual(700);expect(geometry.scroll).toBeLessThanOrEqual(geometry.client+1);expect(geometry.bodyScroll).toBeLessThanOrEqual(geometry.bodyClient+1);await page.screenshot({path:'test-results/r1-review-'+width+'.png'});await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);}
- await nav(page,'AI Agent').click();await page.getByRole('button',{name:'Kunci sesi'}).click();await nav(page,'Overview').click();await expect(page.getByText('Unlock operator to view',{exact:true})).toBeVisible();await expect(page.getByText('Morning studio routine',{exact:true}).filter({visible:true})).toHaveCount(1);
+ await nav(page,'AI Agent').click();await page.getByRole('button',{name:'Lock session'}).click();await nav(page,'Overview').click();await expect(page.getByText('Unlock operator to view',{exact:true})).toBeVisible();await expect(page.getByText('Morning studio routine',{exact:true}).filter({visible:true})).toHaveCount(1);
 });
 
 test('R1 draft guard and global agent refresh with unified history',async({page,context})=>{
@@ -389,7 +389,7 @@ test('R1 draft guard and global agent refresh with unified history',async({page,
  await page.getByLabel('History source').selectOption('manual');await expect(history.getByText('Agent record',{exact:true})).toHaveCount(0);
  await page.getByRole('button',{name:'Details manual-record'}).click();await expect(page.getByText('Dikirim ke inbox TikTok',{exact:true})).toBeVisible();
  await page.getByLabel('History source').selectOption('agent');await page.getByRole('button',{name:'Details Agent record'}).click();await expect(page.getByRole('dialog',{name:'Publication details'})).toBeVisible();await page.keyboard.press('Escape');
- await page.getByRole('button',{name:'Kunci sesi'}).click();await expect(history.getByText('Agent record',{exact:true})).toHaveCount(0);
+ await page.getByRole('button',{name:'Lock session'}).click();await expect(history.getByText('Agent record',{exact:true})).toHaveCount(0);
  await page.getByLabel('History source').selectOption('all');await expect(history.getByText('manual-record',{exact:true}).filter({visible:true})).toBeVisible();
  await page.screenshot({path:'test-results/r1-history-390.png',fullPage:true});
 });
