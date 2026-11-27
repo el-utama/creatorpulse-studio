@@ -30,6 +30,11 @@ test('workspace design contract: navigation, resize, content scope and readable 
   await page.setViewportSize({width,height:844});
   await expect(page.getByLabel('Filter accounts')).toHaveValue(accounts[1].slot);
   await expect(page.locator('.r1-library').getByText('Behind the scenes',{exact:true}).filter({visible:true})).toBeVisible();
+  const library=page.locator('.r1-library');
+  const visibleRows=library.locator('[data-account-slot]:visible');
+  await expect(visibleRows).toHaveCount(1);
+  await expect(visibleRows.first()).toHaveAttribute('data-account-slot',accounts[1].slot);
+  await expect(visibleRows.first().locator('.r1-video-account')).toHaveText('Studio Beta');
   expect(await page.getByRole('navigation',{name:'Workspace navigation'}).count()).toBe(1);
   await expect(page.getByRole('button',{name:'Operator access: unlocked'})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
@@ -37,7 +42,12 @@ test('workspace design contract: navigation, resize, content scope and readable 
   expect(metrics.font).toBeGreaterThanOrEqual(13);expect(metrics.width).toBeLessThanOrEqual(metrics.client+1);
   if(width===1025||width===1024||width===390)await page.screenshot({path:'engine-test-results/'+browserName+'-content-'+width+'.png',fullPage:true});
  }
+ await page.getByRole('button',{name:'Grid view'}).click();
+ await expect(page.locator('.r1-library [data-account-slot]:visible')).toHaveCount(1);
+ await expect(page.locator('.r1-library [data-account-slot]:visible .r1-video-account')).toHaveText('Studio Beta');
+ await page.getByRole('button',{name:'List view'}).click();
  await page.getByRole('button',{name:'Clear account filter'}).click();await expect(page.getByLabel('Filter accounts')).toHaveValue('all');
+ await expect(page.locator('.r1-library [data-account-slot]:visible')).toHaveCount(3);
  for(const width of [1440,900,390,320]){
   await page.setViewportSize({width,height:844});
   for(const [label,slug] of [['Overview','overview'],['Accounts','accounts'],['Publishing','publishing'],['AI Agent','agent']]){

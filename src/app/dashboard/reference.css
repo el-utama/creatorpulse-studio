@@ -324,3 +324,7 @@ html:has(.r1-review-dialog[open]),html:has(.r1-review-dialog[open]) body{overflo
 .r1 .r1-queue-mobile-row .r1-btn{min-height:40px;flex-shrink:0}
 @media(min-width:640px){.r1 .r1-queue-mobile-row{grid-template-columns:minmax(0,1fr) auto;align-items:center}.r1 .r1-queue-mobile-row .r1-bottom{justify-content:flex-end;flex-wrap:wrap}}
 @media(max-width:639px){.r1 .r1-account-mobile-row,.r1 .r1-queue-mobile-row{padding-inline:12px}.r1 .r1-queue-mobile-row .r1-btn{min-height:44px}}
+
+/* Account identity is a distinct label in every library representation. */
+.r1 .r1-video-meta .r1-video-account{overflow-wrap:anywhere}
+.r1 .r1-video-meta .r1-date{display:inline-block;white-space:nowrap;font-variant-numeric:tabular-nums}
