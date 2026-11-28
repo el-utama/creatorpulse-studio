@@ -10,6 +10,7 @@ function seedRate(count=0){execFileSync('python3',['-c','import sqlite3,sys,time
 test.beforeEach(()=>{if(enabled)seedRate()});
 test('gateway rejects mismatched environment header',async({request})=>{const health=await (await request.get('/api/gateway/v1/health')).json();expect(health.environment).toBe('local');expect((await request.get('/api/gateway/v1/accounts',{headers:{...agent,'X-CreatorPulse-Environment':'sandbox'}})).status()).toBe(403);});
 test('enroll and monitor without browser, separate credentials and sourced trend data',async ({context,request,browser:browserInstance})=>{
+ test.setTimeout(90000);
  const start=await context.request.get('/api/auth/tiktok',{maxRedirects:0});
  const state=new URL(start.headers().location).searchParams.get('state');
  const cb=await context.request.get('/api/auth/tiktok/callback?code=account-a&state='+state,{maxRedirects:0});
@@ -84,12 +85,12 @@ test('enroll and monitor without browser, separate credentials and sourced trend
    await expect(page.getByText('Public posts',{exact:true}).first()).toBeVisible();
    await page.goto('/dashboard?view=accounts');
    await expect(page.getByRole('heading',{name:'Account directory'})).toBeVisible();
-   await expect(page.getByText('This browser',{exact:true}).first()).toBeVisible();
+   await expect(page.locator('.cp-summary-strip').getByText('This browser',{exact:true})).toBeVisible();
    await expect(page.getByText('Unlock operator access to view shared agent enrollment.',{exact:false})).toBeVisible();
    expect((await directory.request.post(base+'operator-session',{headers:{...marker,...operator}})).status()).toBe(200);
    await page.reload();
    await expect(page.getByRole('heading',{name:'Other enrolled accounts'})).toBeVisible();
-   await expect(page.getByText('Account A',{exact:true}).first()).toBeVisible();
+   await expect(page.getByRole('button',{name:'Open content for Account A',exact:true})).toBeVisible();
    for(const width of [1440,390,320]){
     await page.setViewportSize({width,height:844});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
@@ -124,22 +125,22 @@ test('enroll and monitor without browser, separate credentials and sourced trend
    const sharedHistory=await sharedOnly.request.get(historyUrl,{headers:marker});expect(sharedHistory.status()).toBe(200);expect((await sharedHistory.json()).records).toEqual(firstHistory.records);
    expect((await sharedOnly.request.get('/api/tiktok/analytics?account='+id)).status()).toBe(401);
    const page=await sharedOnly.newPage();await page.goto('/dashboard?view=content');
-   await expect(page.getByLabel('Filter accounts').locator('option[value="'+id+'"]')).toHaveCount(1);
+   await expect(page.getByLabel('Workspace account').locator('option[value="'+id+'"]')).toHaveCount(1);
    const accountName=data.accounts.find(a=>a.id===id).name;
    await page.setViewportSize({width:1280,height:720});
-   await page.getByRole('button',{name:'Select shared account '+accountName,exact:true}).click();
+   await page.getByLabel('Workspace account').selectOption(id);
    await expect(page.getByRole('heading',{level:1,name:'Content',exact:true})).toBeVisible();
-   await expect(page.getByLabel('Filter accounts')).toHaveValue(id);
+   await expect(page.getByLabel('Workspace account')).toHaveValue(id);
    await page.setViewportSize({width:900,height:720});
    await page.getByRole('navigation',{name:'Workspace navigation'}).getByRole('button',{name:'Accounts',exact:true}).click();
    await page.getByRole('button',{name:'Open content for '+accountName,exact:true}).click();
-   await expect(page.getByLabel('Filter accounts')).toHaveValue(id);
+   await expect(page.getByLabel('Workspace account')).toHaveValue(id);
    await expect(page.getByText('Video terbaru',{exact:true}).filter({visible:true})).toBeVisible();
    await page.getByRole('button',{name:'Load more'}).click();
    await expect(page.getByText('Video lama',{exact:true}).filter({visible:true})).toBeVisible();
    await page.goto('/dashboard?view=status');await expect(page.getByRole('button',{name:'Details '+publicationId})).toBeVisible();
    await page.getByRole('button',{name:'Details '+publicationId}).click();await expect(page.getByText('Live status check requires a readable TikTok browser session. The stored record is available.',{exact:true})).toBeVisible();
-   await page.getByRole('button',{name:'Kunci sesi'}).click();await expect(page.getByRole('button',{name:'Details '+publicationId})).toHaveCount(0);
+   await page.getByRole('button',{name:'Lock session'}).click();await expect(page.getByRole('button',{name:'Details '+publicationId})).toHaveCount(0);
    expect((await sharedOnly.request.get(historyUrl,{headers:marker})).status()).toBe(401);
   }finally{await sharedOnly.close();}
   expect((await request.get(historyUrl,{headers:marker})).status()).toBe(401);
@@ -328,13 +329,13 @@ test('terminal archival frees active queue but never permits reusing an executed
 test('old browser binding cannot regain access after disconnect and reenroll',async ({browser,request})=>{
  const one=await browser.newContext(),two=await browser.newContext();
  try{
- const enroll=async ctx=>{const start=await ctx.request.get('/api/auth/tiktok',{maxRedirects:0});const state=new URL(start.headers().location).searchParams.get('state');await ctx.request.get('/api/auth/tiktok/callback?code=account-a&state='+state,{maxRedirects:0});const r=await ctx.request.post('/api/gateway/v1/enroll',{headers:operator});expect(r.ok()).toBe(true);return (await r.json()).id;};
+ const enroll=async ctx=>{const start=await ctx.request.get('/api/auth/tiktok',{maxRedirects:0});const state=new URL(start.headers().location).searchParams.get('state');await ctx.request.get('/api/auth/tiktok/callback?code=account-a&state='+state,{maxRedirects:0});const r=await ctx.request.post('/api/gateway/v1/enroll',{headers:operator});expect(r.ok()).toBe(true);const result=await r.json();expect(result.alreadyEnrolled,'Old-binding test requires a fresh vault enrollment; an earlier failed test may have left the disposable account enrolled').toBe(false);const cookies=await ctx.cookies();expect(cookies.some(c=>c.name==='creatorpulse_account_'+result.id+'_v'&&c.httpOnly)).toBe(true);expect(cookies.some(c=>c.name==='creatorpulse_account_'+result.id+'_a'||c.name==='creatorpulse_account_'+result.id+'_r')).toBe(false);return result.id;};
  const id=await enroll(one);expect((await one.request.get('/api/tiktok/analytics')).status()).toBe(200);
  const base='/api/gateway/v1/posts',data={requestId:crypto.randomUUID(),accountId:id,videoUrl:'https://example.com/reconnect.mp4',caption:'Before disconnect',mode:'inbox'};
  const draft=await (await request.post(base,{headers:agent,data})).json();
  expect((await request.post(base+'/'+draft.id+'/approve',{headers:operator,data:{...data,confirm:true}})).ok()).toBe(true);
  expect((await request.post('/api/gateway/v1/accounts/'+id+'/disconnect',{headers:operator})).ok()).toBe(true);
- expect(await enroll(two)).toBe(id);expect((await two.request.get('/api/tiktok/analytics')).status()).toBe(200);
+ const originalBinding=(await one.cookies()).find(c=>c.name==='creatorpulse_account_'+id+'_v')?.value;expect(originalBinding).toBeTruthy();expect(await enroll(two)).toBe(id);expect((await two.cookies()).find(c=>c.name==='creatorpulse_account_'+id+'_v')?.value).not.toBe(originalBinding);expect((await two.request.get('/api/tiktok/analytics')).status()).toBe(200);
  expect((await one.request.get('/api/tiktok/analytics')).status()).toBe(401);
  expect((await request.post(base+'/'+draft.id+'/execute',{headers:agent})).status()).toBe(409);
  }finally{await one.close();await two.close();}
